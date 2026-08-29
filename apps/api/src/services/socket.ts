@@ -4,6 +4,10 @@ import { config } from '../config/env.js';
 
 let io: SocketIOServer | null = null;
 
+export function getIO(): SocketIOServer | null {
+  return io;
+}
+
 export function initSocketIO(server: HTTPServer): SocketIOServer {
   io = new SocketIOServer(server, {
     cors: {

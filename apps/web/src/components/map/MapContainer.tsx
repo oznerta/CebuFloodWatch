@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import { CEBU_CITY_BOUNDS, UP_NOAH_CEBU_HAZARD_GEOJSON } from '@cebufloodwatch/shared';
-import { Layers, Eye, EyeOff } from 'lucide-react';
+import { Layers } from 'lucide-react';
 
 interface MapContainerProps {
   reports?: any[];
@@ -46,92 +46,107 @@ export function MapContainer({
     map.on('load', () => {
       mapRef.current = map;
 
-      // Add UP NOAH Hazard GeoJSON Source
+      // 1. Add UP NOAH Hazard GeoJSON Source
       map.addSource('up-noah-hazards', {
         type: 'geojson',
         data: UP_NOAH_CEBU_HAZARD_GEOJSON as any,
       });
 
-      // 1. 100-Year Severe Hazard Layer (Red)
+      // 100-Year Severe Hazard Layer (Red)
       map.addLayer({
         id: 'hazard-100yr-fill',
         type: 'fill',
         source: 'up-noah-hazards',
         filter: ['==', ['get', 'hazard_level'], '100_year'],
-        paint: {
-          'fill-color': '#ea3838',
-          'fill-opacity': 0.35,
-        },
+        paint: { 'fill-color': '#ea3838', 'fill-opacity': 0.35 },
       });
       map.addLayer({
         id: 'hazard-100yr-line',
         type: 'line',
         source: 'up-noah-hazards',
         filter: ['==', ['get', 'hazard_level'], '100_year'],
-        paint: {
-          'line-color': '#b91c1c',
-          'line-width': 2,
-        },
+        paint: { 'line-color': '#b91c1c', 'line-width': 2 },
       });
 
-      // 2. 25-Year High Risk Layer (Orange)
+      // 25-Year High Risk Layer (Orange)
       map.addLayer({
         id: 'hazard-25yr-fill',
         type: 'fill',
         source: 'up-noah-hazards',
         filter: ['==', ['get', 'hazard_level'], '25_year'],
-        paint: {
-          'fill-color': '#f5820d',
-          'fill-opacity': 0.3,
-        },
+        paint: { 'fill-color': '#f5820d', 'fill-opacity': 0.3 },
       });
       map.addLayer({
         id: 'hazard-25yr-line',
         type: 'line',
         source: 'up-noah-hazards',
         filter: ['==', ['get', 'hazard_level'], '25_year'],
-        paint: {
-          'line-color': '#c2410c',
-          'line-width': 1.5,
-        },
+        paint: { 'line-color': '#c2410c', 'line-width': 1.5 },
       });
 
-      // 3. 5-Year Advisory Layer (Yellow)
+      // 5-Year Advisory Layer (Yellow)
       map.addLayer({
         id: 'hazard-5yr-fill',
         type: 'fill',
         source: 'up-noah-hazards',
         filter: ['==', ['get', 'hazard_level'], '5_year'],
-        paint: {
-          'fill-color': '#facc15',
-          'fill-opacity': 0.25,
-        },
+        paint: { 'fill-color': '#facc15', 'fill-opacity': 0.25 },
       });
       map.addLayer({
         id: 'hazard-5yr-line',
         type: 'line',
         source: 'up-noah-hazards',
         filter: ['==', ['get', 'hazard_level'], '5_year'],
-        paint: {
-          'line-color': '#ca8a04',
-          'line-width': 1.5,
+        paint: { 'line-color': '#ca8a04', 'line-width': 1.5 },
+      });
+
+      // 2. Add Road Network GeoJSON Source
+      map.addSource('cebu-roads', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: [],
         },
       });
 
-      // Popup on clicking hazard zone
-      map.on('click', 'hazard-100yr-fill', (e) => {
-        if (!e.features || e.features.length === 0) return;
-        const props = e.features[0].properties;
-        new maplibregl.Popup()
-          .setLngLat(e.lngLat)
-          .setHTML(`
-            <div style="font-family: sans-serif; padding: 4px;">
-              <span style="font-size: 10px; font-weight: bold; color: #dc2626; text-transform: uppercase;">UP NOAH 100-Year Flood Zone</span>
-              <h4 style="margin: 2px 0 0 0; font-size: 13px; font-weight: bold;">${props?.barangay_name}</h4>
-              <p style="margin: 4px 0 0 0; font-size: 11px; color: #555;">Estimated Flood Depth: <b>${props?.depth_estimate_meters}</b></p>
-            </div>
-          `)
-          .addTo(map);
+      // Road Passable (Green)
+      map.addLayer({
+        id: 'roads-passable',
+        type: 'line',
+        source: 'cebu-roads',
+        filter: ['==', ['get', 'status'], 'passable'],
+        paint: {
+          'line-color': '#10b981',
+          'line-width': 4,
+          'line-opacity': 0.8,
+        },
+      });
+
+      // Road Light Only (Orange)
+      map.addLayer({
+        id: 'roads-light-only',
+        type: 'line',
+        source: 'cebu-roads',
+        filter: ['==', ['get', 'status'], 'light_vehicles_only'],
+        paint: {
+          'line-color': '#f5820d',
+          'line-width': 5,
+          'line-opacity': 0.9,
+        },
+      });
+
+      // Road Impassable (Red Dashed)
+      map.addLayer({
+        id: 'roads-impassable',
+        type: 'line',
+        source: 'cebu-roads',
+        filter: ['==', ['get', 'status'], 'impassable'],
+        paint: {
+          'line-color': '#ea3838',
+          'line-width': 6,
+          'line-dasharray': [2, 2],
+          'line-opacity': 0.95,
+        },
       });
 
       setMapLoaded(true);
@@ -161,6 +176,33 @@ export function MapContainer({
       map.setLayoutProperty('hazard-5yr-line', 'visibility', show5Year ? 'visible' : 'none');
     }
   }, [mapLoaded, show100Year, show25Year, show5Year]);
+
+  // Update Road Network Data Source
+  useEffect(() => {
+    if (!mapRef.current || !mapLoaded || !roads || roads.length === 0) return;
+    const map = mapRef.current;
+    const roadSource = map.getSource('cebu-roads') as maplibregl.GeoJSONSource;
+    if (roadSource) {
+      const features = roads
+        .filter((r) => r.geometry && r.geometry.coordinates)
+        .map((r) => ({
+          type: 'Feature' as const,
+          properties: {
+            id: r.id,
+            name: r.name,
+            status: r.status,
+            flood_depth_level: r.flood_depth_level,
+            blockage_reason: r.blockage_reason,
+          },
+          geometry: r.geometry,
+        }));
+
+      roadSource.setData({
+        type: 'FeatureCollection',
+        features,
+      });
+    }
+  }, [mapLoaded, roads]);
 
   // Render Dynamic Shelter & Report Markers
   useEffect(() => {
