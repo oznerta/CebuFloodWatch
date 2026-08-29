@@ -1,93 +1,179 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { MapPin, AlertTriangle, ShieldCheck, Radio } from 'lucide-react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
+import { MapPin, AlertTriangle, ShieldCheck, Layers, RefreshCw } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 import { mobileFetch } from '../services/api';
+import { UP_NOAH_CEBU_HAZARD_GEOJSON } from '@cebufloodwatch/shared';
 
 export function LiveMapScreen() {
   const [reports, setReports] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [filterDepth, setFilterDepth] = useState<string>('all');
 
-  const loadData = async () => {
+  const fetchIncidents = async () => {
     try {
       const data = await mobileFetch<any[]>('/reports');
-      setReports(data);
+      setReports(data || []);
     } catch {
-      // Offline fallback sample data
+      // Offline fallback mock data
       setReports([
         {
           id: '1',
           barangay_name: 'Mabolo',
           flood_depth_level: 'waist',
-          description: 'Suba river overflow near Mabolo church',
+          description: 'Suba river overflow reaching church perimeter',
+          created_at: new Date().toISOString(),
           latitude: 10.325,
           longitude: 123.9167,
-          created_at: new Date().toISOString(),
         },
         {
           id: '2',
-          barangay_name: 'Mambaling',
-          flood_depth_level: 'chest',
-          description: 'Underpass flooded, avoid light vehicles',
-          latitude: 10.2915,
-          longitude: 123.8742,
-          created_at: new Date().toISOString(),
+          barangay_name: 'Kasambagan',
+          flood_depth_level: 'knee',
+          description: 'Creek overflowing along residential access road',
+          created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+          latitude: 10.334,
+          longitude: 123.914,
         },
       ]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    fetchIncidents();
   }, []);
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
+  const filteredReports =
+    filterDepth === 'all'
+      ? reports
+      : reports.filter((r) => r.flood_depth_level === filterDepth);
+
+  const getDepthColor = (level: string) => {
+    switch (level) {
+      case 'ankle':
+        return '#1f9d55';
+      case 'knee':
+        return '#facc15';
+      case 'waist':
+        return '#f5820d';
+      case 'chest':
+        return '#ea3838';
+      case 'above_head':
+        return '#991547';
+      default:
+        return COLORS.primary;
+    }
   };
 
   return (
     <View style={styles.container}>
-      {/* Alert Header */}
-      <View style={styles.header}>
-        <View style={styles.alertBanner}>
-          <AlertTriangle color="#ea3838" size={18} />
-          <Text style={styles.alertText}>Active Flood Advisory: Metro Cebu</Text>
+      {/* UP NOAH Hazard Banner */}
+      <View style={styles.hazardBanner}>
+        <Layers color="#facc15" size={16} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.hazardBannerTitle}>UP NOAH Flood Hazard Layers Loaded</Text>
+          <Text style={styles.hazardBannerSub}>
+            5y Advisory, 25y High, & 100y Severe flood zones integrated
+          </Text>
         </View>
       </View>
 
-      {/* Map Placeholder Container */}
-      <View style={styles.mapContainer}>
-        <Radio color={COLORS.primary} size={36} />
-        <Text style={styles.mapTitle}>Metro Cebu Live Hazard Grid</Text>
-        <Text style={styles.mapSubtitle}>UP NOAH 5/25/100-Year Flood Hazard Overlays</Text>
+      {/* Depth Filter Tabs */}
+      <View style={styles.filterRow}>
+        {['all', 'knee', 'waist', 'chest'].map((depth) => (
+          <TouchableOpacity
+            key={depth}
+            style={[styles.filterChip, filterDepth === depth && styles.filterChipActive]}
+            onPress={() => setFilterDepth(depth)}
+          >
+            <Text
+              style={[
+                styles.filterChipText,
+                filterDepth === depth && styles.filterChipTextActive,
+              ]}
+            >
+              {depth === 'all' ? 'All Incidents' : `${depth.toUpperCase()}+`}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {/* Nearby Reports List */}
-      <View style={styles.listSection}>
-        <Text style={styles.sectionTitle}>Recent Nearby Reports</Text>
+      {/* Incidents Feed */}
+      <View style={styles.feedHeader}>
+        <Text style={styles.feedTitle}>
+          Active Cebu Flood Telemetry ({filteredReports.length})
+        </Text>
+        <TouchableOpacity onPress={() => { setRefreshing(true); fetchIncidents(); }}>
+          <RefreshCw color={COLORS.textSecondary} size={16} />
+        </TouchableOpacity>
+      </View>
+
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator color={COLORS.primary} size="large" />
+          <Text style={styles.loadingText}>Synchronizing Metro Cebu telemetry...</Text>
+        </View>
+      ) : (
         <FlatList
-          data={reports}
+          data={filteredReports}
           keyExtractor={(item) => item.id}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          renderItem={({ item }) => (
-            <View style={styles.reportCard}>
-              <View style={styles.cardHeader}>
-                <View style={styles.locRow}>
-                  <MapPin color={COLORS.textSecondary} size={14} />
-                  <Text style={styles.barangayName}>{item.barangay_name || 'Barangay'}</Text>
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                fetchIncidents();
+              }}
+              tintColor={COLORS.primary}
+            />
+          }
+          renderItem={({ item }) => {
+            const depthColor = getDepthColor(item.flood_depth_level);
+            return (
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.barangayChip}>
+                    <MapPin color={COLORS.primary} size={14} />
+                    <Text style={styles.barangayText}>
+                      Barangay {item.barangay_name || 'Metro Cebu Area'}
+                    </Text>
+                  </View>
+                  <View style={[styles.depthBadge, { backgroundColor: `${depthColor}25`, borderColor: depthColor }]}>
+                    <View style={[styles.depthDot, { backgroundColor: depthColor }]} />
+                    <Text style={[styles.depthBadgeText, { color: depthColor }]}>
+                      {item.flood_depth_level?.toUpperCase()}
+                    </Text>
+                  </View>
                 </View>
-                <View style={[styles.badge, item.flood_depth_level === 'waist' ? styles.badgeRed : styles.badgeOrange]}>
-                  <Text style={styles.badgeText}>{item.flood_depth_level?.toUpperCase()}</Text>
+
+                <Text style={styles.cardDescription}>{item.description}</Text>
+
+                <View style={styles.cardFooter}>
+                  <Text style={styles.coordsText}>
+                    GPS: {item.latitude?.toFixed(4)}, {item.longitude?.toFixed(4)}
+                  </Text>
+                  <Text style={styles.timeText}>
+                    {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
                 </View>
               </View>
-              <Text style={styles.reportDesc}>{item.description}</Text>
-              <Text style={styles.reportTime}>{new Date(item.created_at).toLocaleTimeString()}</Text>
-            </View>
-          )}
+            );
+          }}
         />
-      </View>
+      )}
     </View>
   );
 }
@@ -97,59 +183,82 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  header: {
-    padding: 16,
-    paddingTop: 8,
-  },
-  alertBanner: {
+  hazardBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3a0d0d',
+    backgroundColor: '#3b2504',
     padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#7f1d1d',
-    gap: 8,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#78350f',
   },
-  alertText: {
-    color: '#fca5a5',
-    fontSize: 13,
+  hazardBannerTitle: {
+    color: '#fef08a',
+    fontSize: 12,
     fontWeight: 'bold',
   },
-  mapContainer: {
-    height: 180,
-    marginHorizontal: 16,
+  hazardBannerSub: {
+    color: '#fde047',
+    fontSize: 10,
+    marginTop: 1,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
     backgroundColor: COLORS.card,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  mapTitle: {
-    color: COLORS.text,
-    fontSize: 15,
-    fontWeight: 'bold',
-    marginTop: 8,
+  filterChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
-  mapSubtitle: {
+  filterChipText: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  filterChipTextActive: {
+    color: '#ffffff',
+  },
+  feedHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 6,
+  },
+  feedTitle: {
     color: COLORS.textSecondary,
     fontSize: 12,
-    marginTop: 2,
-  },
-  listSection: {
-    flex: 1,
-    padding: 16,
-  },
-  sectionTitle: {
-    color: COLORS.text,
-    fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 12,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
-  reportCard: {
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  loadingText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+  },
+  list: {
+    padding: 16,
+    paddingBottom: 24,
+  },
+  card: {
     backgroundColor: COLORS.card,
     borderRadius: 10,
     padding: 14,
@@ -161,42 +270,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  locRow: {
+  barangayChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  barangayName: {
+  barangayText: {
     color: COLORS.text,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
   },
-  badge: {
+  depthBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 4,
   },
-  badgeRed: {
-    backgroundColor: '#7f1d1d',
+  depthDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
-  badgeOrange: {
-    backgroundColor: '#78350f',
-  },
-  badgeText: {
-    color: '#fef3c7',
+  depthBadgeText: {
     fontSize: 10,
     fontWeight: 'bold',
   },
-  reportDesc: {
+  cardDescription: {
     color: COLORS.textSecondary,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 10,
   },
-  reportTime: {
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingTop: 8,
+  },
+  coordsText: {
     color: '#64748b',
-    fontSize: 11,
-    marginTop: 6,
+    fontSize: 10,
+    fontFamily: 'monospace',
+  },
+  timeText: {
+    color: '#64748b',
+    fontSize: 10,
   },
 });

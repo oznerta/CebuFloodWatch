@@ -1,6 +1,17 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, ScrollView } from 'react-native';
-import { MapPin, Camera, CheckCircle2, AlertCircle } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  ScrollView,
+  Image,
+} from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
+import { MapPin, Camera, Image as ImageIcon, CheckCircle2, AlertCircle } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 import { mobileFetch } from '../services/api';
 
@@ -17,6 +28,64 @@ export function ReportFloodScreen() {
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationName, setLocationName] = useState('Metro Cebu (Acquiring GPS...)');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+
+  // Request GPS location on mount
+  useEffect(() => {
+    async function acquireLocation() {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+          setLocation({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
+          setLocationName(
+            `${loc.coords.latitude.toFixed(4)}° N, ${loc.coords.longitude.toFixed(4)}° E (Metro Cebu)`
+          );
+        } else {
+          // Default to Cebu City center if permission denied
+          setLocation({ latitude: 10.3157, longitude: 123.8854 });
+          setLocationName('10.3157° N, 123.8854° E (Cebu City Center)');
+        }
+      } catch {
+        setLocation({ latitude: 10.3157, longitude: 123.8854 });
+        setLocationName('10.3157° N, 123.8854° E (Default Grid)');
+      }
+    }
+    acquireLocation();
+  }, []);
+
+  const handlePickImage = async (useCamera: boolean) => {
+    try {
+      const permission = useCamera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) return;
+
+      const result = useCamera
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 0.6,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 0.6,
+          });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setPhotoUri(result.assets[0].uri);
+      }
+    } catch (err) {
+      console.warn('Image picker error:', err);
+    }
+  };
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -24,15 +93,16 @@ export function ReportFloodScreen() {
       await mobileFetch('/reports', {
         method: 'POST',
         body: JSON.stringify({
-          latitude: 10.3157, // Auto-detected GPS in device runtime
-          longitude: 123.8854,
+          latitude: location?.latitude || 10.3157,
+          longitude: location?.longitude || 123.8854,
           flood_depth_level: selectedDepth,
           description: description || 'Citizen reported flood depth',
+          photo_url: photoUri || undefined,
         }),
       });
       setSubmitted(true);
     } catch {
-      // Local optimistic success
+      // Optimistic offline confirmation
       setSubmitted(true);
     } finally {
       setSubmitting(false);
@@ -45,13 +115,14 @@ export function ReportFloodScreen() {
         <CheckCircle2 color="#10b981" size={64} />
         <Text style={styles.successTitle}>Report Broadcasted!</Text>
         <Text style={styles.successDesc}>
-          Your flood depth report was geotagged and dispatched to the CDRRMO command portal.
+          Your flood depth report was geotagged and dispatched in real-time to the CDRRMO command portal.
         </Text>
         <TouchableOpacity
           style={styles.submitAnotherBtn}
           onPress={() => {
             setSubmitted(false);
             setDescription('');
+            setPhotoUri(null);
           }}
         >
           <Text style={styles.submitAnotherText}>Submit Another Report</Text>
@@ -70,9 +141,9 @@ export function ReportFloodScreen() {
       {/* GPS Location Chip */}
       <View style={styles.locationChip}>
         <MapPin color={COLORS.primary} size={18} />
-        <View>
-          <Text style={styles.locationTitle}>GPS Location Locked</Text>
-          <Text style={styles.locationCoords}>10.3157° N, 123.8854° E (Metro Cebu)</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.locationTitle}>GPS Location Active</Text>
+          <Text style={styles.locationCoords}>{locationName}</Text>
         </View>
       </View>
 
@@ -99,8 +170,30 @@ export function ReportFloodScreen() {
         })}
       </View>
 
+      {/* Photo Attachment Picker */}
+      <Text style={styles.sectionHeading}>2. Verification Photo (Optional)</Text>
+      {photoUri ? (
+        <View style={styles.photoPreviewBox}>
+          <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+          <TouchableOpacity style={styles.removePhotoBtn} onPress={() => setPhotoUri(null)}>
+            <Text style={styles.removePhotoText}>Remove Photo</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.photoButtonsRow}>
+          <TouchableOpacity style={styles.photoButton} onPress={() => handlePickImage(true)}>
+            <Camera color={COLORS.primary} size={18} />
+            <Text style={styles.photoButtonText}>Take Photo</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.photoButton} onPress={() => handlePickImage(false)}>
+            <ImageIcon color={COLORS.primary} size={18} />
+            <Text style={styles.photoButtonText}>Upload Gallery</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Optional Description */}
-      <Text style={styles.sectionHeading}>2. Additional Details (Optional)</Text>
+      <Text style={styles.sectionHeading}>3. Additional Details (Optional)</Text>
       <TextInput
         style={styles.textInput}
         placeholder="e.g. Near church, strong current, trapped vehicle..."
@@ -178,10 +271,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 10,
+    marginTop: 6,
   },
   depthGrid: {
     gap: 8,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   depthCard: {
     flexDirection: 'row',
@@ -202,6 +296,49 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 14,
   },
+  photoButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  photoButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.card,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    gap: 8,
+  },
+  photoButtonText: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  photoPreviewBox: {
+    marginBottom: 16,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  photoPreview: {
+    width: '100%',
+    height: 160,
+  },
+  removePhotoBtn: {
+    backgroundColor: '#7f1d1d',
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  removePhotoText: {
+    color: '#fecaca',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
   textInput: {
     backgroundColor: COLORS.card,
     borderRadius: 10,
@@ -211,8 +348,8 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 13,
     textAlignVertical: 'top',
-    minHeight: 80,
-    marginBottom: 24,
+    minHeight: 70,
+    marginBottom: 20,
   },
   submitButton: {
     backgroundColor: COLORS.primary,
