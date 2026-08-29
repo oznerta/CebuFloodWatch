@@ -79,13 +79,13 @@ Never store secrets here. Use placeholders such as `<HOSTING_RESOURCE>`, `<DATAB
 
 ##### Feature: Project Scaffolding, PostGIS Database Schema & RBAC Setup
 
-- [ ] Initialize repository workspace containing Express API, Next.js Web Dashboard, and Expo Mobile App.
+- [x] Initialize repository workspace containing Express API, Next.js Web Dashboard, and Expo Mobile App.
   - Validation commands: `npm run lint && npm run build` across all packages.
   - Success criteria: Monorepo / subproject directory structure established with clean dependency resolution.
-- [ ] Implement Supabase PostgreSQL 15 + PostGIS 3.4 database schema migrations (`users`, `barangays`, `citizen_reports`, `incident_clusters`, `evacuation_centers`, `road_segments`, `evacuation_corridors`, `alerts`, `emergency_contacts`).
+- [x] Implement Supabase PostgreSQL 15 + PostGIS 3.4 database schema migrations (`users`, `barangays`, `citizen_reports`, `incident_clusters`, `evacuation_centers`, `road_segments`, `evacuation_corridors`, `alerts`, `emergency_contacts`).
   - Validation commands: Execute database migration runner scripts; verify spatial indices with `EXPLAIN ANALYZE SELECT * FROM citizen_reports WHERE ST_DWithin(location_geom, ST_SetSRID(ST_Point(123.89, 10.31), 4326), 150)`.
   - Success criteria: All 9 core tables and spatial indices created successfully with foreign key constraints.
-- [ ] Configure Firebase Auth integration and Express RBAC middleware.
+- [x] Configure Firebase Auth integration and Express RBAC middleware.
   - Validation commands: Run auth middleware unit tests asserting role claims for `admin`, `barangay_focal`, and `first_responder`.
   - Success criteria: Valid Firebase JWTs grant scoped access; unauthorized requests return HTTP 401/403.
 - [ ] Establish CI/CD pipelines targeting Railway (Backend API) and Vercel (Web Dashboard).
