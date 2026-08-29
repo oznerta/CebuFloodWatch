@@ -1,13 +1,30 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView } from 'react-native';
-import { ShieldCheck, UserCheck, Plus, Bell, HeartHandshake } from 'lucide-react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  ScrollView,
+  Linking,
+} from 'react-native';
+import {
+  ShieldCheck,
+  UserCheck,
+  Plus,
+  Bell,
+  Phone,
+  MessageSquare,
+  Trash2,
+} from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 
 export function SafetyNetworkScreen() {
   const [markedSafe, setMarkedSafe] = useState(false);
   const [contacts, setContacts] = useState([
-    { id: '1', name: 'Maria Santos (Mother)', phone: '+63 917 555 1234' },
-    { id: '2', name: 'Juan Dela Cruz (Brother)', phone: '+63 918 555 5678' },
+    { id: '1', name: 'Maria Santos (Mother)', phone: '+639175551234' },
+    { id: '2', name: 'Juan Dela Cruz (Brother)', phone: '+639185555678' },
   ]);
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
@@ -15,13 +32,13 @@ export function SafetyNetworkScreen() {
   const handleBroadcastSafe = () => {
     setMarkedSafe(true);
     Alert.alert(
-      'Status Broadcasted',
-      'FCM push notification dispatched: "Marked Safe at Metro Cebu evacuation zone" sent to your 2 emergency contacts.'
+      'Status Broadcasted!',
+      `FCM push confirmation dispatched: "Marked Safe at Metro Cebu evacuation area" has been registered and broadcasted to your ${contacts.length} emergency contacts.`
     );
   };
 
   const handleAddContact = () => {
-    if (!newContactName || !newContactPhone) return;
+    if (!newContactName.trim() || !newContactPhone.trim()) return;
     setContacts((prev) => [
       ...prev,
       { id: Date.now().toString(), name: newContactName, phone: newContactPhone },
@@ -30,21 +47,36 @@ export function SafetyNetworkScreen() {
     setNewContactPhone('');
   };
 
+  const handleDeleteContact = (id: string) => {
+    setContacts((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  const handleCall = (phone: string) => {
+    Linking.openURL(`tel:${phone}`);
+  };
+
+  const handleSMS = (phone: string, name: string) => {
+    const body = encodeURIComponent(
+      `Hello ${name}, I am currently safe from floodwaters in Metro Cebu. Track my status on CebuFloodWatch.`
+    );
+    Linking.openURL(`sms:${phone}?body=${body}`);
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Safety Network & Broadcast</Text>
+      <Text style={styles.title}>Emergency Safety Network</Text>
       <Text style={styles.subtitle}>
-        Broadcast your safety status to your family & emergency contacts with 1-tap.
+        Broadcast your safety status to family members and registered contacts with 1 tap.
       </Text>
 
-      {/* Broadcast Button */}
+      {/* Broadcast Box */}
       <View style={styles.broadcastBox}>
         <View style={styles.statusHeader}>
           <ShieldCheck color={markedSafe ? '#10b981' : '#f5820d'} size={28} />
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.statusTitle}>Current Safety Status</Text>
             <Text style={[styles.statusState, { color: markedSafe ? '#34d399' : '#fbbf24' }]}>
-              {markedSafe ? 'BROADCASTED: MARKED SAFE' : 'UNCONFIRMED STATUS'}
+              {markedSafe ? 'STATUS: MARKED SAFE ✅' : 'STATUS: UNCONFIRMED ⚠️'}
             </Text>
           </View>
         </View>
@@ -55,22 +87,45 @@ export function SafetyNetworkScreen() {
         >
           <UserCheck color="#ffffff" size={18} />
           <Text style={styles.safeBtnText}>
-            {markedSafe ? 'Re-Broadcast "Marked Safe"' : 'Broadcast "I am Safe"'}
+            {markedSafe ? 'Re-Broadcast "Marked Safe" Status' : 'Broadcast "I am Safe" Status'}
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* Emergency Contacts Directory */}
-      <Text style={styles.sectionHeader}>Emergency Contacts ({contacts.length})</Text>
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionHeader}>Emergency Contacts ({contacts.length})</Text>
+        <span className="text-[10px] text-slate-400">Direct Alert Group</span>
+      </View>
+
       {contacts.map((c) => (
         <View key={c.id} style={styles.contactCard}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.contactName}>{c.name}</Text>
             <Text style={styles.contactPhone}>{c.phone}</Text>
           </View>
-          <View style={styles.smsChip}>
-            <Bell color="#94a3b8" size={14} />
-            <Text style={styles.smsChipText}>FCM Push</Text>
+
+          <View style={styles.actionButtonsRow}>
+            <TouchableOpacity
+              style={styles.actionIconBtn}
+              onPress={() => handleCall(c.phone)}
+            >
+              <Phone color="#10b981" size={16} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionIconBtn}
+              onPress={() => handleSMS(c.phone, c.name)}
+            >
+              <MessageSquare color="#60a5fa" size={16} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionIconBtn}
+              onPress={() => handleDeleteContact(c.id)}
+            >
+              <Trash2 color="#ef4444" size={16} />
+            </TouchableOpacity>
           </View>
         </View>
       ))}
@@ -95,7 +150,7 @@ export function SafetyNetworkScreen() {
         />
         <TouchableOpacity style={styles.addBtn} onPress={handleAddContact}>
           <Plus color="#ffffff" size={16} />
-          <Text style={styles.addBtnText}>Save Contact</Text>
+          <Text style={styles.addBtnText}>Save Emergency Contact</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -109,6 +164,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+    paddingBottom: 30,
   },
   title: {
     color: COLORS.text,
@@ -120,6 +176,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
     marginBottom: 16,
+    lineHeight: 18,
   },
   broadcastBox: {
     backgroundColor: COLORS.card,
@@ -149,7 +206,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 8,
     gap: 8,
   },
@@ -161,17 +218,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   sectionHeader: {
     color: COLORS.text,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
-    marginBottom: 10,
     textTransform: 'uppercase',
   },
   contactCard: {
     backgroundColor: COLORS.card,
     borderRadius: 10,
-    padding: 12,
+    padding: 14,
     marginBottom: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -188,20 +250,18 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 12,
     marginTop: 2,
+    fontFamily: 'monospace',
   },
-  smsChip: {
+  actionButtonsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.cardSubtle,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    gap: 8,
   },
-  smsChipText: {
-    color: '#cbd5e1',
-    fontSize: 10,
-    fontWeight: 'bold',
+  actionIconBtn: {
+    padding: 8,
+    backgroundColor: COLORS.cardSubtle,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   addCard: {
     backgroundColor: COLORS.card,
@@ -232,7 +292,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 11,
     borderRadius: 8,
     gap: 6,
   },

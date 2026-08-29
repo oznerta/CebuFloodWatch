@@ -1,70 +1,60 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Moon, Sun, Bell, User, Shield } from 'lucide-react';
-import { Badge } from '../ui/Badge';
+import React, { useEffect, useState } from 'react';
+import { AlertCircle, Bell, Moon, Sun, ShieldAlert, Sparkles } from 'lucide-react';
+import { getSocket } from '../../lib/socket';
 
 export function Header() {
-  const [isDark, setIsDark] = useState(false);
+  const [activeAlert, setActiveAlert] = useState<string>(
+    'CRITICAL FLOOD WARNING: Mahiga Creek overflowing in Subangdaku / Kasambagan. Mandatory evacuation along river banks.'
+  );
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const isDarkMode = document.documentElement.classList.contains('dark');
-      setIsDark(isDarkMode);
-    }
+    const socket = getSocket();
+    socket.on('alert:new', (newAlert) => {
+      if (newAlert && newAlert.title_en) {
+        setActiveAlert(`${newAlert.severity?.toUpperCase()}: ${newAlert.title_en} — ${newAlert.body_en}`);
+      }
+    });
+
+    return () => {
+      socket.off('alert:new');
+    };
   }, []);
 
-  const toggleTheme = () => {
-    if (typeof window !== 'undefined') {
-      const nextDark = !isDark;
-      setIsDark(nextDark);
-      if (nextDark) {
-        document.documentElement.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
-      }
-    }
-  };
-
   return (
-    <header className="h-16 bg-surface-card border-b border-surface-border px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
-      {/* Alert Banner / Ticker */}
-      <div className="flex items-center gap-3">
-        <Badge variant="critical" className="animate-pulse">
-          <AlertTriangle className="w-3.5 h-3.5" />
-          ACTIVE FLOOD ADVISORY
-        </Badge>
-        <span className="text-xs text-slate-600 dark:text-slate-300 font-medium hidden md:inline">
-          Suba River cresting at Mabolo Bridge. Mambaling underpass flagged impassable.
+    <header className="h-16 border-b border-surface-border bg-surface-card flex items-center justify-between px-6 z-10 sticky top-0">
+      {/* Alert Ticker */}
+      <div className="flex-1 max-w-3xl flex items-center gap-3 bg-rose-950/40 border border-rose-900/50 rounded-lg px-3 py-1.5 overflow-hidden">
+        <span className="flex h-2 w-2 relative flex-shrink-0">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
         </span>
+        <span className="text-[11px] font-bold text-rose-400 uppercase tracking-wider flex-shrink-0 flex items-center gap-1">
+          <ShieldAlert className="w-3.5 h-3.5" />
+          Active Bulletin:
+        </span>
+        <div className="text-xs text-rose-200 truncate font-medium">
+          {activeAlert}
+        </div>
       </div>
 
-      {/* User Controls & Theme */}
+      {/* Right controls */}
       <div className="flex items-center gap-4">
-        <button
-          onClick={toggleTheme}
-          aria-label="Toggle theme"
-          className="p-2 rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-        >
-          {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </button>
+        {/* LGU Tag */}
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400 font-semibold">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+          CDRRMO Live Node
+        </div>
 
-        <div className="h-5 w-px bg-slate-200 dark:bg-slate-700" />
-
-        {/* User Identity Chip */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-blue-600/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
-            <Shield className="w-4 h-4" />
+        {/* User avatar / status */}
+        <div className="flex items-center gap-3 pl-2 border-l border-surface-border">
+          <div className="w-8 h-8 rounded-full bg-slate-800 border border-surface-border flex items-center justify-center font-bold text-xs text-blue-400">
+            DR
           </div>
-          <div className="hidden sm:block text-left">
-            <span className="block text-xs font-semibold text-slate-900 dark:text-white">
-              CDRRMO Operator
-            </span>
-            <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">
-              City DRRMO Admin
-            </span>
+          <div className="hidden md:block text-left text-xs">
+            <p className="font-semibold text-slate-200">Disaster Ops Center</p>
+            <p className="text-[10px] text-slate-400">Metro Cebu Node</p>
           </div>
         </div>
       </div>
