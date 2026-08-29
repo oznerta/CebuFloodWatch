@@ -23,6 +23,7 @@ export default function App() {
           screenOptions={{
             headerStyle: {
               backgroundColor: COLORS.card,
+              borderBottomColor: COLORS.border,
             },
             headerTintColor: COLORS.text,
             headerTitleStyle: {
@@ -32,15 +33,19 @@ export default function App() {
             tabBarStyle: {
               backgroundColor: COLORS.card,
               borderTopColor: COLORS.border,
-              height: 60,
+              height: 64,
               paddingBottom: 8,
-              paddingTop: 8,
+              paddingTop: 6,
+            },
+            tabBarItemStyle: {
+              paddingVertical: 2,
             },
             tabBarActiveTintColor: COLORS.primary,
             tabBarInactiveTintColor: COLORS.textSecondary,
             tabBarLabelStyle: {
               fontSize: 10,
-              fontWeight: '600',
+              fontWeight: '700',
+              marginTop: 2,
             },
           }}
         >
@@ -49,7 +54,8 @@ export default function App() {
             component={LiveMapScreen}
             options={{
               title: 'Flood Map',
-              tabBarIcon: ({ color, size }) => <Map color={color} size={size} />,
+              tabBarLabel: 'Map',
+              tabBarIcon: ({ color }) => <Map color={color} size={20} />,
             }}
           />
           <Tab.Screen
@@ -57,15 +63,17 @@ export default function App() {
             component={ReportFloodScreen}
             options={{
               title: 'Report Flood',
-              tabBarIcon: ({ color, size }) => <PlusCircle color={color} size={size} />,
+              tabBarLabel: 'Report',
+              tabBarIcon: ({ color }) => <PlusCircle color={color} size={20} />,
             }}
           />
           <Tab.Screen
             name="Evacuation"
             component={SafeEvacuationScreen}
             options={{
-              title: 'Evacuation',
-              tabBarIcon: ({ color, size }) => <Compass color={color} size={size} />,
+              title: 'Safe Evacuation',
+              tabBarLabel: 'Evacuate',
+              tabBarIcon: ({ color }) => <Compass color={color} size={20} />,
             }}
           />
           <Tab.Screen
@@ -73,15 +81,17 @@ export default function App() {
             component={SafetyNetworkScreen}
             options={{
               title: 'Safety Network',
-              tabBarIcon: ({ color, size }) => <ShieldCheck color={color} size={size} />,
+              tabBarLabel: 'Safe',
+              tabBarIcon: ({ color }) => <ShieldCheck color={color} size={20} />,
             }}
           />
           <Tab.Screen
             name="Profile"
             component={ProfileScreen}
             options={{
-              title: 'Profile',
-              tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
+              title: 'Profile & Alerts',
+              tabBarLabel: 'Profile',
+              tabBarIcon: ({ color }) => <User color={color} size={20} />,
             }}
           />
         </Tab.Navigator>

@@ -8,43 +8,83 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { MapPin, AlertTriangle, ShieldCheck, Layers, RefreshCw } from 'lucide-react-native';
+import { MapPin, Layers, RefreshCw } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 import { mobileFetch } from '../services/api';
-import { UP_NOAH_CEBU_HAZARD_GEOJSON } from '@cebufloodwatch/shared';
+import { MobileMap } from '../components/MobileMap';
 
 export function LiveMapScreen() {
   const [reports, setReports] = useState<any[]>([]);
+  const [shelters, setShelters] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filterDepth, setFilterDepth] = useState<string>('all');
 
   const fetchIncidents = async () => {
     try {
-      const data = await mobileFetch<any[]>('/reports');
-      setReports(data || []);
-    } catch {
-      // Offline fallback mock data
-      setReports([
-        {
-          id: '1',
-          barangay_name: 'Mabolo',
-          flood_depth_level: 'waist',
-          description: 'Suba river overflow reaching church perimeter',
-          created_at: new Date().toISOString(),
-          latitude: 10.325,
-          longitude: 123.9167,
-        },
-        {
-          id: '2',
-          barangay_name: 'Kasambagan',
-          flood_depth_level: 'knee',
-          description: 'Creek overflowing along residential access road',
-          created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-          latitude: 10.334,
-          longitude: 123.914,
-        },
+      const [reportsData, sheltersData] = await Promise.all([
+        mobileFetch<any[]>('/reports').catch(() => null),
+        mobileFetch<any[]>('/shelters').catch(() => null),
       ]);
+
+      if (reportsData && reportsData.length > 0) {
+        setReports(reportsData);
+      } else {
+        setReports([
+          {
+            id: '1',
+            barangay_name: 'Mabolo',
+            flood_depth_level: 'waist',
+            description: 'Suba river overflow reaching church perimeter',
+            created_at: new Date().toISOString(),
+            latitude: 10.325,
+            longitude: 123.9167,
+          },
+          {
+            id: '2',
+            barangay_name: 'Kasambagan',
+            flood_depth_level: 'knee',
+            description: 'Creek overflowing along residential access road',
+            created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+            latitude: 10.334,
+            longitude: 123.914,
+          },
+          {
+            id: '3',
+            barangay_name: 'Mambaling',
+            flood_depth_level: 'above_head',
+            description: 'Underpass submerged completely, avoid area',
+            created_at: new Date(Date.now() - 1000 * 60 * 50).toISOString(),
+            latitude: 10.2915,
+            longitude: 123.8742,
+          },
+        ]);
+      }
+
+      if (sheltersData && sheltersData.length > 0) {
+        setShelters(sheltersData);
+      } else {
+        setShelters([
+          {
+            id: '1',
+            name: 'Mabolo Elementary School Gym',
+            latitude: 10.3265,
+            longitude: 123.918,
+            status: 'open',
+            max_capacity: 350,
+            current_occupancy: 85,
+          },
+          {
+            id: '2',
+            name: 'Kasambagan Sports Complex',
+            latitude: 10.334,
+            longitude: 123.914,
+            status: 'open',
+            max_capacity: 250,
+            current_occupancy: 120,
+          },
+        ]);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -83,11 +123,21 @@ export function LiveMapScreen() {
       <View style={styles.hazardBanner}>
         <Layers color="#facc15" size={16} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.hazardBannerTitle}>UP NOAH Flood Hazard Layers Loaded</Text>
+          <Text style={styles.hazardBannerTitle}>UP NOAH Flood Hazard Overlays</Text>
           <Text style={styles.hazardBannerSub}>
-            5y Advisory, 25y High, & 100y Severe flood zones integrated
+            5y Advisory, 25y High, & 100y Severe flood zones active
           </Text>
         </View>
+      </View>
+
+      {/* Interactive Map Embed */}
+      <View style={styles.mapWrapper}>
+        <MobileMap
+          reports={filteredReports}
+          shelters={shelters}
+          height={260}
+          showHazards={true}
+        />
       </View>
 
       {/* Depth Filter Tabs */}
@@ -110,13 +160,18 @@ export function LiveMapScreen() {
         ))}
       </View>
 
-      {/* Incidents Feed */}
+      {/* Incidents Feed Header */}
       <View style={styles.feedHeader}>
         <Text style={styles.feedTitle}>
           Active Cebu Flood Telemetry ({filteredReports.length})
         </Text>
-        <TouchableOpacity onPress={() => { setRefreshing(true); fetchIncidents(); }}>
-          <RefreshCw color={COLORS.textSecondary} size={16} />
+        <TouchableOpacity
+          onPress={() => {
+            setRefreshing(true);
+            fetchIncidents();
+          }}
+        >
+          <RefreshCw color={COLORS.textSecondary} size={15} />
         </TouchableOpacity>
       </View>
 
@@ -151,7 +206,12 @@ export function LiveMapScreen() {
                       Barangay {item.barangay_name || 'Metro Cebu Area'}
                     </Text>
                   </View>
-                  <View style={[styles.depthBadge, { backgroundColor: `${depthColor}25`, borderColor: depthColor }]}>
+                  <View
+                    style={[
+                      styles.depthBadge,
+                      { backgroundColor: `${depthColor}25`, borderColor: depthColor },
+                    ]}
+                  >
                     <View style={[styles.depthDot, { backgroundColor: depthColor }]} />
                     <Text style={[styles.depthBadgeText, { color: depthColor }]}>
                       {item.flood_depth_level?.toUpperCase()}
@@ -166,7 +226,10 @@ export function LiveMapScreen() {
                     GPS: {item.latitude?.toFixed(4)}, {item.longitude?.toFixed(4)}
                   </Text>
                   <Text style={styles.timeText}>
-                    {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(item.created_at).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                   </Text>
                 </View>
               </View>
@@ -187,33 +250,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#3b2504',
-    padding: 12,
-    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    gap: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#78350f',
   },
   hazardBannerTitle: {
     color: '#fef08a',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
   },
   hazardBannerSub: {
     color: '#fde047',
-    fontSize: 10,
+    fontSize: 9,
     marginTop: 1,
+  },
+  mapWrapper: {
+    padding: 10,
+    paddingBottom: 4,
   },
   filterRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  filterChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
+    gap: 6,
+  },
+  filterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
     backgroundColor: COLORS.card,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -224,7 +290,7 @@ const styles = StyleSheet.create({
   },
   filterChipText: {
     color: COLORS.textSecondary,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   filterChipTextActive: {
@@ -234,13 +300,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 6,
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   feedTitle: {
     color: COLORS.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
     textTransform: 'uppercase',
   },
@@ -255,14 +321,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   list: {
-    padding: 16,
-    paddingBottom: 24,
+    padding: 12,
+    paddingBottom: 30,
   },
   card: {
     backgroundColor: COLORS.card,
     borderRadius: 10,
-    padding: 14,
-    marginBottom: 10,
+    padding: 12,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -270,7 +336,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   barangayChip: {
     flexDirection: 'row',
@@ -279,47 +345,47 @@ const styles = StyleSheet.create({
   },
   barangayText: {
     color: COLORS.text,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   depthBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
     borderWidth: 1,
     gap: 4,
   },
   depthDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
   depthBadgeText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
   },
   cardDescription: {
     color: COLORS.textSecondary,
-    fontSize: 12,
-    lineHeight: 16,
-    marginBottom: 10,
+    fontSize: 11,
+    lineHeight: 15,
+    marginBottom: 8,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    paddingTop: 8,
+    paddingTop: 6,
   },
   coordsText: {
     color: '#64748b',
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: 'monospace',
   },
   timeText: {
     color: '#64748b',
-    fontSize: 10,
+    fontSize: 9,
   },
 });
