@@ -197,26 +197,26 @@ export default function ReportsPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto pb-10">
       {/* Top Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+          <h1 className="text-3xl font-extrabold tracking-tight text-[#1C1C1E]">
             Citizen Flood Telemetry & Deduplication Hub
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-sm text-[#8E8E93] mt-1 font-medium">
             AI-assisted 150m spatial proximity clustering, verification triage, and responder dispatch
           </p>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex items-center gap-2 bg-surface-card border border-surface-border p-1 rounded-xl">
+        <div className="flex items-center gap-1.5 bg-white border border-[#E5E5EA] p-1.5 rounded-2xl shadow-sm">
           <button
             onClick={() => setActiveTab('clusters')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
               activeTab === 'clusters'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/25'
+                : 'text-[#6C6C70] hover:text-[#1C1C1E]'
             }`}
           >
             <Layers className="w-4 h-4" />
@@ -225,10 +225,10 @@ export default function ReportsPage() {
 
           <button
             onClick={() => setActiveTab('raw')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
               activeTab === 'raw'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/25'
+                : 'text-[#6C6C70] hover:text-[#1C1C1E]'
             }`}
           >
             <FileText className="w-4 h-4" />
@@ -246,31 +246,31 @@ export default function ReportsPage() {
               return (
                 <div
                   key={cluster.id}
-                  className="bg-surface-card border border-surface-border rounded-xl p-5 flex flex-col justify-between space-y-4 shadow-sm hover:border-slate-700 transition-all"
+                  className="bg-white border border-[#E5E5EA] rounded-2xl p-6 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow"
                 >
                   <div>
                     {/* Header */}
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">
+                        <span className="text-[11px] font-extrabold text-[#007AFF] uppercase tracking-wider">
                           Barangay {cluster.barangay_name}
                         </span>
-                        <h3 className="font-bold text-base text-slate-900 dark:text-white mt-0.5">
+                        <h3 className="font-extrabold text-lg text-[#1C1C1E] mt-0.5">
                           Peak Depth: {cluster.max_depth_level?.toUpperCase()}
                         </h3>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                        <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-[#E5F1FF] text-[#007AFF]">
                           {cluster.report_count} Reports Merged
                         </span>
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase ${
+                          className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase ${
                             cluster.status === 'active'
-                              ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                              ? 'bg-[#FFEBEA] text-[#FF3B30]'
                               : cluster.status === 'responding'
-                              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                              : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                              ? 'bg-[#FFF4E5] text-[#FF9500]'
+                              : 'bg-[#EBF9EE] text-[#34C759]'
                           }`}
                         >
                           {cluster.status}
@@ -278,33 +278,33 @@ export default function ReportsPage() {
                       </div>
                     </div>
 
-                    <p className="text-xs text-slate-300 mt-3 leading-relaxed">
+                    <p className="text-xs text-[#3A3A3C] mt-3 font-normal leading-relaxed">
                       {cluster.summary_description}
                     </p>
                   </div>
 
                   {/* Centroid & Time Telemetry */}
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-surface-border">
-                    <span className="flex items-center gap-1 font-mono">
-                      <MapPin className="w-3.5 h-3.5 text-blue-400" />
+                  <div className="flex items-center justify-between text-xs text-[#8E8E93] pt-3 border-t border-[#F2F2F7]">
+                    <span className="flex items-center gap-1 font-mono font-medium">
+                      <MapPin className="w-3.5 h-3.5 text-[#007AFF]" />
                       Centroid: {cluster.centroid_lat?.toFixed(4)}, {cluster.centroid_lng?.toFixed(4)}
                     </span>
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 font-medium">
                       <Clock className="w-3.5 h-3.5" />
-                      Active Since: {new Date(cluster.first_reported_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      Active: {new Date(cluster.first_reported_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
 
                   {/* Member Reports Accordion */}
                   {cluster.reports && cluster.reports.length > 0 && (
-                    <div className="bg-surface-subtle p-3 rounded-lg space-y-2 border border-surface-border text-xs">
-                      <span className="font-bold text-[11px] text-slate-400 uppercase tracking-wider block">
+                    <div className="bg-[#F8F9FA] p-3.5 rounded-xl space-y-2 border border-[#E5E5EA] text-xs">
+                      <span className="font-extrabold text-[11px] text-[#8E8E93] uppercase tracking-wider block">
                         Included Citizen Dispatches
                       </span>
                       {cluster.reports.map((r: any, idx: number) => (
-                        <div key={r.id || idx} className="flex justify-between items-center text-[11px] text-slate-300">
-                          <span className="truncate max-w-xs">• {r.description}</span>
-                          <span className="font-bold text-slate-400 uppercase text-[10px]">
+                        <div key={r.id || idx} className="flex justify-between items-center text-xs text-[#3A3A3C]">
+                          <span className="truncate max-w-xs font-medium">• {r.description}</span>
+                          <span className="font-extrabold text-[#8E8E93] uppercase text-[10px]">
                             {r.flood_depth_level}
                           </span>
                         </div>
@@ -313,14 +313,14 @@ export default function ReportsPage() {
                   )}
 
                   {/* Dispatch Controls */}
-                  <div className="flex gap-2 pt-1">
+                  <div className="flex gap-2.5 pt-1">
                     {cluster.status !== 'responding' && cluster.status !== 'resolved' && (
                       <button
                         onClick={() => handleUpdateClusterStatus(cluster.id, 'responding')}
                         disabled={isUpdating}
-                        className="flex-1 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-md"
+                        className="flex-1 py-2.5 rounded-xl bg-[#FF9500] hover:bg-[#E08300] text-white text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all shadow-md shadow-orange-500/20"
                       >
-                        <Truck className="w-3.5 h-3.5" />
+                        <Truck className="w-4 h-4" />
                         Dispatch Responders
                       </button>
                     )}
@@ -329,10 +329,10 @@ export default function ReportsPage() {
                       <button
                         onClick={() => handleUpdateClusterStatus(cluster.id, 'resolved')}
                         disabled={isUpdating}
-                        className="flex-1 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-md"
+                        className="flex-1 py-2.5 rounded-xl bg-[#34C759] hover:bg-[#28A745] text-white text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all shadow-md shadow-green-500/20"
                       >
-                        <ShieldCheck className="w-3.5 h-3.5" />
-                        Mark Cluster Resolved
+                        <ShieldCheck className="w-4 h-4" />
+                        Mark Resolved
                       </button>
                     )}
                   </div>
@@ -347,13 +347,13 @@ export default function ReportsPage() {
           {/* Filter Bar */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              <Search className="w-4 h-4 text-[#8E8E93] absolute left-3.5 top-3.5" />
               <input
                 type="text"
                 placeholder="Search citizen reports by barangay or keyword..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-surface-card border border-surface-border rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                className="w-full bg-white border border-[#E5E5EA] rounded-2xl pl-10 pr-4 py-2.5 text-xs text-[#1C1C1E] placeholder-[#8E8E93] focus:outline-none focus:border-[#007AFF] shadow-sm"
               />
             </div>
 
@@ -361,7 +361,7 @@ export default function ReportsPage() {
               <select
                 value={filterDepth}
                 onChange={(e) => setFilterDepth(e.target.value)}
-                className="bg-surface-card border border-surface-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="bg-white border border-[#E5E5EA] rounded-2xl px-4 py-2.5 text-xs text-[#1C1C1E] font-medium focus:outline-none focus:border-[#007AFF] shadow-sm"
               >
                 <option value="all">All Depth Tiers</option>
                 <option value="ankle">Ankle (10-20cm)</option>
@@ -373,7 +373,7 @@ export default function ReportsPage() {
 
               <button
                 onClick={loadData}
-                className="p-2 rounded-xl bg-surface-card border border-surface-border text-slate-400 hover:text-white"
+                className="p-2.5 rounded-2xl bg-white border border-[#E5E5EA] text-[#6C6C70] hover:text-[#1C1C1E] hover:bg-[#F2F2F7] shadow-sm transition-all"
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
@@ -381,88 +381,88 @@ export default function ReportsPage() {
           </div>
 
           {/* Reports Table */}
-          <div className="bg-surface-card border border-surface-border rounded-xl overflow-hidden shadow-sm">
+          <div className="bg-white border border-[#E5E5EA] rounded-2xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-surface-subtle text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-surface-border">
+                <thead className="bg-[#F8F9FA] text-[#8E8E93] font-extrabold uppercase text-[10px] tracking-wider border-b border-[#E5E5EA]">
                   <tr>
-                    <th className="py-3 px-4">Barangay & Time</th>
-                    <th className="py-3 px-4">Depth Tier</th>
-                    <th className="py-3 px-4">Description</th>
-                    <th className="py-3 px-4">Photo</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Verification Action</th>
+                    <th className="py-3.5 px-5">Barangay & Time</th>
+                    <th className="py-3.5 px-5">Depth Tier</th>
+                    <th className="py-3.5 px-5">Description</th>
+                    <th className="py-3.5 px-5">Photo</th>
+                    <th className="py-3.5 px-5">Status</th>
+                    <th className="py-3.5 px-5 text-right">Verification Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-surface-border">
+                <tbody className="divide-y divide-[#F2F2F7]">
                   {filteredReports.map((report) => {
                     const isUpdating = actionLoading === report.id;
                     return (
-                      <tr key={report.id} className="hover:bg-surface-subtle/50 transition-colors">
-                        <td className="py-3 px-4">
-                          <p className="font-bold text-slate-900 dark:text-white">
+                      <tr key={report.id} className="hover:bg-[#F8F9FA] transition-colors">
+                        <td className="py-3.5 px-5">
+                          <p className="font-extrabold text-[#1C1C1E]">
                             Barangay {report.barangay_name || 'Metro Cebu'}
                           </p>
-                          <span className="text-[10px] text-slate-400">
+                          <span className="text-[10px] text-[#8E8E93]">
                             {new Date(report.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </td>
 
-                        <td className="py-3 px-4">
+                        <td className="py-3.5 px-5">
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
                               report.flood_depth_level === 'above_head' || report.flood_depth_level === 'chest'
-                                ? 'bg-rose-500/20 text-rose-400'
+                                ? 'bg-[#FFEBEA] text-[#FF3B30]'
                                 : report.flood_depth_level === 'waist'
-                                ? 'bg-orange-500/20 text-orange-400'
-                                : 'bg-yellow-500/20 text-yellow-400'
+                                ? 'bg-[#FFF4E5] text-[#FF9500]'
+                                : 'bg-[#FFFBE6] text-[#FFCC00]'
                             }`}
                           >
                             {report.flood_depth_level}
                           </span>
                         </td>
 
-                        <td className="py-3 px-4 max-w-xs text-slate-300">
+                        <td className="py-3.5 px-5 max-w-xs text-[#3A3A3C] font-medium leading-relaxed">
                           {report.description}
                         </td>
 
-                        <td className="py-3 px-4">
+                        <td className="py-3.5 px-5">
                           {report.photo_url ? (
                             <button
                               onClick={() => setSelectedPhoto(report.photo_url)}
-                              className="text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 text-[11px]"
+                              className="text-[#007AFF] hover:underline font-bold flex items-center gap-1 text-[11px]"
                             >
                               <Eye className="w-3.5 h-3.5" />
                               View Photo
                             </button>
                           ) : (
-                            <span className="text-slate-500 text-[10px]">No attachment</span>
+                            <span className="text-[#8E8E93] text-[10px]">No attachment</span>
                           )}
                         </td>
 
-                        <td className="py-3 px-4">
+                        <td className="py-3.5 px-5">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
                               report.status === 'verified'
-                                ? 'bg-emerald-500/15 text-emerald-400'
+                                ? 'bg-[#EBF9EE] text-[#34C759]'
                                 : report.status === 'rejected'
-                                ? 'bg-rose-500/15 text-rose-400'
-                                : 'bg-slate-500/15 text-slate-400'
+                                ? 'bg-[#FFEBEA] text-[#FF3B30]'
+                                : 'bg-[#F2F2F7] text-[#8E8E93]'
                             }`}
                           >
                             {report.status}
                           </span>
                         </td>
 
-                        <td className="py-3 px-4 text-right">
-                          <div className="inline-flex gap-1.5">
+                        <td className="py-3.5 px-5 text-right">
+                          <div className="inline-flex gap-2">
                             {report.status !== 'verified' && (
                               <button
                                 onClick={() => handleUpdateReportStatus(report.id, 'verified')}
                                 disabled={isUpdating}
-                                className="px-2 py-1 rounded bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white text-[10px] font-bold flex items-center gap-1 transition-colors"
+                                className="px-3 py-1.5 rounded-xl bg-[#EBF9EE] text-[#34C759] hover:bg-[#34C759] hover:text-white text-[11px] font-extrabold flex items-center gap-1 transition-all"
                               >
-                                <CheckCircle2 className="w-3 h-3" />
+                                <CheckCircle2 className="w-3.5 h-3.5" />
                                 Verify
                               </button>
                             )}
@@ -470,9 +470,9 @@ export default function ReportsPage() {
                               <button
                                 onClick={() => handleUpdateReportStatus(report.id, 'rejected')}
                                 disabled={isUpdating}
-                                className="px-2 py-1 rounded bg-rose-600/20 text-rose-400 hover:bg-rose-600 hover:text-white text-[10px] font-bold flex items-center gap-1 transition-colors"
+                                className="px-3 py-1.5 rounded-xl bg-[#FFEBEA] text-[#FF3B30] hover:bg-[#FF3B30] hover:text-white text-[11px] font-extrabold flex items-center gap-1 transition-all"
                               >
-                                <XCircle className="w-3 h-3" />
+                                <XCircle className="w-3.5 h-3.5" />
                                 Reject
                               </button>
                             )}
@@ -491,18 +491,18 @@ export default function ReportsPage() {
       {/* Photo Modal */}
       {selectedPhoto && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm"
           onClick={() => setSelectedPhoto(null)}
         >
           <div
-            className="bg-surface-card border border-surface-border rounded-2xl max-w-lg w-full overflow-hidden p-4 space-y-3"
+            className="bg-white rounded-3xl max-w-lg w-full overflow-hidden p-5 space-y-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center">
-              <h3 className="font-bold text-sm text-white">Citizen Verification Snapshot</h3>
+              <h3 className="font-extrabold text-base text-[#1C1C1E]">Citizen Verification Snapshot</h3>
               <button
                 onClick={() => setSelectedPhoto(null)}
-                className="text-slate-400 hover:text-white"
+                className="w-8 h-8 rounded-full bg-[#F2F2F7] flex items-center justify-center text-[#8E8E93] hover:text-[#1C1C1E]"
               >
                 ✕
               </button>
@@ -510,7 +510,7 @@ export default function ReportsPage() {
             <img
               src={selectedPhoto}
               alt="Citizen Flood Verification"
-              className="w-full h-80 object-cover rounded-xl border border-surface-border"
+              className="w-full h-80 object-cover rounded-2xl border border-[#E5E5EA]"
             />
           </div>
         </div>

@@ -125,32 +125,32 @@ export default function EvacuationPage() {
   const totalOcc = shelters.reduce((acc, s) => acc + s.current_occupancy, 0);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Evacuation Operations & Shelter Capacity
+          <h1 className="text-3xl font-extrabold tracking-tight text-[#1C1C1E]">
+            Evacuation Centers & Shelter Grid
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-sm text-[#8E8E93] mt-1 font-medium">
             Real-time occupancy tracking, capacity thresholds, and relief supply inventory
           </p>
         </div>
 
         {/* Global Summary Badge */}
-        <div className="flex items-center gap-4 bg-surface-card border border-surface-border px-4 py-2 rounded-xl text-xs">
+        <div className="flex items-center gap-4 bg-white border border-[#E5E5EA] px-5 py-2.5 rounded-2xl text-xs shadow-sm font-medium">
           <div>
-            <span className="text-slate-400">Total Evacuees:</span>
-            <span className="ml-1 font-bold text-slate-900 dark:text-white">{totalOcc}</span>
+            <span className="text-[#8E8E93]">Total Evacuees:</span>
+            <span className="ml-1.5 font-extrabold text-[#1C1C1E]">{totalOcc}</span>
           </div>
-          <div className="h-4 w-px bg-surface-border" />
+          <div className="h-4 w-px bg-[#E5E5EA]" />
           <div>
-            <span className="text-slate-400">Total Capacity:</span>
-            <span className="ml-1 font-bold text-slate-900 dark:text-white">{totalCap}</span>
+            <span className="text-[#8E8E93]">Capacity:</span>
+            <span className="ml-1.5 font-extrabold text-[#1C1C1E]">{totalCap}</span>
           </div>
-          <div className="h-4 w-px bg-surface-border" />
+          <div className="h-4 w-px bg-[#E5E5EA]" />
           <div>
-            <span className="text-slate-400">System Load:</span>
-            <span className="ml-1 font-bold text-blue-500">
+            <span className="text-[#8E8E93]">System Load:</span>
+            <span className="ml-1.5 font-extrabold text-[#007AFF]">
               {totalCap > 0 ? Math.round((totalOcc / totalCap) * 100) : 0}%
             </span>
           </div>
@@ -166,71 +166,71 @@ export default function EvacuationPage() {
           return (
             <div
               key={shelter.id}
-              className="bg-surface-card border border-surface-border rounded-xl p-5 flex flex-col justify-between hover:border-slate-700 transition-all space-y-4 shadow-sm"
+              className="bg-white border border-[#E5E5EA] rounded-2xl p-6 flex flex-col justify-between hover:shadow-md transition-shadow space-y-4 shadow-sm"
             >
               {/* Header */}
               <div>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">
+                    <span className="text-[11px] font-extrabold text-[#007AFF] uppercase tracking-wider">
                       Barangay {shelter.barangay_name || 'Cebu Zone'}
                     </span>
-                    <h3 className="font-bold text-base text-slate-900 dark:text-white mt-0.5">
+                    <h3 className="font-extrabold text-base text-[#1C1C1E] mt-0.5">
                       {shelter.name}
                     </h3>
                   </div>
 
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase ${
+                    className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase ${
                       shelter.status === 'open'
-                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                        ? 'bg-[#EBF9EE] text-[#34C759]'
                         : shelter.status === 'full'
-                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                        : 'bg-slate-500/15 text-slate-400 border border-slate-500/30'
+                        ? 'bg-[#FFF4E5] text-[#FF9500]'
+                        : 'bg-[#F2F2F7] text-[#8E8E93]'
                     }`}
                   >
                     {shelter.status}
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 mt-1">{shelter.address}</p>
+                <p className="text-xs text-[#8E8E93] mt-1 font-medium">{shelter.address}</p>
               </div>
 
               {/* Capacity Progress Bar */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs font-semibold">
-                  <span className="text-slate-300">Occupancy Level</span>
-                  <span className={occPct >= 90 ? 'text-rose-400 font-bold' : 'text-slate-300'}>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-bold">
+                  <span className="text-[#6C6C70]">Occupancy Level</span>
+                  <span className={occPct >= 90 ? 'text-[#FF3B30] font-extrabold' : 'text-[#1C1C1E]'}>
                     {shelter.current_occupancy} / {shelter.max_capacity} ({occPct}%)
                   </span>
                 </div>
-                <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                <div className="w-full bg-[#F2F2F7] rounded-full h-2.5 overflow-hidden">
                   <div
                     className={`h-full transition-all duration-300 ${
-                      occPct >= 90 ? 'bg-rose-500' : occPct >= 70 ? 'bg-amber-500' : 'bg-emerald-500'
+                      occPct >= 90 ? 'bg-[#FF3B30]' : occPct >= 70 ? 'bg-[#FF9500]' : 'bg-[#34C759]'
                     }`}
                     style={{ width: `${Math.min(100, occPct)}%` }}
                   />
                 </div>
               </div>
 
-              {/* Occupancy Controls */}
-              <div className="bg-surface-subtle p-3 rounded-lg flex items-center justify-between border border-surface-border">
-                <span className="text-xs font-semibold text-slate-300">Quick Adjust</span>
+              {/* Occupancy Stepper Controls */}
+              <div className="bg-[#F8F9FA] p-3 rounded-xl flex items-center justify-between border border-[#E5E5EA]">
+                <span className="text-xs font-bold text-[#6C6C70]">Quick Adjust</span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleAdjustOccupancy(shelter.id, -10)}
                     disabled={isUpdating || shelter.current_occupancy <= 0}
-                    className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30"
+                    className="w-7 h-7 rounded-lg bg-white border border-[#E5E5EA] shadow-sm flex items-center justify-center text-[#1C1C1E] hover:bg-[#F2F2F7] disabled:opacity-30"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
-                  <span className="text-xs font-bold text-white px-2">
+                  <span className="text-xs font-extrabold text-[#1C1C1E] px-2 min-w-[32px] text-center">
                     {shelter.current_occupancy}
                   </span>
                   <button
                     onClick={() => handleAdjustOccupancy(shelter.id, 10)}
                     disabled={isUpdating || shelter.current_occupancy >= shelter.max_capacity}
-                    className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30"
+                    className="w-7 h-7 rounded-lg bg-white border border-[#E5E5EA] shadow-sm flex items-center justify-center text-[#1C1C1E] hover:bg-[#F2F2F7] disabled:opacity-30"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
@@ -239,35 +239,35 @@ export default function EvacuationPage() {
 
               {/* Supply Inventory Levels */}
               {shelter.supplies && (
-                <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-surface-border">
-                  <div className="flex items-center gap-1.5 text-slate-400">
-                    <Droplets className="w-3.5 h-3.5 text-blue-400" />
+                <div className="grid grid-cols-2 gap-2 text-xs pt-3 border-t border-[#F2F2F7]">
+                  <div className="flex items-center gap-1.5 text-[#6C6C70] font-medium">
+                    <Droplets className="w-3.5 h-3.5 text-[#007AFF]" />
                     <span>{shelter.supplies.water_liters || 0} L Water</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-slate-400">
-                    <Utensils className="w-3.5 h-3.5 text-amber-400" />
-                    <span>{shelter.supplies.food_packs || 0} Food Packs</span>
+                  <div className="flex items-center gap-1.5 text-[#6C6C70] font-medium">
+                    <Utensils className="w-3.5 h-3.5 text-[#FF9500]" />
+                    <span>{shelter.supplies.food_packs || 0} Food</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-slate-400">
-                    <HeartPulse className="w-3.5 h-3.5 text-rose-400" />
-                    <span>{shelter.supplies.medical_kits || 0} Med Kits</span>
+                  <div className="flex items-center gap-1.5 text-[#6C6C70] font-medium">
+                    <HeartPulse className="w-3.5 h-3.5 text-[#FF3B30]" />
+                    <span>{shelter.supplies.medical_kits || 0} Meds</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-slate-400">
-                    <Bed className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>{shelter.supplies.bedding_sets || 0} Bedding Sets</span>
+                  <div className="flex items-center gap-1.5 text-[#6C6C70] font-medium">
+                    <Bed className="w-3.5 h-3.5 text-[#AF52DE]" />
+                    <span>{shelter.supplies.bedding_sets || 0} Beds</span>
                   </div>
                 </div>
               )}
 
               {/* Status Switcher Buttons */}
-              <div className="flex gap-1.5 pt-2">
+              <div className="flex gap-2 pt-2">
                 <button
                   onClick={() => handleSetStatus(shelter.id, 'open')}
                   disabled={isUpdating || shelter.status === 'open'}
-                  className={`flex-1 py-1 rounded text-[10px] font-bold transition-colors ${
+                  className={`flex-1 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
                     shelter.status === 'open'
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                      ? 'bg-[#34C759] text-white shadow-md shadow-green-500/20'
+                      : 'bg-[#F2F2F7] text-[#6C6C70] hover:text-[#1C1C1E]'
                   }`}
                 >
                   Open
@@ -275,10 +275,10 @@ export default function EvacuationPage() {
                 <button
                   onClick={() => handleSetStatus(shelter.id, 'full')}
                   disabled={isUpdating || shelter.status === 'full'}
-                  className={`flex-1 py-1 rounded text-[10px] font-bold transition-colors ${
+                  className={`flex-1 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
                     shelter.status === 'full'
-                      ? 'bg-amber-600 text-white'
-                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                      ? 'bg-[#FF9500] text-white shadow-md shadow-orange-500/20'
+                      : 'bg-[#F2F2F7] text-[#6C6C70] hover:text-[#1C1C1E]'
                   }`}
                 >
                   Full
@@ -286,10 +286,10 @@ export default function EvacuationPage() {
                 <button
                   onClick={() => handleSetStatus(shelter.id, 'closed')}
                   disabled={isUpdating || shelter.status === 'closed'}
-                  className={`flex-1 py-1 rounded text-[10px] font-bold transition-colors ${
+                  className={`flex-1 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
                     shelter.status === 'closed'
-                      ? 'bg-rose-600 text-white'
-                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                      ? 'bg-[#FF3B30] text-white shadow-md shadow-red-500/20'
+                      : 'bg-[#F2F2F7] text-[#6C6C70] hover:text-[#1C1C1E]'
                   }`}
                 >
                   Closed

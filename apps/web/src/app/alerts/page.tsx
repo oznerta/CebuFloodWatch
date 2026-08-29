@@ -99,7 +99,6 @@ export default function AlertsPage() {
         if (res.severity) setSeverity(res.severity);
       }
     } catch {
-      // Local fallback template
       setTitleEn(`Emergency Alert: Flooding in Barangay ${targetBarangay}`);
       setTitleTl(`Babala sa Kagipitan: Pagbaha sa Barangay ${targetBarangay}`);
       setBodyEn(`${rawNotes}. Please follow local CDRRMO safety guidelines and proceed to the nearest open evacuation center.`);
@@ -142,14 +141,14 @@ export default function AlertsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto pb-10">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-          AI Early Warning Alert Generator & FCM Push Broadcast
+        <h1 className="text-3xl font-extrabold tracking-tight text-[#1C1C1E]">
+          AI Early Warning Studio & Push Broadcast
         </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-          Gemini 2.5 Flash assisted bilingual emergency drafting with human-in-the-loop signoff
+        <p className="text-sm text-[#8E8E93] mt-1 font-medium">
+          Google Gemini 1.5 Flash assisted bilingual emergency drafting with human-in-the-loop signoff
         </p>
       </div>
 
@@ -157,26 +156,26 @@ export default function AlertsPage() {
         {/* Left Column: AI Drafting Studio (7 Cols) */}
         <div className="lg:col-span-7 space-y-5">
           {/* Step 1: Input Notes */}
-          <div className="bg-surface-card border border-surface-border rounded-xl p-5 space-y-4 shadow-sm">
-            <div className="flex items-center justify-between border-b border-surface-border pb-3">
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-blue-500" />
+          <div className="bg-white border border-[#E5E5EA] rounded-2xl p-6 space-y-4 shadow-sm">
+            <div className="flex items-center justify-between border-b border-[#F2F2F7] pb-3">
+              <h3 className="font-extrabold text-sm text-[#1C1C1E] flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#007AFF]" />
                 1. Operator Field Notes & Parameters
               </h3>
-              <span className="text-[11px] font-semibold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-full">
+              <span className="text-xs font-bold text-[#007AFF] bg-[#E5F1FF] px-3 py-1 rounded-full">
                 Powered by Gemini AI
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-bold text-[#6C6C70] mb-1.5 uppercase">
                   Target Barangay Area
                 </label>
                 <select
                   value={targetBarangay}
                   onChange={(e) => setTargetBarangay(e.target.value)}
-                  className="w-full bg-surface-subtle border border-surface-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                  className="w-full bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl px-3.5 py-2.5 text-xs font-bold text-[#1C1C1E] focus:outline-none focus:border-[#007AFF]"
                 >
                   <option value="Mabolo">Barangay Mabolo</option>
                   <option value="Kasambagan">Barangay Kasambagan</option>
@@ -188,25 +187,25 @@ export default function AlertsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-bold text-[#6C6C70] mb-1.5 uppercase">
                   Severity Tier
                 </label>
-                <div className="grid grid-cols-4 gap-1">
+                <div className="grid grid-cols-4 gap-1.5">
                   {(['advisory', 'watch', 'warning', 'critical'] as const).map((sev) => (
                     <button
                       key={sev}
                       type="button"
                       onClick={() => setSeverity(sev)}
-                      className={`py-2 rounded-lg text-[10px] font-bold uppercase transition-all ${
+                      className={`py-2.5 rounded-xl text-[10px] font-extrabold uppercase transition-all ${
                         severity === sev
                           ? sev === 'critical'
-                            ? 'bg-rose-600 text-white'
+                            ? 'bg-[#FF3B30] text-white shadow-md shadow-red-500/20'
                             : sev === 'warning'
-                            ? 'bg-orange-600 text-white'
+                            ? 'bg-[#FF9500] text-white shadow-md shadow-orange-500/20'
                             : sev === 'watch'
-                            ? 'bg-amber-600 text-white'
-                            : 'bg-yellow-600 text-white'
-                          : 'bg-surface-subtle text-slate-400 hover:text-white border border-surface-border'
+                            ? 'bg-[#FFCC00] text-white shadow-md shadow-yellow-500/20'
+                            : 'bg-[#007AFF] text-white shadow-md shadow-blue-500/20'
+                          : 'bg-[#F2F2F7] text-[#6C6C70] hover:text-[#1C1C1E]'
                       }`}
                     >
                       {sev}
@@ -217,7 +216,7 @@ export default function AlertsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-xs font-bold text-[#6C6C70] mb-1.5 uppercase">
                 Raw Emergency Field Notes
               </label>
               <textarea
@@ -225,14 +224,14 @@ export default function AlertsPage() {
                 onChange={(e) => setRawNotes(e.target.value)}
                 placeholder="e.g. River breached banks near church. 3 feet deep and rising fast. Rescuers dispatched. Advise immediate high ground evacuation to school gym."
                 rows={3}
-                className="w-full bg-surface-subtle border border-surface-border rounded-lg p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl p-3.5 text-xs text-[#1C1C1E] placeholder-[#8E8E93] focus:outline-none focus:border-[#007AFF] leading-relaxed"
               />
             </div>
 
             <button
               onClick={handleGenerateDraft}
               disabled={drafting || !rawNotes.trim()}
-              className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-md"
+              className="w-full py-3 rounded-xl bg-[#007AFF] hover:bg-[#0062CC] disabled:opacity-50 text-white text-xs font-extrabold flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-500/20"
             >
               <Sparkles className="w-4 h-4" />
               {drafting ? 'Synthesizing Bilingual Draft...' : 'Generate AI Bilingual Draft with Gemini'}
@@ -240,14 +239,14 @@ export default function AlertsPage() {
           </div>
 
           {/* Step 2: Human-in-the-Loop Review & Editor */}
-          <div className="bg-surface-card border border-surface-border rounded-xl p-5 space-y-4 shadow-sm">
-            <div className="flex items-center justify-between border-b border-surface-border pb-3">
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <Globe className="w-4 h-4 text-emerald-500" />
+          <div className="bg-white border border-[#E5E5EA] rounded-2xl p-6 space-y-4 shadow-sm">
+            <div className="flex items-center justify-between border-b border-[#F2F2F7] pb-3">
+              <h3 className="font-extrabold text-sm text-[#1C1C1E] flex items-center gap-2">
+                <Globe className="w-4 h-4 text-[#34C759]" />
                 2. Human-in-the-Loop Review (English & Tagalog)
               </h3>
-              <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                Review & Edit Before Broadcast
+              <span className="text-[11px] font-extrabold text-[#34C759] bg-[#EBF9EE] px-3 py-1 rounded-full">
+                Review & Sign Off
               </span>
             </div>
 
@@ -255,7 +254,7 @@ export default function AlertsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* English Version */}
               <div className="space-y-2">
-                <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">
+                <span className="text-[11px] font-extrabold text-[#007AFF] uppercase tracking-wider">
                   English Bulletin
                 </span>
                 <input
@@ -263,20 +262,20 @@ export default function AlertsPage() {
                   placeholder="English Alert Title..."
                   value={titleEn}
                   onChange={(e) => setTitleEn(e.target.value)}
-                  className="w-full bg-surface-subtle border border-surface-border rounded-lg px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-blue-500"
+                  className="w-full bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl px-3.5 py-2.5 text-xs font-bold text-[#1C1C1E] focus:outline-none focus:border-[#007AFF]"
                 />
                 <textarea
                   placeholder="Actionable advice in English..."
                   value={bodyEn}
                   onChange={(e) => setBodyEn(e.target.value)}
                   rows={4}
-                  className="w-full bg-surface-subtle border border-surface-border rounded-lg p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl p-3.5 text-xs text-[#1C1C1E] placeholder-[#8E8E93] focus:outline-none focus:border-[#007AFF] leading-relaxed"
                 />
               </div>
 
               {/* Tagalog Version */}
               <div className="space-y-2">
-                <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+                <span className="text-[11px] font-extrabold text-[#34C759] uppercase tracking-wider">
                   Tagalog Bulletin (Salin)
                 </span>
                 <input
@@ -284,20 +283,20 @@ export default function AlertsPage() {
                   placeholder="Pamagat ng Babala sa Tagalog..."
                   value={titleTl}
                   onChange={(e) => setTitleTl(e.target.value)}
-                  className="w-full bg-surface-subtle border border-surface-border rounded-lg px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-blue-500"
+                  className="w-full bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl px-3.5 py-2.5 text-xs font-bold text-[#1C1C1E] focus:outline-none focus:border-[#007AFF]"
                 />
                 <textarea
                   placeholder="Mahahalagang tagubilin sa Tagalog..."
                   value={bodyTl}
                   onChange={(e) => setBodyTl(e.target.value)}
                   rows={4}
-                  className="w-full bg-surface-subtle border border-surface-border rounded-lg p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl p-3.5 text-xs text-[#1C1C1E] placeholder-[#8E8E93] focus:outline-none focus:border-[#007AFF] leading-relaxed"
                 />
               </div>
             </div>
 
             {broadcastSuccess && (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-center gap-2 text-xs text-emerald-400 font-semibold">
+              <div className="p-3.5 bg-[#EBF9EE] border border-[#C3F0CD] rounded-xl flex items-center gap-2 text-xs text-[#34C759] font-bold">
                 <CheckCircle2 className="w-4 h-4" />
                 Alert successfully broadcasted to FCM topic and WebSockets!
               </div>
@@ -307,7 +306,7 @@ export default function AlertsPage() {
             <button
               onClick={handlePublishAlert}
               disabled={publishing || !titleEn.trim() || !bodyEn.trim()}
-              className="w-full py-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-lg"
+              className="w-full py-3.5 rounded-xl bg-[#34C759] hover:bg-[#28A745] disabled:opacity-50 text-white text-xs font-extrabold flex items-center justify-center gap-2 transition-all shadow-lg shadow-green-500/25"
             >
               <Send className="w-4 h-4" />
               {publishing
@@ -317,17 +316,17 @@ export default function AlertsPage() {
           </div>
         </div>
 
-        {/* Right Column: Active & Historical Broadcast Log (5 Cols) */}
+        {/* Right Column: Broadcast History Log (5 Cols) */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="bg-surface-card border border-surface-border rounded-xl p-5 flex flex-col h-full shadow-sm">
-            <div className="flex items-center justify-between border-b border-surface-border pb-3">
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <Radio className="w-4 h-4 text-rose-500" />
+          <div className="bg-white border border-[#E5E5EA] rounded-2xl p-6 flex flex-col h-full shadow-sm">
+            <div className="flex items-center justify-between border-b border-[#F2F2F7] pb-3">
+              <h3 className="font-extrabold text-sm text-[#1C1C1E] flex items-center gap-2">
+                <Radio className="w-4 h-4 text-[#FF3B30]" />
                 Live Broadcast Log ({activeAlerts.length})
               </h3>
               <button
                 onClick={loadAlerts}
-                className="p-1 rounded bg-surface-subtle hover:bg-slate-800 text-slate-400 hover:text-white"
+                className="p-1.5 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#6C6C70]"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
               </button>
@@ -337,48 +336,48 @@ export default function AlertsPage() {
               {activeAlerts.map((alert) => (
                 <div
                   key={alert.id}
-                  className="p-4 rounded-lg border border-surface-border bg-surface-subtle space-y-2.5"
+                  className="p-4 rounded-xl border border-[#E5E5EA] bg-[#F8F9FA] space-y-2"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
                         alert.severity === 'critical'
-                          ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                          ? 'bg-[#FFEBEA] text-[#FF3B30]'
                           : alert.severity === 'warning'
-                          ? 'bg-orange-500/20 text-orange-400 border border-orange-500/40'
-                          : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                          ? 'bg-[#FFF4E5] text-[#FF9500]'
+                          : 'bg-[#E5F1FF] text-[#007AFF]'
                       }`}
                     >
                       {alert.severity}
                     </span>
 
-                    <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                    <span className="text-[10px] text-[#8E8E93] flex items-center gap-1 font-medium">
                       <Clock className="w-3 h-3" />
                       {new Date(alert.published_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
 
                   <div>
-                    <h4 className="font-bold text-xs text-slate-900 dark:text-white">
+                    <h4 className="font-extrabold text-xs text-[#1C1C1E]">
                       {alert.title_en}
                     </h4>
-                    <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                    <p className="text-xs text-[#6C6C70] mt-1 leading-relaxed font-normal">
                       {alert.body_en}
                     </p>
                   </div>
 
                   {alert.title_tl && (
-                    <div className="pt-2 border-t border-surface-border/60">
-                      <span className="text-[10px] font-bold text-slate-400">Tagalog:</span>
-                      <p className="text-[11px] text-slate-300 italic mt-0.5 leading-relaxed">
+                    <div className="pt-2 border-t border-[#E5E5EA]">
+                      <span className="text-[10px] font-bold text-[#8E8E93]">Tagalog:</span>
+                      <p className="text-xs text-[#3A3A3C] italic mt-0.5 leading-relaxed font-normal">
                         {alert.body_tl}
                       </p>
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
+                  <div className="flex items-center justify-between text-[10px] text-[#8E8E93] pt-1 font-medium">
                     <span>Target: Barangay {alert.barangay_name || 'All Metro Cebu'}</span>
-                    <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                    <span className="text-[#34C759] font-bold flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" /> FCM Dispatched
                     </span>
                   </div>

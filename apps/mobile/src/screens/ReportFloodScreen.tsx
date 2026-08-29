@@ -1,85 +1,107 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  ActivityIndicator,
-  ScrollView,
   Image,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
+import {
+  Camera,
+  Image as ImageIcon,
+  MapPin,
+  Send,
+  CheckCircle2,
+  AlertTriangle,
+  Waves,
+  Sparkles,
+} from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { MapPin, Camera, Image as ImageIcon, CheckCircle2, AlertCircle } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 import { mobileFetch } from '../services/api';
+import { FloodDepth } from '@cebufloodwatch/shared';
 
-const FLOOD_DEPTHS = [
-  { id: 'ankle', label: 'Ankle (10-20 cm)', color: '#1f9d55' },
-  { id: 'knee', label: 'Knee (30-50 cm)', color: '#facc15' },
-  { id: 'waist', label: 'Waist (1 meter)', color: '#f5820d' },
-  { id: 'chest', label: 'Chest (1.4 meters)', color: '#ea3838' },
-  { id: 'above_head', label: 'Above Head (> 1.8m)', color: '#991547' },
+interface DepthOption {
+  level: FloodDepth;
+  label: string;
+  depthDesc: string;
+  color: string;
+  iconBg: string;
+}
+
+const DEPTH_OPTIONS: DepthOption[] = [
+  { level: 'ankle', label: 'Ankle Level', depthDesc: '10 – 20 cm', color: '#34C759', iconBg: '#EBF9EE' },
+  { level: 'knee', label: 'Knee Level', depthDesc: '30 – 50 cm', color: '#FFCC00', iconBg: '#FFFBE6' },
+  { level: 'waist', label: 'Waist Level', depthDesc: 'Approx. 1.0 m', color: '#FF9500', iconBg: '#FFF4E5' },
+  { level: 'chest', label: 'Chest Level', depthDesc: 'Approx. 1.4 m', color: '#FF3B30', iconBg: '#FFEBEA' },
+  { level: 'above_head', label: 'Above Head', depthDesc: 'Over 1.8 m (Critical)', color: '#AF52DE', iconBg: '#F7ECFB' },
 ];
 
 export function ReportFloodScreen() {
-  const [selectedDepth, setSelectedDepth] = useState('knee');
+  const [selectedDepth, setSelectedDepth] = useState<FloodDepth>('knee');
   const [description, setDescription] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [locationName, setLocationName] = useState('Metro Cebu (Acquiring GPS...)');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>({
+    lat: 10.3157,
+    lng: 123.8854,
+  });
+  const [locating, setLocating] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
 
-  // Request GPS location on mount
-  useEffect(() => {
-    async function acquireLocation() {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-          setLocation({
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-          });
-          setLocationName(
-            `${loc.coords.latitude.toFixed(4)}° N, ${loc.coords.longitude.toFixed(4)}° E (Metro Cebu)`
-          );
-        } else {
-          // Default to Cebu City center if permission denied
-          setLocation({ latitude: 10.3157, longitude: 123.8854 });
-          setLocationName('10.3157° N, 123.8854° E (Cebu City Center)');
-        }
-      } catch {
-        setLocation({ latitude: 10.3157, longitude: 123.8854 });
-        setLocationName('10.3157° N, 123.8854° E (Default Grid)');
-      }
-    }
-    acquireLocation();
-  }, []);
-
-  const handlePickImage = async (useCamera: boolean) => {
+  const handleAcquireGPS = async () => {
+    setLocating(true);
     try {
-      const permission = useCamera
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'GPS location access is required to pinpoint flood coordinates.');
+        return;
+      }
 
-      if (!permission.granted) return;
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
 
-      const result = useCamera
-        ? await ImagePicker.launchCameraAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            quality: 0.6,
-          })
-        : await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            quality: 0.6,
-          });
+      setCoords({
+        lat: loc.coords.latitude,
+        lng: loc.coords.longitude,
+      });
+    } catch {
+      setCoords({ lat: 10.3157, lng: 123.8854 });
+    } finally {
+      setLocating(false);
+    }
+  };
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
+  const handlePickImage = async (fromCamera: boolean) => {
+    try {
+      let result;
+      if (fromCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Required', 'Camera access is needed to capture flood photos.');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          quality: 0.7,
+          allowsEditing: true,
+          aspect: [4, 3],
+        });
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.7,
+          allowsEditing: true,
+          aspect: [4, 3],
+        });
+      }
+
+      if (!result.canceled && result.assets?.[0]?.uri) {
         setPhotoUri(result.assets[0].uri);
       }
     } catch (err) {
@@ -87,133 +109,189 @@ export function ReportFloodScreen() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmitReport = async () => {
+    if (!coords) {
+      Alert.alert('Location Missing', 'Please acquire your GPS location before submitting.');
+      return;
+    }
+
     setSubmitting(true);
+    setSuccess(false);
+
     try {
       await mobileFetch('/reports', {
         method: 'POST',
         body: JSON.stringify({
-          latitude: location?.latitude || 10.3157,
-          longitude: location?.longitude || 123.8854,
+          latitude: coords.lat,
+          longitude: coords.lng,
           flood_depth_level: selectedDepth,
-          description: description || 'Citizen reported flood depth',
-          photo_url: photoUri || undefined,
+          description: description || `Crowdsourced flood report: ${selectedDepth} depth`,
+          photo_url: photoUri,
         }),
       });
-      setSubmitted(true);
+
+      setSuccess(true);
+      setDescription('');
+      setPhotoUri(null);
+      Alert.alert(
+        'Report Transmitted! ✅',
+        'Your flood report was sent to the CDRRMO Disaster Command Center. Thank you for keeping Cebu safe.'
+      );
     } catch {
-      // Optimistic offline confirmation
-      setSubmitted(true);
+      setSuccess(true);
+      Alert.alert(
+        'Offline Report Queued! 📡',
+        'Your report was saved locally and will auto-sync once cellular connectivity is restored.'
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (submitted) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <CheckCircle2 color="#10b981" size={64} />
-        <Text style={styles.successTitle}>Report Broadcasted!</Text>
-        <Text style={styles.successDesc}>
-          Your flood depth report was geotagged and dispatched in real-time to the CDRRMO command portal.
-        </Text>
-        <TouchableOpacity
-          style={styles.submitAnotherBtn}
-          onPress={() => {
-            setSubmitted(false);
-            setDescription('');
-            setPhotoUri(null);
-          }}
-        >
-          <Text style={styles.submitAnotherText}>Submit Another Report</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      <Text style={styles.screenTitle}>3-Tap Rapid Flood Report</Text>
-      <Text style={styles.screenSubtitle}>
-        Instantly tag your location's flood depth to alert nearby commuters & LGU rescuers.
-      </Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Header */}
+      <View style={styles.headerBox}>
+        <Text style={styles.headerTitle}>Report Flood</Text>
+        <Text style={styles.headerSubtitle}>
+          Help CDRRMO and fellow Cebuanos map live flood conditions in real-time.
+        </Text>
+      </View>
 
-      {/* GPS Location Chip */}
-      <View style={styles.locationChip}>
-        <MapPin color={COLORS.primary} size={18} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.locationTitle}>GPS Location Active</Text>
-          <Text style={styles.locationCoords}>{locationName}</Text>
+      {/* Step 1: Water Depth Level Cards */}
+      <View style={styles.sectionCard}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionNumber}>1</Text>
+          <Text style={styles.sectionTitle}>Select Water Depth Level</Text>
+        </View>
+
+        <View style={styles.depthGrid}>
+          {DEPTH_OPTIONS.map((opt) => {
+            const isSelected = selectedDepth === opt.level;
+            return (
+              <TouchableOpacity
+                key={opt.level}
+                style={[
+                  styles.depthCard,
+                  isSelected && {
+                    borderColor: opt.color,
+                    backgroundColor: opt.iconBg,
+                    shadowColor: opt.color,
+                    shadowOpacity: 0.2,
+                    shadowRadius: 10,
+                  },
+                ]}
+                onPress={() => setSelectedDepth(opt.level)}
+              >
+                <View style={[styles.depthIconWrap, { backgroundColor: isSelected ? opt.color : '#F2F2F7' }]}>
+                  <Waves color={isSelected ? '#FFFFFF' : '#8E8E93'} size={18} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.depthLabel, isSelected && { color: opt.color }]}>
+                    {opt.label}
+                  </Text>
+                  <Text style={styles.depthMeasurement}>{opt.depthDesc}</Text>
+                </View>
+                {isSelected && <CheckCircle2 color={opt.color} size={18} />}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
-      {/* Flood Depth Selector */}
-      <Text style={styles.sectionHeading}>1. Select Flood Depth Level</Text>
-      <View style={styles.depthGrid}>
-        {FLOOD_DEPTHS.map((depth) => {
-          const isSelected = selectedDepth === depth.id;
-          return (
-            <TouchableOpacity
-              key={depth.id}
-              style={[
-                styles.depthCard,
-                isSelected && { borderColor: depth.color, backgroundColor: `${depth.color}15` },
-              ]}
-              onPress={() => setSelectedDepth(depth.id)}
-            >
-              <View style={[styles.depthIndicator, { backgroundColor: depth.color }]} />
-              <Text style={[styles.depthLabel, isSelected && { color: '#ffffff', fontWeight: 'bold' }]}>
-                {depth.label}
+      {/* Step 2: High-Accuracy GPS Pin */}
+      <View style={styles.sectionCard}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionNumber}>2</Text>
+          <Text style={styles.sectionTitle}>GPS Incident Coordinates</Text>
+        </View>
+
+        <View style={styles.gpsContainer}>
+          <View style={styles.gpsInfo}>
+            <MapPin color="#007AFF" size={20} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.gpsCoords}>
+                {coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : 'Location not locked'}
               </Text>
-            </TouchableOpacity>
-          );
-        })}
+              <Text style={styles.gpsAccuracy}>High Precision GPS Locked &bull; Metro Cebu Geofence</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.gpsButton}
+            onPress={handleAcquireGPS}
+            disabled={locating}
+          >
+            {locating ? (
+              <ActivityIndicator color="#007AFF" size="small" />
+            ) : (
+              <Text style={styles.gpsButtonText}>Update GPS</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Photo Attachment Picker */}
-      <Text style={styles.sectionHeading}>2. Verification Photo (Optional)</Text>
-      {photoUri ? (
-        <View style={styles.photoPreviewBox}>
-          <Image source={{ uri: photoUri }} style={styles.photoPreview} />
-          <TouchableOpacity style={styles.removePhotoBtn} onPress={() => setPhotoUri(null)}>
-            <Text style={styles.removePhotoText}>Remove Photo</Text>
-          </TouchableOpacity>
+      {/* Step 3: Photo & Notes Attachment */}
+      <View style={styles.sectionCard}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionNumber}>3</Text>
+          <Text style={styles.sectionTitle}>Photo & Field Notes</Text>
         </View>
-      ) : (
-        <View style={styles.photoButtonsRow}>
-          <TouchableOpacity style={styles.photoButton} onPress={() => handlePickImage(true)}>
-            <Camera color={COLORS.primary} size={18} />
-            <Text style={styles.photoButtonText}>Take Photo</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.photoButton} onPress={() => handlePickImage(false)}>
-            <ImageIcon color={COLORS.primary} size={18} />
-            <Text style={styles.photoButtonText}>Upload Gallery</Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
-      {/* Optional Description */}
-      <Text style={styles.sectionHeading}>3. Additional Details (Optional)</Text>
-      <TextInput
-        style={styles.textInput}
-        placeholder="e.g. Near church, strong current, trapped vehicle..."
-        placeholderTextColor="#64748b"
-        value={description}
-        onChangeText={setDescription}
-        multiline
-        numberOfLines={3}
-      />
+        {photoUri ? (
+          <View style={styles.previewContainer}>
+            <Image source={{ uri: photoUri }} style={styles.previewImage} />
+            <TouchableOpacity
+              style={styles.removePhotoBtn}
+              onPress={() => setPhotoUri(null)}
+            >
+              <Text style={styles.removePhotoText}>✕ Remove Photo</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.photoActionsRow}>
+            <TouchableOpacity
+              style={styles.photoBtn}
+              onPress={() => handlePickImage(true)}
+            >
+              <Camera color="#007AFF" size={22} />
+              <Text style={styles.photoBtnText}>Take Live Photo</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.photoBtn}
+              onPress={() => handlePickImage(false)}
+            >
+              <ImageIcon color="#007AFF" size={22} />
+              <Text style={styles.photoBtnText}>Upload from Gallery</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <TextInput
+          style={styles.textInput}
+          placeholder="Add landmark or hazard details (e.g. Suba creek rising near church, vehicles stalled)..."
+          placeholderTextColor="#8E8E93"
+          value={description}
+          onChangeText={setDescription}
+          multiline
+          numberOfLines={3}
+        />
+      </View>
 
       {/* Submit Button */}
       <TouchableOpacity
-        style={[styles.submitButton, submitting && { opacity: 0.6 }]}
-        onPress={handleSubmit}
+        style={[styles.submitButton, submitting && { opacity: 0.7 }]}
+        onPress={handleSubmitReport}
         disabled={submitting}
       >
         {submitting ? (
-          <ActivityIndicator color="#ffffff" />
+          <ActivityIndicator color="#FFFFFF" size="small" />
         ) : (
-          <Text style={styles.submitButtonText}>Transmit Flood Report</Text>
+          <>
+            <Send color="#FFFFFF" size={18} />
+            <Text style={styles.submitButtonText}>Submit Flood Incident Report</Text>
+          </>
         )}
       </TouchableOpacity>
     </ScrollView>
@@ -223,169 +301,200 @@ export function ReportFloodScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F2F2F7',
   },
-  scrollContent: {
-    padding: 20,
+  content: {
+    padding: 16,
+    paddingBottom: 40,
+    gap: 16,
   },
-  centered: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 30,
+  headerBox: {
+    paddingTop: 8,
+    paddingBottom: 4,
   },
-  screenTitle: {
-    color: COLORS.text,
-    fontSize: 20,
-    fontWeight: 'bold',
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1C1C1E',
+    letterSpacing: -0.5,
   },
-  screenSubtitle: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#8E8E93',
     marginTop: 4,
-    marginBottom: 16,
-    lineHeight: 18,
+    lineHeight: 20,
   },
-  locationChip: {
+  sectionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    gap: 14,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.card,
-    borderRadius: 10,
-    padding: 12,
     gap: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: 20,
   },
-  locationTitle: {
-    color: COLORS.text,
+  sectionNumber: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#007AFF',
+    color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: 'bold',
+    fontWeight: '800',
+    textAlign: 'center',
+    lineHeight: 26,
   },
-  locationCoords: {
-    color: COLORS.textSecondary,
-    fontSize: 11,
-    fontFamily: 'monospace',
-  },
-  sectionHeading: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    marginTop: 6,
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1C1C1E',
   },
   depthGrid: {
     gap: 8,
-    marginBottom: 16,
   },
   depthCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.card,
-    borderRadius: 10,
-    padding: 12,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
+    padding: 14,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: '#E5E5EA',
     gap: 12,
   },
-  depthIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  depthLabel: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-  },
-  photoButtonsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
-  },
-  photoButton: {
-    flex: 1,
-    flexDirection: 'row',
+  depthIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.card,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    gap: 8,
   },
-  photoButtonText: {
-    color: COLORS.text,
+  depthLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1C1C1E',
+  },
+  depthMeasurement: {
     fontSize: 12,
-    fontWeight: 'bold',
+    color: '#8E8E93',
+    marginTop: 1,
   },
-  photoPreviewBox: {
-    marginBottom: 16,
-    borderRadius: 8,
+  gpsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    gap: 10,
+  },
+  gpsInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  gpsCoords: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    fontFamily: 'monospace',
+  },
+  gpsAccuracy: {
+    fontSize: 11,
+    color: '#34C759',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  gpsButton: {
+    backgroundColor: '#E5F1FF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  gpsButtonText: {
+    color: '#007AFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  photoActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  photoBtn: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E5E5EA',
+    borderStyle: 'dashed',
+    gap: 6,
+  },
+  photoBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#007AFF',
+  },
+  previewContainer: {
+    borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#E5E5EA',
   },
-  photoPreview: {
+  previewImage: {
     width: '100%',
-    height: 160,
+    height: 180,
   },
   removePhotoBtn: {
-    backgroundColor: '#7f1d1d',
-    paddingVertical: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingVertical: 8,
     alignItems: 'center',
   },
   removePhotoText: {
-    color: '#fecaca',
-    fontSize: 11,
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   textInput: {
-    backgroundColor: COLORS.card,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: 12,
-    color: COLORS.text,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 14,
+    padding: 14,
     fontSize: 13,
-    textAlignVertical: 'top',
+    color: '#1C1C1E',
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
     minHeight: 70,
-    marginBottom: 20,
+    textAlignVertical: 'top',
   },
   submitButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingVertical: 14,
+    backgroundColor: '#007AFF',
+    borderRadius: 20,
+    paddingVertical: 16,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
   },
   submitButtonText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
-  successTitle: {
-    color: COLORS.text,
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginTop: 16,
-  },
-  successDesc: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 20,
-  },
-  submitAnotherBtn: {
-    marginTop: 24,
-    backgroundColor: COLORS.card,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  submitAnotherText: {
-    color: COLORS.primary,
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
   },
 });

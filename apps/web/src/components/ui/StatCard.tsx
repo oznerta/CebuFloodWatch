@@ -5,43 +5,69 @@ interface StatCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
-  icon: LucideIcon;
   trend?: string;
-  colorVariant?: 'blue' | 'rose' | 'amber' | 'emerald';
+  icon: LucideIcon;
+  colorVariant?: 'blue' | 'emerald' | 'rose' | 'amber';
 }
 
 export function StatCard({
   title,
   value,
   subtitle,
-  icon: Icon,
   trend,
+  icon: Icon,
   colorVariant = 'blue',
 }: StatCardProps) {
-  const iconColors = {
-    blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-    rose: 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
-    amber: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-    emerald: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+  const colorMap = {
+    blue: {
+      bg: 'bg-[#E5F1FF]',
+      text: 'text-[#007AFF]',
+      border: 'border-[#CCE3FF]',
+    },
+    emerald: {
+      bg: 'bg-[#EBF9EE]',
+      text: 'text-[#34C759]',
+      border: 'border-[#C3F0CD]',
+    },
+    rose: {
+      bg: 'bg-[#FFEBEA]',
+      text: 'text-[#FF3B30]',
+      border: 'border-[#FFD0CE]',
+    },
+    amber: {
+      bg: 'bg-[#FFF4E5]',
+      text: 'text-[#FF9500]',
+      border: 'border-[#FFE4BE]',
+    },
   };
 
+  const colors = colorMap[colorVariant] || colorMap.blue;
+
   return (
-    <div className="bg-surface-card border border-surface-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between">
+    <div className="bg-white border border-[#E5E5EA] rounded-2xl p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <p className="text-xs font-bold text-[#8E8E93] uppercase tracking-wider">
             {title}
           </p>
-          <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{value}</p>
+          <h3 className="text-3xl font-extrabold text-[#1C1C1E] tracking-tight mt-1">
+            {value}
+          </h3>
         </div>
-        <div className={`p-3 rounded-lg ${iconColors[colorVariant]}`}>
-          <Icon className="w-6 h-6" />
+
+        <div
+          className={`w-11 h-11 rounded-xl flex items-center justify-center border ${colors.bg} ${colors.text} ${colors.border}`}
+        >
+          <Icon className="w-5 h-5" />
         </div>
       </div>
+
       {(subtitle || trend) && (
-        <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
-          <span>{subtitle}</span>
-          {trend && <span className="font-semibold text-rose-500">{trend}</span>}
+        <div className="flex items-center justify-between text-xs mt-3 pt-3 border-t border-[#F2F2F7]">
+          {subtitle && <span className="text-[#8E8E93] font-medium">{subtitle}</span>}
+          {trend && (
+            <span className={`font-bold ${colors.text}`}>{trend}</span>
+          )}
         </div>
       )}
     </div>

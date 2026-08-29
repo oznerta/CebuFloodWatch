@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   Home,
   Megaphone,
-  Radio,
   Clock,
   CheckCircle2,
   XCircle,
@@ -21,7 +20,6 @@ import {
   Minus,
 } from 'lucide-react';
 import { StatCard } from '../../components/ui/StatCard';
-import { Badge } from '../../components/ui/Badge';
 import { MapContainer } from '../../components/map/MapContainer';
 import { fetchApi } from '../../lib/api';
 import { getSocket } from '../../lib/socket';
@@ -192,31 +190,31 @@ export default function DashboardPage() {
   const openSheltersCount = shelters.filter((s) => s.status === 'open').length;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto pb-10">
       {/* Top Banner Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Disaster Operations Command Center
+          <h1 className="text-3xl font-extrabold tracking-tight text-[#1C1C1E]">
+            Disaster Operations Hub
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Real-Time Hydrological Telemetry, Incident Clustering & Evacuation Hub
+          <p className="text-sm text-[#8E8E93] mt-1 font-medium">
+            Real-Time Hydrological Stream, Incident Clustering & Evacuation Grid
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={handleExportAudit}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#007AFF] hover:bg-[#0062CC] text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download className="w-4 h-4" />
             Export OCD-7 Audit Log
           </button>
 
           <button
             onClick={loadData}
             aria-label="Refresh telemetry"
-            className="p-1.5 rounded-lg bg-surface-card border border-surface-border text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-2.5 rounded-xl bg-white border border-[#E5E5EA] text-[#6C6C70] hover:text-[#1C1C1E] hover:bg-[#F2F2F7] shadow-sm transition-all"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -226,15 +224,15 @@ export default function DashboardPage() {
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Active Flood Incidents"
+          title="Active Flood Reports"
           value={reports.length}
-          subtitle="Crowdsourced GPS reports"
+          subtitle="GPS-tagged submissions"
           trend="+2 last 30m"
           icon={AlertTriangle}
           colorVariant="rose"
         />
         <StatCard
-          title="Open Evacuation Centers"
+          title="Open Shelters"
           value={`${openSheltersCount} / ${shelters.length}`}
           subtitle={`${totalOccupancy} evacuees hosted`}
           icon={Home}
@@ -243,12 +241,12 @@ export default function DashboardPage() {
         <StatCard
           title="Shelter Capacity"
           value={`${totalCapacity > 0 ? Math.round((totalOccupancy / totalCapacity) * 100) : 0}%`}
-          subtitle={`${totalCapacity - totalOccupancy} spaces available`}
+          subtitle={`${totalCapacity - totalOccupancy} spaces left`}
           icon={TrendingUp}
           colorVariant="blue"
         />
         <StatCard
-          title="Active Emergency Warnings"
+          title="Emergency Warnings"
           value={alerts.length}
           subtitle="Bilingual push broadcasts"
           icon={Megaphone}
@@ -257,15 +255,15 @@ export default function DashboardPage() {
       </div>
 
       {/* Hydrological Sensor Live Stream Widgets */}
-      <div className="bg-surface-card border border-surface-border rounded-xl p-4 space-y-3 shadow-sm">
+      <div className="bg-white border border-[#E5E5EA] rounded-2xl p-5 space-y-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-blue-500" />
-            Metro Cebu Hydrological Sensor Stream (River & Basin Gauges)
+          <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#8E8E93] flex items-center gap-2">
+            <Activity className="w-4 h-4 text-[#007AFF]" />
+            Hydrological River & Basin Sensors (Live PAGASA / CDRRMO Telemetry)
           </h2>
-          <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Live PAGASA / DRRMO Sensor Feeds
+          <span className="text-[11px] text-[#34C759] font-bold flex items-center gap-1.5 bg-[#EBF9EE] px-3 py-1 rounded-full">
+            <span className="w-2 h-2 rounded-full bg-[#34C759] animate-pulse" />
+            Live Stream Connected
           </span>
         </div>
 
@@ -273,28 +271,28 @@ export default function DashboardPage() {
           {stations.slice(0, 3).map((st) => (
             <div
               key={st.id}
-              className={`p-3.5 rounded-xl border flex flex-col justify-between space-y-2 ${
+              className={`p-4 rounded-2xl border flex flex-col justify-between space-y-3 transition-all ${
                 st.status === 'critical_breach'
-                  ? 'bg-rose-950/20 border-rose-900/50'
+                  ? 'bg-[#FFEBEA] border-[#FFD0CE]'
                   : st.status === 'watch'
-                  ? 'bg-amber-950/20 border-amber-900/50'
-                  : 'bg-surface-subtle border-surface-border'
+                  ? 'bg-[#FFF4E5] border-[#FFE4BE]'
+                  : 'bg-[#F8F9FA] border-[#E5E5EA]'
               }`}
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">
+                  <span className="text-[10px] font-extrabold text-[#8E8E93] uppercase">
                     Barangay {st.barangay_name}
                   </span>
-                  <h4 className="font-bold text-xs text-white">{st.station_name}</h4>
+                  <h4 className="font-extrabold text-sm text-[#1C1C1E] mt-0.5">{st.station_name}</h4>
                 </div>
                 <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
                     st.status === 'critical_breach'
-                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                      ? 'bg-[#FF3B30] text-white shadow-sm'
                       : st.status === 'watch'
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                      : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      ? 'bg-[#FF9500] text-white shadow-sm'
+                      : 'bg-[#34C759] text-white shadow-sm'
                   }`}
                 >
                   {st.status?.replace(/_/g, ' ')}
@@ -302,42 +300,44 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex items-center justify-between pt-1">
-                <div className="flex items-center gap-1.5">
-                  <Droplet className="w-4 h-4 text-blue-400" />
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-[#E5F1FF] flex items-center justify-center text-[#007AFF]">
+                    <Droplet className="w-4 h-4" />
+                  </div>
                   <div>
-                    <span className="text-base font-extrabold text-white">
+                    <span className="text-xl font-extrabold text-[#1C1C1E]">
                       {st.water_level_meters}m
                     </span>
-                    <span className="text-[10px] text-slate-400 ml-1">
+                    <span className="text-[11px] text-[#8E8E93] ml-1.5 font-medium">
                       / {st.critical_overflow_meters}m limit
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-300">
-                  <CloudRain className="w-3.5 h-3.5 text-blue-400" />
+                <div className="flex items-center gap-1 text-xs font-bold text-[#6C6C70]">
+                  <CloudRain className="w-4 h-4 text-[#007AFF]" />
                   <span>{st.rainfall_rate_mmh} mm/h</span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-surface-border/60">
+              <div className="flex items-center justify-between text-xs text-[#8E8E93] pt-2 border-t border-black/5 font-medium">
                 <span className="flex items-center gap-1">
                   Trend:
                   {st.trend === 'rising' ? (
-                    <span className="text-rose-400 font-bold flex items-center">
-                      <ArrowUpRight className="w-3 h-3" /> Rising
+                    <span className="text-[#FF3B30] font-bold flex items-center">
+                      <ArrowUpRight className="w-3.5 h-3.5" /> Rising
                     </span>
                   ) : st.trend === 'receding' ? (
-                    <span className="text-emerald-400 font-bold flex items-center">
-                      <ArrowDownRight className="w-3 h-3" /> Receding
+                    <span className="text-[#34C759] font-bold flex items-center">
+                      <ArrowDownRight className="w-3.5 h-3.5" /> Receding
                     </span>
                   ) : (
-                    <span className="text-slate-300 font-bold flex items-center">
-                      <Minus className="w-3 h-3" /> Stable
+                    <span className="text-[#6C6C70] font-bold flex items-center">
+                      <Minus className="w-3.5 h-3.5" /> Stable
                     </span>
                   )}
                 </span>
-                <span>Active Geofence</span>
+                <span className="font-semibold text-[#007AFF]">Active Geofence</span>
               </div>
             </div>
           ))}
@@ -349,30 +349,30 @@ export default function DashboardPage() {
         {/* Spatial Map View */}
         <div className="lg:col-span-2 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-blue-500" />
-              Live Metro Cebu Hazard & Incident Map
+            <h2 className="text-base font-extrabold text-[#1C1C1E] flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-[#007AFF]" />
+              Live Hazard & Incident Map
             </h2>
-            <div className="flex items-center gap-2 text-xs">
-              <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Open Shelter
+            <div className="flex items-center gap-3 text-xs font-semibold">
+              <span className="inline-flex items-center gap-1.5 text-[#6C6C70]">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#34C759]" /> Open Shelter
               </span>
-              <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-400 ml-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Flood Report
+              <span className="inline-flex items-center gap-1.5 text-[#6C6C70]">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#FF3B30]" /> Flood Incident
               </span>
             </div>
           </div>
-          <MapContainer reports={reports} shelters={shelters} className="h-[490px]" />
+          <MapContainer reports={reports} shelters={shelters} className="h-[520px]" />
         </div>
 
-        {/* Live Incident Submissions Queue with Actions */}
-        <div className="bg-surface-card border border-surface-border rounded-xl p-5 flex flex-col h-[535px]">
-          <div className="flex items-center justify-between pb-3 border-b border-surface-border">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-              <Clock className="w-4 h-4 text-slate-500" />
+        {/* Live Incident Submissions Queue */}
+        <div className="bg-white border border-[#E5E5EA] rounded-2xl p-5 flex flex-col h-[565px] shadow-sm">
+          <div className="flex items-center justify-between pb-3 border-b border-[#F2F2F7]">
+            <h3 className="font-extrabold text-sm text-[#1C1C1E] flex items-center gap-2">
+              <Clock className="w-4 h-4 text-[#8E8E93]" />
               Live Citizen Feed
             </h3>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+            <span className="text-xs font-extrabold px-3 py-1 rounded-full bg-[#E5F1FF] text-[#007AFF]">
               {reports.length} Reports
             </span>
           </div>
@@ -381,30 +381,30 @@ export default function DashboardPage() {
             {reports.map((report) => (
               <div
                 key={report.id}
-                className="p-3.5 rounded-lg border border-surface-border bg-surface-subtle/50 hover:bg-surface-subtle transition-colors space-y-2"
+                className="p-4 rounded-xl border border-[#E5E5EA] bg-[#F8F9FA] hover:bg-white hover:shadow-sm transition-all space-y-2.5"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-xs text-slate-900 dark:text-white">
-                    {report.barangay_name || 'Barangay Area'}
+                  <span className="font-extrabold text-xs text-[#1C1C1E]">
+                    Barangay {report.barangay_name || 'Area'}
                   </span>
-                  <Badge
-                    variant={
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
                       report.flood_depth_level === 'waist' || report.flood_depth_level === 'chest'
-                        ? 'critical'
-                        : 'warning'
-                    }
+                        ? 'bg-[#FFEBEA] text-[#FF3B30] border border-[#FFD0CE]'
+                        : 'bg-[#FFF4E5] text-[#FF9500] border-[#FFE4BE]'
+                    }`}
                   >
                     {report.flood_depth_level?.toUpperCase()}
-                  </Badge>
+                  </span>
                 </div>
 
-                <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
+                <p className="text-xs text-[#3A3A3C] font-normal leading-relaxed line-clamp-2">
                   {report.description || 'No additional details provided.'}
                 </p>
 
-                <div className="flex items-center justify-between text-[10px] text-slate-400 border-t border-surface-border/60 pt-2">
-                  <span>GPS: {report.latitude?.toFixed(4)}, {report.longitude?.toFixed(4)}</span>
-                  <span>{new Date(report.created_at).toLocaleTimeString()}</span>
+                <div className="flex items-center justify-between text-[10px] text-[#8E8E93] border-t border-[#E5E5EA] pt-2">
+                  <span className="font-mono font-medium">GPS: {report.latitude?.toFixed(4)}, {report.longitude?.toFixed(4)}</span>
+                  <span>{new Date(report.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
 
                 {/* Verification Control Buttons */}
@@ -413,9 +413,9 @@ export default function DashboardPage() {
                     <button
                       onClick={() => handleUpdateStatus(report.id, 'verified')}
                       disabled={actionLoading === report.id}
-                      className="px-2 py-1 rounded bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white text-[11px] font-bold flex items-center gap-1 transition-colors"
+                      className="px-3 py-1.5 rounded-lg bg-[#EBF9EE] text-[#34C759] hover:bg-[#34C759] hover:text-white text-[11px] font-extrabold flex items-center gap-1 transition-all"
                     >
-                      <CheckCircle2 className="w-3 h-3" />
+                      <CheckCircle2 className="w-3.5 h-3.5" />
                       Verify
                     </button>
                   )}
@@ -423,9 +423,9 @@ export default function DashboardPage() {
                     <button
                       onClick={() => handleUpdateStatus(report.id, 'rejected')}
                       disabled={actionLoading === report.id}
-                      className="px-2 py-1 rounded bg-rose-600/20 text-rose-400 hover:bg-rose-600 hover:text-white text-[11px] font-bold flex items-center gap-1 transition-colors"
+                      className="px-3 py-1.5 rounded-lg bg-[#FFEBEA] text-[#FF3B30] hover:bg-[#FF3B30] hover:text-white text-[11px] font-extrabold flex items-center gap-1 transition-all"
                     >
-                      <XCircle className="w-3 h-3" />
+                      <XCircle className="w-3.5 h-3.5" />
                       Reject
                     </button>
                   )}

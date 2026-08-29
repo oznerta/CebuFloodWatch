@@ -54,6 +54,7 @@ Thumbs.db
 .cache/
 .parcel-cache/
 .eslintcache
+*.tsbuildinfo
 
 # IDE & Editors
 .vscode/*

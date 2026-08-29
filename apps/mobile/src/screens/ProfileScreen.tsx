@@ -8,7 +8,7 @@ import {
   Switch,
   Alert,
 } from 'react-native';
-import { User, MapPin, Globe, Bell, Shield, CheckCircle2 } from 'lucide-react-native';
+import { User, Bell, Globe, CheckCircle2, Shield } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 
 const CEBU_BARANGAYS = [
@@ -37,22 +37,28 @@ export function ProfileScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Profile Card */}
-      <View style={styles.profileHeader}>
+      {/* Header Profile Card */}
+      <View style={styles.profileCard}>
         <View style={styles.avatar}>
-          <User color="#ffffff" size={32} />
+          <User color="#007AFF" size={32} />
         </View>
         <Text style={styles.userName}>Registered Cebu Citizen</Text>
-        <Text style={styles.userRole}>
-          Subscribed to: Barangay {selectedBarangay} Geofence
-        </Text>
+        <View style={styles.geofenceTag}>
+          <Shield color="#34C759" size={13} />
+          <Text style={styles.geofenceText}>
+            Subscribed: Barangay {selectedBarangay} Geofence
+          </Text>
+        </View>
       </View>
 
-      {/* Home Barangay Selection */}
-      <View style={styles.card}>
-        <Text style={styles.cardSectionTitle}>1. Home Barangay (FCM Push Topic)</Text>
-        <Text style={styles.cardSectionDesc}>
-          Emergency alerts are targeted to your selected residence area.
+      {/* Section 1: Home Barangay Selector */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Home Barangay Geofence</Text>
+      </View>
+
+      <View style={styles.insetCard}>
+        <Text style={styles.cardExplainer}>
+          Select your primary residence to receive localized push alerts from CDRRMO.
         </Text>
 
         <View style={styles.chipGrid}>
@@ -61,11 +67,19 @@ export function ProfileScreen() {
             return (
               <TouchableOpacity
                 key={b}
-                style={[styles.barangayChip, isSelected && styles.barangayChipActive]}
+                style={[
+                  styles.barangayChip,
+                  isSelected && styles.barangayChipActive,
+                ]}
                 onPress={() => handleSelectBarangay(b)}
               >
-                {isSelected && <CheckCircle2 color="#ffffff" size={12} />}
-                <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
+                {isSelected && <CheckCircle2 color="#FFFFFF" size={13} />}
+                <Text
+                  style={[
+                    styles.chipText,
+                    isSelected && styles.chipTextActive,
+                  ]}
+                >
                   {b}
                 </Text>
               </TouchableOpacity>
@@ -74,53 +88,78 @@ export function ProfileScreen() {
         </View>
       </View>
 
-      {/* Notification Settings */}
-      <View style={styles.card}>
-        <Text style={styles.cardSectionTitle}>2. Emergency Notification Preferences</Text>
-        <View style={styles.row}>
-          <View style={styles.rowLeft}>
-            <Bell color={COLORS.primary} size={18} />
-            <View>
-              <Text style={styles.rowLabel}>FCM Barangay Push Alerts</Text>
-              <Text style={styles.rowSub}>Instant warnings for flood crests & road blocks</Text>
-            </View>
+      {/* Section 2: Notifications */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Emergency Alerts</Text>
+      </View>
+
+      <View style={styles.insetCard}>
+        <View style={styles.settingRow}>
+          <View style={styles.settingIconWrap}>
+            <Bell color="#007AFF" size={18} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.settingLabel}>FCM Barangay Push Warnings</Text>
+            <Text style={styles.settingSub}>
+              Instant alerts for flood crests & closed roads
+            </Text>
           </View>
           <Switch
             value={pushEnabled}
             onValueChange={setPushEnabled}
-            trackColor={{ false: '#334155', true: COLORS.primary }}
+            trackColor={{ false: '#E5E5EA', true: '#34C759' }}
           />
         </View>
       </View>
 
-      {/* Language Settings */}
-      <View style={styles.card}>
-        <Text style={styles.cardSectionTitle}>3. Language Preference</Text>
-        <View style={styles.langToggle}>
+      {/* Section 3: Language Preference */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Language / Wika</Text>
+      </View>
+
+      <View style={styles.insetCard}>
+        <View style={styles.segmentedLanguage}>
           <TouchableOpacity
-            style={[styles.langBtn, language === 'en' && styles.langBtnActive]}
+            style={[
+              styles.langPill,
+              language === 'en' && styles.langPillActive,
+            ]}
             onPress={() => setLanguage('en')}
           >
-            <Text style={[styles.langText, language === 'en' && styles.langTextActive]}>
-              English (Default)
+            <Text
+              style={[
+                styles.langText,
+                language === 'en' && styles.langTextActive,
+              ]}
+            >
+              English
             </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
-            style={[styles.langBtn, language === 'tl' && styles.langBtnActive]}
+            style={[
+              styles.langPill,
+              language === 'tl' && styles.langPillActive,
+            ]}
             onPress={() => setLanguage('tl')}
           >
-            <Text style={[styles.langText, language === 'tl' && styles.langTextActive]}>
+            <Text
+              style={[
+                styles.langText,
+                language === 'tl' && styles.langTextActive,
+              ]}
+            >
               Tagalog / Filipino
             </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* App Info Footer */}
-      <View style={styles.appInfo}>
-        <Text style={styles.appVersion}>CebuFloodWatch Mobile v1.4.0</Text>
+      {/* Footer */}
+      <View style={styles.footer}>
+        <Text style={styles.appVersion}>CebuFloodWatch iOS v1.5.0</Text>
         <Text style={styles.appCredits}>
-          Metro Cebu Flood Early Warning & Evacuation System · CDRRMO Linked
+          Dual-Platform Disaster Warning & Evacuation System &bull; CIT-University
         </Text>
       </View>
     </ScrollView>
@@ -130,56 +169,81 @@ export function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F2F2F7',
   },
   content: {
     padding: 16,
-    paddingBottom: 30,
+    paddingBottom: 40,
+    gap: 12,
   },
-  profileHeader: {
+  profileCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
     alignItems: 'center',
-    paddingVertical: 18,
-    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: COLORS.primary,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#E5F1FF',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
   },
   userName: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1C1C1E',
   },
-  userRole: {
-    color: COLORS.primary,
+  geofenceTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#EBF9EE',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
+    marginTop: 6,
+  },
+  geofenceText: {
+    color: '#34C759',
     fontSize: 12,
-    fontWeight: 'bold',
-    marginTop: 2,
+    fontWeight: '700',
   },
-  card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+  sectionHeader: {
+    marginTop: 8,
+    paddingHorizontal: 4,
   },
-  cardSectionTitle: {
-    color: COLORS.text,
-    fontSize: 12,
-    fontWeight: 'bold',
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#8E8E93',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  cardSectionDesc: {
-    color: COLORS.textSecondary,
-    fontSize: 11,
-    marginTop: 2,
-    marginBottom: 10,
+  insetCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    gap: 12,
+  },
+  cardExplainer: {
+    fontSize: 12,
+    color: '#8E8E93',
+    lineHeight: 16,
   },
   chipGrid: {
     flexDirection: 'row',
@@ -189,89 +253,96 @@ const styles = StyleSheet.create({
   barangayChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.cardSubtle,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
+    gap: 5,
+    backgroundColor: '#F8F9FA',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#E5E5EA',
   },
   barangayChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
   },
   chipText: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
+    color: '#1C1C1E',
   },
   chipTextActive: {
-    color: '#ffffff',
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
-  row: {
+  settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
+    gap: 12,
   },
-  rowLeft: {
-    flexDirection: 'row',
+  settingIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E5F1FF',
     alignItems: 'center',
-    gap: 10,
-    flex: 1,
+    justifyContent: 'center',
   },
-  rowLabel: {
-    color: COLORS.text,
-    fontSize: 13,
-    fontWeight: 'bold',
+  settingLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1C1C1E',
   },
-  rowSub: {
-    color: COLORS.textSecondary,
-    fontSize: 10,
+  settingSub: {
+    fontSize: 11,
+    color: '#8E8E93',
     marginTop: 1,
   },
-  langToggle: {
+  segmentedLanguage: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 16,
+    padding: 4,
+    gap: 4,
   },
-  langBtn: {
+  langPill: {
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 8,
-    backgroundColor: COLORS.cardSubtle,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderRadius: 12,
   },
-  langBtnActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+  langPillActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
   },
   langText: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8E8E93',
   },
   langTextActive: {
-    color: '#ffffff',
+    color: '#007AFF',
+    fontWeight: '800',
   },
-  appInfo: {
+  footer: {
     alignItems: 'center',
     marginTop: 16,
-    paddingBottom: 10,
+    gap: 4,
   },
   appVersion: {
-    color: COLORS.textSecondary,
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#8E8E93',
   },
   appCredits: {
-    color: '#64748b',
     fontSize: 10,
-    marginTop: 3,
+    color: '#AEAEC2',
     textAlign: 'center',
   },
 });

@@ -28,16 +28,16 @@ export function MapContainer({
   const [show25Year, setShow25Year] = useState(true);
   const [show5Year, setShow5Year] = useState(true);
 
-  // Initialize MapLibre
+  // Initialize MapLibre with Apple Light Vector Cartography
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: 'https://tiles.openfreemap.org/styles/liberty',
+      style: 'https://tiles.openfreemap.org/styles/positron',
       center: CEBU_CITY_BOUNDS.center,
       zoom: 12.5,
-      pitch: 25,
+      pitch: 20,
     });
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -52,52 +52,52 @@ export function MapContainer({
         data: UP_NOAH_CEBU_HAZARD_GEOJSON as any,
       });
 
-      // 100-Year Severe Hazard Layer (Red)
+      // 100-Year Severe Hazard Layer (Apple Red)
       map.addLayer({
         id: 'hazard-100yr-fill',
         type: 'fill',
         source: 'up-noah-hazards',
         filter: ['==', ['get', 'hazard_level'], '100_year'],
-        paint: { 'fill-color': '#ea3838', 'fill-opacity': 0.35 },
+        paint: { 'fill-color': '#FF3B30', 'fill-opacity': 0.3 },
       });
       map.addLayer({
         id: 'hazard-100yr-line',
         type: 'line',
         source: 'up-noah-hazards',
         filter: ['==', ['get', 'hazard_level'], '100_year'],
-        paint: { 'line-color': '#b91c1c', 'line-width': 2 },
+        paint: { 'line-color': '#FF3B30', 'line-width': 2 },
       });
 
-      // 25-Year High Risk Layer (Orange)
+      // 25-Year High Risk Layer (Apple Orange)
       map.addLayer({
         id: 'hazard-25yr-fill',
         type: 'fill',
         source: 'up-noah-hazards',
         filter: ['==', ['get', 'hazard_level'], '25_year'],
-        paint: { 'fill-color': '#f5820d', 'fill-opacity': 0.3 },
+        paint: { 'fill-color': '#FF9500', 'fill-opacity': 0.25 },
       });
       map.addLayer({
         id: 'hazard-25yr-line',
         type: 'line',
         source: 'up-noah-hazards',
         filter: ['==', ['get', 'hazard_level'], '25_year'],
-        paint: { 'line-color': '#c2410c', 'line-width': 1.5 },
+        paint: { 'line-color': '#FF9500', 'line-width': 1.5 },
       });
 
-      // 5-Year Advisory Layer (Yellow)
+      // 5-Year Advisory Layer (Apple Yellow)
       map.addLayer({
         id: 'hazard-5yr-fill',
         type: 'fill',
         source: 'up-noah-hazards',
         filter: ['==', ['get', 'hazard_level'], '5_year'],
-        paint: { 'fill-color': '#facc15', 'fill-opacity': 0.25 },
+        paint: { 'fill-color': '#FFCC00', 'fill-opacity': 0.2 },
       });
       map.addLayer({
         id: 'hazard-5yr-line',
         type: 'line',
         source: 'up-noah-hazards',
         filter: ['==', ['get', 'hazard_level'], '5_year'],
-        paint: { 'line-color': '#ca8a04', 'line-width': 1.5 },
+        paint: { 'line-color': '#FFCC00', 'line-width': 1.5 },
       });
 
       // 2. Add Road Network GeoJSON Source
@@ -109,40 +109,40 @@ export function MapContainer({
         },
       });
 
-      // Road Passable (Green)
+      // Road Passable (Apple Green)
       map.addLayer({
         id: 'roads-passable',
         type: 'line',
         source: 'cebu-roads',
         filter: ['==', ['get', 'status'], 'passable'],
         paint: {
-          'line-color': '#10b981',
+          'line-color': '#34C759',
           'line-width': 4,
-          'line-opacity': 0.8,
+          'line-opacity': 0.85,
         },
       });
 
-      // Road Light Only (Orange)
+      // Road Light Only (Apple Orange)
       map.addLayer({
         id: 'roads-light-only',
         type: 'line',
         source: 'cebu-roads',
         filter: ['==', ['get', 'status'], 'light_vehicles_only'],
         paint: {
-          'line-color': '#f5820d',
+          'line-color': '#FF9500',
           'line-width': 5,
           'line-opacity': 0.9,
         },
       });
 
-      // Road Impassable (Red Dashed)
+      // Road Impassable (Apple Red Dashed)
       map.addLayer({
         id: 'roads-impassable',
         type: 'line',
         source: 'cebu-roads',
         filter: ['==', ['get', 'status'], 'impassable'],
         paint: {
-          'line-color': '#ea3838',
+          'line-color': '#FF3B30',
           'line-width': 6,
           'line-dasharray': [2, 2],
           'line-opacity': 0.95,
@@ -218,22 +218,19 @@ export function MapContainer({
       if (!shelter.latitude || !shelter.longitude) return;
 
       const el = document.createElement('div');
-      el.className = `w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg border-2 border-white cursor-pointer hover:scale-110 transition-transform ${
-        shelter.status === 'open' ? 'bg-emerald-600' : shelter.status === 'full' ? 'bg-amber-600' : 'bg-slate-600'
-      }`;
+      el.className =
+        'w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md border-2 border-white cursor-pointer hover:scale-110 transition-transform bg-[#34C759]';
       el.innerHTML = '🏠';
 
       const marker = new maplibregl.Marker(el)
         .setLngLat([shelter.longitude, shelter.latitude])
         .setPopup(
           new maplibregl.Popup({ offset: 25 }).setHTML(`
-            <div style="font-family: sans-serif; padding: 6px; min-width: 180px;">
-              <span style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: ${
-                shelter.status === 'open' ? '#059669' : '#d97706'
-              };">${shelter.status} EVACUATION CENTER</span>
-              <h4 style="margin: 2px 0 0 0; font-weight: bold; font-size: 13px;">${shelter.name}</h4>
-              <p style="margin: 4px 0; font-size: 11px; color: #555;">Occupancy: <b>${shelter.current_occupancy} / ${shelter.max_capacity}</b></p>
-              <p style="margin: 0; font-size: 10px; color: #777;">${shelter.address}</p>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 6px; min-width: 180px;">
+              <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #34C759;">${shelter.status || 'OPEN'} CENTER</span>
+              <h4 style="margin: 2px 0 0 0; font-weight: 800; font-size: 13px; color:#1C1C1E;">${shelter.name}</h4>
+              <p style="margin: 4px 0; font-size: 11px; color: #6C6C70;">Occupancy: <b style="color:#1C1C1E;">${shelter.current_occupancy || 0} / ${shelter.max_capacity || 100}</b></p>
+              <p style="margin: 0; font-size: 10px; color: #8E8E93;">${shelter.address || 'Metro Cebu'}</p>
             </div>
           `)
         )
@@ -247,31 +244,32 @@ export function MapContainer({
       if (!report.latitude || !report.longitude) return;
 
       const colors: Record<string, string> = {
-        ankle: '#1f9d55',
-        knee: '#facc15',
-        waist: '#f5820d',
-        chest: '#ea3838',
-        above_head: '#991547',
+        ankle: '#34C759',
+        knee: '#FFCC00',
+        waist: '#FF9500',
+        chest: '#FF3B30',
+        above_head: '#AF52DE',
       };
+
+      const color = colors[report.flood_depth_level] || '#FF3B30';
 
       const el = document.createElement('div');
       el.className =
-        'w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg border-2 border-white cursor-pointer animate-pulse hover:scale-125 transition-transform';
-      el.style.backgroundColor = colors[report.flood_depth_level] || '#ea3838';
+        'w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md border-2 border-white cursor-pointer hover:scale-125 transition-transform';
+      el.style.backgroundColor = color;
       el.innerHTML = '💧';
 
       const marker = new maplibregl.Marker(el)
         .setLngLat([report.longitude, report.latitude])
         .setPopup(
           new maplibregl.Popup({ offset: 25 }).setHTML(`
-            <div style="font-family: sans-serif; padding: 6px; min-width: 190px;">
+            <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 6px; min-width: 190px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 10px; font-weight: bold; color: #b91c1c; text-transform: uppercase;">CITIZEN FLOOD REPORT</span>
-                <span style="font-size: 9px; color: #777;">${new Date(report.created_at).toLocaleTimeString()}</span>
+                <span style="font-size: 10px; font-weight: 800; color: ${color}; text-transform: uppercase;">CITIZEN FLOOD REPORT</span>
+                <span style="font-size: 9px; color: #8E8E93;">${new Date(report.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
-              <h4 style="margin: 4px 0 2px 0; font-weight: bold; font-size: 13px;">Depth: ${report.flood_depth_level?.toUpperCase()}</h4>
-              <p style="margin: 0 0 4px 0; font-size: 11px; color: #333;">${report.description || 'No additional field notes.'}</p>
-              ${report.photo_url ? `<a href="${report.photo_url}" target="_blank" style="display: block; font-size: 10px; color: #2563eb; font-weight: bold; text-decoration: underline;">View Attached Verification Photo</a>` : ''}
+              <h4 style="margin: 4px 0 2px 0; font-weight: 800; font-size: 13px; color:#1C1C1E;">Depth: ${report.flood_depth_level?.toUpperCase()}</h4>
+              <p style="margin: 0 0 4px 0; font-size: 11px; color: #3A3A3C;">${report.description || 'No additional field notes.'}</p>
             </div>
           `)
         )
@@ -282,53 +280,53 @@ export function MapContainer({
   }, [mapLoaded, reports, shelters]);
 
   return (
-    <div className={`relative rounded-xl overflow-hidden border border-surface-border ${className}`}>
+    <div className={`relative rounded-2xl overflow-hidden border border-[#E5E5EA] shadow-sm ${className}`}>
       <div ref={mapContainerRef} className="w-full h-full" />
 
-      {/* Toggleable UP NOAH Layer Controls Overlay */}
+      {/* Apple Frosted Glass Layer Controls */}
       {showHazardControls && (
-        <div className="absolute top-4 left-4 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-3 text-xs text-white shadow-xl space-y-2 z-10">
-          <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-slate-300 pb-1 border-b border-slate-800">
-            <Layers className="w-3.5 h-3.5 text-blue-400" />
+        <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md border border-[#E5E5EA] rounded-2xl p-4 text-xs text-[#1C1C1E] shadow-lg space-y-2.5 z-10">
+          <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-[#8E8E93] pb-1 border-b border-[#F2F2F7]">
+            <Layers className="w-3.5 h-3.5 text-[#007AFF]" />
             UP NOAH Hazard Overlays
           </div>
 
-          <label className="flex items-center justify-between gap-4 cursor-pointer hover:text-white text-slate-300">
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-xs bg-rose-600 border border-rose-400" />
-              100-Year Severe Hazard
+          <label className="flex items-center justify-between gap-4 cursor-pointer hover:text-[#007AFF] text-[#1C1C1E] font-medium">
+            <span className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 rounded-full bg-[#FF3B30]" />
+              100-Year Severe Flood
             </span>
             <input
               type="checkbox"
               checked={show100Year}
               onChange={(e) => setShow100Year(e.target.checked)}
-              className="rounded-xs bg-slate-800 text-blue-600 focus:ring-0"
+              className="rounded text-[#007AFF] focus:ring-0 cursor-pointer"
             />
           </label>
 
-          <label className="flex items-center justify-between gap-4 cursor-pointer hover:text-white text-slate-300">
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-xs bg-amber-600 border border-amber-400" />
+          <label className="flex items-center justify-between gap-4 cursor-pointer hover:text-[#007AFF] text-[#1C1C1E] font-medium">
+            <span className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 rounded-full bg-[#FF9500]" />
               25-Year High Risk
             </span>
             <input
               type="checkbox"
               checked={show25Year}
               onChange={(e) => setShow25Year(e.target.checked)}
-              className="rounded-xs bg-slate-800 text-blue-600 focus:ring-0"
+              className="rounded text-[#007AFF] focus:ring-0 cursor-pointer"
             />
           </label>
 
-          <label className="flex items-center justify-between gap-4 cursor-pointer hover:text-white text-slate-300">
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-xs bg-yellow-500 border border-yellow-300" />
+          <label className="flex items-center justify-between gap-4 cursor-pointer hover:text-[#007AFF] text-[#1C1C1E] font-medium">
+            <span className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 rounded-full bg-[#FFCC00]" />
               5-Year Advisory Zone
             </span>
             <input
               type="checkbox"
               checked={show5Year}
               onChange={(e) => setShow5Year(e.target.checked)}
-              className="rounded-xs bg-slate-800 text-blue-600 focus:ring-0"
+              className="rounded text-[#007AFF] focus:ring-0 cursor-pointer"
             />
           </label>
         </div>

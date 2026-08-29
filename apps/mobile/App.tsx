@@ -18,30 +18,38 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <Tab.Navigator
           screenOptions={{
             headerStyle: {
-              backgroundColor: COLORS.card,
-              borderBottomColor: COLORS.border,
+              backgroundColor: '#FFFFFF',
+              borderBottomColor: '#E5E5EA',
+              elevation: 0,
+              shadowOpacity: 0.05,
+              shadowOffset: { width: 0, height: 2 },
             },
-            headerTintColor: COLORS.text,
+            headerTintColor: '#1C1C1E',
             headerTitleStyle: {
-              fontWeight: 'bold',
-              fontSize: 16,
+              fontWeight: '800',
+              fontSize: 17,
+              letterSpacing: -0.4,
             },
             tabBarStyle: {
-              backgroundColor: COLORS.card,
-              borderTopColor: COLORS.border,
-              height: 64,
+              backgroundColor: '#FFFFFF',
+              borderTopColor: '#E5E5EA',
+              height: 65,
               paddingBottom: 8,
-              paddingTop: 6,
+              paddingTop: 8,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -4 },
+              shadowOpacity: 0.05,
+              shadowRadius: 16,
             },
             tabBarItemStyle: {
               paddingVertical: 2,
             },
-            tabBarActiveTintColor: COLORS.primary,
-            tabBarInactiveTintColor: COLORS.textSecondary,
+            tabBarActiveTintColor: '#007AFF',
+            tabBarInactiveTintColor: '#8E8E93',
             tabBarLabelStyle: {
               fontSize: 10,
               fontWeight: '700',
@@ -53,18 +61,18 @@ export default function App() {
             name="LiveMap"
             component={LiveMapScreen}
             options={{
-              title: 'Flood Map',
+              title: 'Cebu Flood Map',
               tabBarLabel: 'Map',
-              tabBarIcon: ({ color }) => <Map color={color} size={20} />,
+              tabBarIcon: ({ color }) => <Map color={color} size={22} />,
             }}
           />
           <Tab.Screen
             name="ReportFlood"
             component={ReportFloodScreen}
             options={{
-              title: 'Report Flood',
+              title: 'Report Incident',
               tabBarLabel: 'Report',
-              tabBarIcon: ({ color }) => <PlusCircle color={color} size={20} />,
+              tabBarIcon: ({ color }) => <PlusCircle color={color} size={22} />,
             }}
           />
           <Tab.Screen
@@ -73,7 +81,7 @@ export default function App() {
             options={{
               title: 'Safe Evacuation',
               tabBarLabel: 'Evacuate',
-              tabBarIcon: ({ color }) => <Compass color={color} size={20} />,
+              tabBarIcon: ({ color }) => <Compass color={color} size={22} />,
             }}
           />
           <Tab.Screen
@@ -82,16 +90,16 @@ export default function App() {
             options={{
               title: 'Safety Network',
               tabBarLabel: 'Safe',
-              tabBarIcon: ({ color }) => <ShieldCheck color={color} size={20} />,
+              tabBarIcon: ({ color }) => <ShieldCheck color={color} size={22} />,
             }}
           />
           <Tab.Screen
             name="Profile"
             component={ProfileScreen}
             options={{
-              title: 'Profile & Alerts',
-              tabBarLabel: 'Profile',
-              tabBarIcon: ({ color }) => <User color={color} size={20} />,
+              title: 'Settings & Alerts',
+              tabBarLabel: 'Settings',
+              tabBarIcon: ({ color }) => <User color={color} size={22} />,
             }}
           />
         </Tab.Navigator>

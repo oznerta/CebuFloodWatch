@@ -6,15 +6,15 @@ import { UP_NOAH_CEBU_HAZARD_GEOJSON } from '@cebufloodwatch/shared';
 interface MobileMapProps {
   reports?: any[];
   shelters?: any[];
-  height?: number;
   showHazards?: boolean;
+  style?: any;
 }
 
 export function MobileMap({
   reports = [],
   shelters = [],
-  height = 320,
   showHazards = true,
+  style,
 }: MobileMapProps) {
   const mapHtml = useMemo(() => {
     const safeReports = JSON.stringify(reports);
@@ -32,35 +32,42 @@ export function MobileMap({
   <style>
     body, html, #map {
       margin: 0; padding: 0; width: 100%; height: 100%;
-      background: #0f172a;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f8f9fa;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
     }
     .leaflet-popup-content-wrapper {
-      background: #1e293b;
-      color: #f8fafc;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      padding: 4px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      color: #1c1c1e;
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 16px;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
+      padding: 6px;
     }
     .leaflet-popup-tip {
-      background: #1e293b;
+      background: rgba(255, 255, 255, 0.95);
     }
-    .custom-pin {
+    .apple-pin {
       display: flex;
       align-items: center;
       justify-content: center;
       border-radius: 50%;
-      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+      transition: transform 0.2s ease;
+    }
+    .apple-pin:hover {
+      transform: scale(1.15);
     }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <script>
-    const map = L.map('map', { zoomControl: false }).setView([10.3157, 123.8950], 13);
+    const map = L.map('map', { zoomControl: false }).setView([10.3180, 123.8980], 13);
     
-    // Dark matter tiles
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // Apple Maps style crisp Voyager light cartography
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
       subdomains: 'abcd',
       maxZoom: 19
@@ -70,17 +77,18 @@ export function MobileMap({
     if (hazards && hazards.features) {
       L.geoJSON(hazards, {
         style: function(feature) {
-          const color = feature.properties?.color || '#f5820d';
+          const color = feature.properties?.color || '#FF9500';
           return {
             color: color,
             fillColor: color,
-            fillOpacity: 0.35,
-            weight: 1.5
+            fillOpacity: 0.25,
+            weight: 2,
+            dashArray: '3, 6'
           };
         },
         onEachFeature: function(feature, layer) {
           if (feature.properties) {
-            layer.bindPopup('<b>' + (feature.properties.name || 'Flood Hazard Zone') + '</b><br/>Return Period: ' + (feature.properties.return_period || '25-Year'));
+            layer.bindPopup('<div style="font-size:13px; font-weight:700; color:#1c1c1e;">' + (feature.properties.name || 'UP NOAH Hazard Zone') + '</div><div style="font-size:11px; color:#8e8e93; margin-top:2px;">Return Period: <b style="color:#ff9500;">' + (feature.properties.return_period || '25-Year') + '</b></div>');
           }
         }
       }).addTo(map);
@@ -90,13 +98,13 @@ export function MobileMap({
     shelters.forEach(s => {
       if (s.latitude && s.longitude) {
         const icon = L.divIcon({
-          className: 'custom-pin',
-          html: '<div style="background:#10b981; width:24px; height:24px; border-radius:12px; border:2px solid #ffffff; display:flex; align-items:center; justify-content:center; color:#fff; font-size:11px; font-weight:bold;">🏠</div>',
-          iconSize: [24, 24],
-          iconAnchor: [12, 12]
+          className: 'apple-pin',
+          html: '<div style="background:#34C759; width:30px; height:30px; border-radius:15px; border:2.5px solid #ffffff; display:flex; align-items:center; justify-content:center; color:#ffffff; font-size:14px; box-shadow: 0 4px 12px rgba(52,199,89,0.4);">🏠</div>',
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
         });
         L.marker([s.latitude, s.longitude], { icon })
-          .bindPopup('<b>' + s.name + '</b><br/>Status: <span style="color:#34d399; font-weight:bold;">' + (s.status || 'OPEN').toUpperCase() + '</span><br/>Occupancy: ' + (s.current_occupancy || 0) + '/' + (s.max_capacity || 100))
+          .bindPopup('<div style="font-size:14px; font-weight:700; color:#1c1c1e;">' + s.name + '</div><div style="font-size:11px; margin-top:4px;"><span style="background:#EBF9EE; color:#34C759; padding:2px 8px; border-radius:10px; font-weight:700; font-size:10px;">' + (s.status || 'OPEN').toUpperCase() + '</span> &bull; <b style="color:#1c1c1e;">' + (s.current_occupancy || 0) + '/' + (s.max_capacity || 100) + ' evacuees</b></div>')
           .addTo(map);
       }
     });
@@ -104,15 +112,15 @@ export function MobileMap({
     const reports = ${safeReports};
     reports.forEach(r => {
       if (r.latitude && r.longitude) {
-        const color = r.flood_depth_level === 'chest' || r.flood_depth_level === 'above_head' ? '#ef4444' : r.flood_depth_level === 'waist' ? '#f5820d' : '#facc15';
+        const color = r.flood_depth_level === 'chest' || r.flood_depth_level === 'above_head' ? '#FF3B30' : r.flood_depth_level === 'waist' ? '#FF9500' : '#FFCC00';
         const icon = L.divIcon({
-          className: 'custom-pin',
-          html: '<div style="background:' + color + '; width:22px; height:22px; border-radius:11px; border:2px solid #ffffff; display:flex; align-items:center; justify-content:center; color:#fff; font-size:10px; font-weight:bold;">💧</div>',
-          iconSize: [22, 22],
-          iconAnchor: [11, 11]
+          className: 'apple-pin',
+          html: '<div style="background:' + color + '; width:28px; height:28px; border-radius:14px; border:2.5px solid #ffffff; display:flex; align-items:center; justify-content:center; color:#ffffff; font-size:13px; box-shadow: 0 4px 12px ' + color + '66;">💧</div>',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
         });
         L.marker([r.latitude, r.longitude], { icon })
-          .bindPopup('<b>Barangay ' + (r.barangay_name || 'Area') + '</b><br/>Depth: <b style="color:' + color + '">' + (r.flood_depth_level || 'Knee').toUpperCase() + '</b><br/>' + (r.description || ''))
+          .bindPopup('<div style="font-size:13px; font-weight:700; color:#1c1c1e;">Barangay ' + (r.barangay_name || 'Cebu Area') + '</div><div style="font-size:11px; color:#8e8e93; margin-top:2px;">Water Depth: <b style="color:' + color + '; font-weight:800;">' + (r.flood_depth_level || 'Knee').toUpperCase() + '</b></div><div style="font-size:12px; color:#3a3a3c; margin-top:4px; line-height:1.4;">' + (r.description || '') + '</div>')
           .addTo(map);
       }
     });
@@ -123,7 +131,7 @@ export function MobileMap({
   }, [reports, shelters, showHazards]);
 
   return (
-    <View style={[styles.container, { height }]}>
+    <View style={[styles.container, style]}>
       {Platform.OS === 'web' ? (
         <iframe
           title="Cebu Flood Map"
@@ -142,11 +150,8 @@ export function MobileMap({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    backgroundColor: '#0f172a',
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    height: '100%',
+    backgroundColor: '#F2F2F7',
   },
   nativeFallback: {
     flex: 1,
@@ -155,6 +160,7 @@ const styles = StyleSheet.create({
   },
   fallbackText: {
     color: COLORS.textSecondary,
-    fontSize: 12,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
