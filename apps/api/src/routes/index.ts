@@ -7,6 +7,7 @@ import { roadsRouter } from './roads.js';
 import { alertsRouter } from './alerts.js';
 import { hazardsRouter } from './hazards.js';
 import { uploadRouter } from './upload.js';
+import { clustersRouter } from './clusters.js';
 
 export const apiRouter = Router();
 
@@ -18,3 +19,4 @@ apiRouter.use('/roads', roadsRouter);
 apiRouter.use('/alerts', alertsRouter);
 apiRouter.use('/hazards', hazardsRouter);
 apiRouter.use('/upload', uploadRouter);
+apiRouter.use('/clusters', clustersRouter);
