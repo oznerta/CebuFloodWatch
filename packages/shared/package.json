@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "tsc --noEmit",
+    "test": "tsc && node --test dist/utils/geo.test.js",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

@@ -1,0 +1,68 @@
+import { HydrologicalSensorStation } from '@cebufloodwatch/shared';
+
+const SENSOR_STATIONS: HydrologicalSensorStation[] = [
+  {
+    id: 'station_mabolo_suba',
+    station_name: 'Mabolo River Telemetry Gauge (Suba Station)',
+    river_basin: 'Suba / Tejero Catchment',
+    barangay_name: 'Mabolo',
+    latitude: 10.325,
+    longitude: 123.9167,
+    water_level_meters: 2.15,
+    alert_level_1_meters: 1.4,
+    critical_overflow_meters: 2.0,
+    rainfall_rate_mmh: 42.5,
+    trend: 'rising',
+    status: 'critical_breach',
+    last_reading_at: new Date().toISOString(),
+  },
+  {
+    id: 'station_mahiga_creek',
+    station_name: 'Mahiga Creek Hydrological Station',
+    river_basin: 'Mahiga River Basin',
+    barangay_name: 'Kasambagan',
+    latitude: 10.334,
+    longitude: 123.914,
+    water_level_meters: 1.62,
+    alert_level_1_meters: 1.2,
+    critical_overflow_meters: 1.8,
+    rainfall_rate_mmh: 31.0,
+    trend: 'rising',
+    status: 'watch',
+    last_reading_at: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+  },
+  {
+    id: 'station_guadalupe_river',
+    station_name: 'Guadalupe River Midstream Sensor',
+    river_basin: 'Guadalupe River Basin',
+    barangay_name: 'Guadalupe',
+    latitude: 10.328,
+    longitude: 123.882,
+    water_level_meters: 0.85,
+    alert_level_1_meters: 1.5,
+    critical_overflow_meters: 2.2,
+    rainfall_rate_mmh: 12.0,
+    trend: 'stable',
+    status: 'normal',
+    last_reading_at: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
+  },
+  {
+    id: 'station_subangdaku_sensor',
+    station_name: 'Subangdaku Tributary Sensor',
+    river_basin: 'Mandaue-Cebu Border Basin',
+    barangay_name: 'Subangdaku / Banilad',
+    latitude: 10.341,
+    longitude: 123.922,
+    water_level_meters: 1.15,
+    alert_level_1_meters: 1.3,
+    critical_overflow_meters: 1.9,
+    rainfall_rate_mmh: 18.5,
+    trend: 'stable',
+    status: 'normal',
+    last_reading_at: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
+  },
+];
+
+export function getHydrologicalStations(): HydrologicalSensorStation[] {
+  return SENSOR_STATIONS;
+}

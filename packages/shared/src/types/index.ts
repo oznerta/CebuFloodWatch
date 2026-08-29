@@ -168,3 +168,40 @@ export interface DashboardStats {
   blocked_roads_count: number;
   active_alerts_count: number;
 }
+
+export interface HydrologicalSensorStation {
+  id: string;
+  station_name: string;
+  river_basin: string;
+  barangay_name: string;
+  latitude: number;
+  longitude: number;
+  water_level_meters: number;
+  alert_level_1_meters: number;
+  critical_overflow_meters: number;
+  rainfall_rate_mmh: number;
+  trend: 'rising' | 'stable' | 'receding';
+  status: 'normal' | 'watch' | 'critical_breach';
+  last_reading_at: string;
+}
+
+export interface DisasterAuditExport {
+  export_timestamp: string;
+  jurisdiction: string;
+  reporting_agency: string;
+  audit_summary: {
+    total_citizen_reports: number;
+    verified_flood_events: number;
+    total_incident_clusters: number;
+    active_evacuation_centers: number;
+    total_hosted_evacuees: number;
+    published_emergency_alerts: number;
+    blocked_road_corridors: number;
+  };
+  incident_clusters: any[];
+  verified_reports: any[];
+  evacuation_centers: any[];
+  alerts: any[];
+  road_blockages: any[];
+}
+
