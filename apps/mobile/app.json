@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "CebuFloodWatch",
+    "slug": "cebufloodwatch",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f172a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ph.gov.cebu.floodwatch",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "CebuFloodWatch requires your location to display nearby flood hazard alerts and provide safe evacuation guidance."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0f172a"
+      },
+      "package": "ph.gov.cebu.floodwatch",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow CebuFloodWatch to use your location for emergency flood alerting."
+        }
+      ]
+    ]
+  }
+}
