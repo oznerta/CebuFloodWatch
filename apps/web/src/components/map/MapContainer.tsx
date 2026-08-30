@@ -69,6 +69,7 @@ export function MapContainer({
   const [showMask, setShowMask] = useState(true);
   const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('vector');
   const [is3DMode, setIs3DMode] = useState(false);
+  const [showLayersMenu, setShowLayersMenu] = useState(false);
 
   // Initialize MapLibre strictly restricted to Cebu City
   useEffect(() => {
@@ -502,123 +503,141 @@ export function MapContainer({
         </button>
       </div>
 
-      {/* NOAH Hazard Return-Period Layer Switcher */}
+      {/* NOAH Hazard Return-Period Layer Switcher (Compact Expandable Pill) */}
       {showHazardControls && (
-        <div className="absolute bottom-6 left-6 z-10 bg-white/95 backdrop-blur-2xl border border-[#E5E5EA] rounded-3xl p-4 shadow-xl space-y-3 text-xs pointer-events-auto min-w-[280px]">
-          <div className="flex items-center justify-between border-b border-[#F2F2F7] pb-2">
-            <span className="font-black text-[11px] uppercase tracking-wider text-[#1C1C1E] flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-[#007AFF]" />
-              UP NOAH Scenarios
-            </span>
-            <span className="text-[10px] font-bold text-[#8E8E93]">Return Period</span>
-          </div>
-
-          {/* Scenario Selector Pills */}
-          <div className="grid grid-cols-2 gap-1.5">
+        <div className="absolute bottom-6 left-6 z-10 pointer-events-auto">
+          {!showLayersMenu ? (
             <button
-              onClick={() => setSelectedScenario('5yr')}
-              className={`py-1.5 px-2.5 rounded-xl font-extrabold text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                selectedScenario === '5yr'
-                  ? 'bg-[#FFCC00] text-[#1C1C1E] shadow-xs'
-                  : 'bg-[#F8F9FA] text-[#8E8E93] hover:bg-[#F2F2F7]'
-              }`}
+              onClick={() => setShowLayersMenu(true)}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/95 backdrop-blur-2xl border border-gray-200 hover:border-gray-300 text-gray-800 text-xs font-black shadow-lg hover:shadow-xl transition-all cursor-pointer"
             >
-              <span className="w-2 h-2 rounded-full bg-[#FFCC00]" />
-              5-Year (Low)
+              <Layers className="w-4 h-4 text-blue-600" />
+              <span>Map Layers &amp; Scenarios</span>
+              <span className={`w-2 h-2 rounded-full ${selectedScenario === '100yr' ? 'bg-rose-500' : selectedScenario === '25yr' ? 'bg-amber-500' : selectedScenario === '5yr' ? 'bg-yellow-400' : 'bg-gray-400'}`} />
             </button>
-
-            <button
-              onClick={() => setSelectedScenario('25yr')}
-              className={`py-1.5 px-2.5 rounded-xl font-extrabold text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                selectedScenario === '25yr'
-                  ? 'bg-[#FF9500] text-white shadow-xs'
-                  : 'bg-[#F8F9FA] text-[#8E8E93] hover:bg-[#F2F2F7]'
-              }`}
-            >
-              <span className="w-2 h-2 rounded-full bg-[#FF9500]" />
-              25-Yr (Medium)
-            </button>
-
-            <button
-              onClick={() => setSelectedScenario('100yr')}
-              className={`py-1.5 px-2.5 rounded-xl font-extrabold text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                selectedScenario === '100yr'
-                  ? 'bg-[#FF3B30] text-white shadow-xs'
-                  : 'bg-[#F8F9FA] text-[#8E8E93] hover:bg-[#F2F2F7]'
-              }`}
-            >
-              <span className="w-2 h-2 rounded-full bg-[#FF3B30]" />
-              100-Yr (Severe)
-            </button>
-
-            <button
-              onClick={() => setSelectedScenario('none')}
-              className={`py-1.5 px-2.5 rounded-xl font-extrabold text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                selectedScenario === 'none'
-                  ? 'bg-[#1C1C1E] text-white shadow-xs'
-                  : 'bg-[#F8F9FA] text-[#8E8E93] hover:bg-[#F2F2F7]'
-              }`}
-            >
-              Hide Flood
-            </button>
-          </div>
-
-          {/* Depth Scale Legend */}
-          {selectedScenario !== 'none' && (
-            <div className="pt-2 border-t border-[#F2F2F7] space-y-1">
-              <div className="text-[10px] font-extrabold uppercase text-[#8E8E93]">Inundation Depth Legend</div>
-              <div className="flex items-center justify-between text-[9px] font-bold text-[#6C6C70]">
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-[#FFCC00]" /> 0.1m - 0.5m (Low)
+          ) : (
+            <div className="bg-white/95 backdrop-blur-2xl border border-gray-200 rounded-3xl p-4 shadow-2xl space-y-3 text-xs min-w-[280px] animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <span className="font-black text-[11px] uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-blue-600" />
+                  UP NOAH Scenarios
                 </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-[#FF9500]" /> 0.5m - 1.5m (Med)
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-[#FF3B30]" /> &gt;1.5m (High)
-                </span>
+                <button
+                  onClick={() => setShowLayersMenu(false)}
+                  className="w-5 h-5 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 cursor-pointer"
+                >
+                  &times;
+                </button>
+              </div>
+
+              {/* Scenario Selector Pills */}
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  onClick={() => setSelectedScenario('5yr')}
+                  className={`py-1.5 px-2.5 rounded-xl font-black text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    selectedScenario === '5yr'
+                      ? 'bg-yellow-400 text-gray-900 shadow-xs'
+                      : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                  5-Year (Low)
+                </button>
+
+                <button
+                  onClick={() => setSelectedScenario('25yr')}
+                  className={`py-1.5 px-2.5 rounded-xl font-black text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    selectedScenario === '25yr'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-white" />
+                  25-Yr (Medium)
+                </button>
+
+                <button
+                  onClick={() => setSelectedScenario('100yr')}
+                  className={`py-1.5 px-2.5 rounded-xl font-black text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    selectedScenario === '100yr'
+                      ? 'bg-rose-600 text-white shadow-xs'
+                      : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-white" />
+                  100-Yr (Severe)
+                </button>
+
+                <button
+                  onClick={() => setSelectedScenario('none')}
+                  className={`py-1.5 px-2.5 rounded-xl font-black text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    selectedScenario === 'none'
+                      ? 'bg-gray-900 text-white shadow-xs'
+                      : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  Hide Flood
+                </button>
+              </div>
+
+              {/* Depth Scale Legend */}
+              {selectedScenario !== 'none' && (
+                <div className="pt-2 border-t border-gray-100 space-y-1">
+                  <div className="text-[10px] font-black uppercase text-gray-400">Inundation Depth Legend</div>
+                  <div className="flex items-center justify-between text-[9px] font-bold text-gray-600">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-yellow-400" /> 0.1m - 0.5m
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" /> 0.5m - 1.5m
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-rose-500" /> &gt;1.5m
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Boundary Toggles */}
+              <div className="pt-2 border-t border-gray-100 space-y-1 text-[11px] font-bold text-gray-600">
+                <label className="flex items-center justify-between cursor-pointer select-none">
+                  <span className="flex items-center gap-1.5 text-indigo-600">
+                    <span className="w-2 h-2 rounded-full bg-indigo-600" /> 80 Barangay Outlines
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={showBarangays}
+                    onChange={(e) => setShowBarangays(e.target.checked)}
+                    className="rounded text-indigo-600 focus:ring-0 cursor-pointer"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between cursor-pointer select-none">
+                  <span className="flex items-center gap-1.5 text-blue-600">
+                    <span className="w-2 h-2 rounded-full bg-blue-600" /> Cebu City Perimeter
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={showBoundary}
+                    onChange={(e) => setShowBoundary(e.target.checked)}
+                    className="rounded text-blue-600 focus:ring-0 cursor-pointer"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between cursor-pointer select-none">
+                  <span className="flex items-center gap-1.5 text-gray-800">
+                    <span className="w-2 h-2 rounded-full bg-gray-500" /> Dim Outside Areas
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={showMask}
+                    onChange={(e) => setShowMask(e.target.checked)}
+                    className="rounded text-gray-900 focus:ring-0 cursor-pointer"
+                  />
+                </label>
               </div>
             </div>
           )}
-
-          {/* Boundary Toggles */}
-          <div className="pt-2 border-t border-[#F2F2F7] space-y-1 text-[11px] font-bold text-[#6C6C70]">
-            <label className="flex items-center justify-between cursor-pointer select-none">
-              <span className="flex items-center gap-1.5 text-[#5856D6]">
-                <span className="w-2 h-2 rounded-full bg-[#5856D6]" /> 80 Barangay Outlines
-              </span>
-              <input
-                type="checkbox"
-                checked={showBarangays}
-                onChange={(e) => setShowBarangays(e.target.checked)}
-                className="rounded text-[#5856D6] focus:ring-0 cursor-pointer"
-              />
-            </label>
-
-            <label className="flex items-center justify-between cursor-pointer select-none">
-              <span className="flex items-center gap-1.5 text-[#007AFF]">
-                <span className="w-2 h-2 rounded-full bg-[#007AFF]" /> Cebu City Perimeter
-              </span>
-              <input
-                type="checkbox"
-                checked={showBoundary}
-                onChange={(e) => setShowBoundary(e.target.checked)}
-                className="rounded text-[#007AFF] focus:ring-0 cursor-pointer"
-              />
-            </label>
-
-            <label className="flex items-center justify-between cursor-pointer select-none">
-              <span className="flex items-center gap-1.5 text-[#1C1C1E]">
-                <span className="w-2 h-2 rounded-full bg-[#8E8E93]" /> Hide Outside Areas
-              </span>
-              <input
-                type="checkbox"
-                checked={showMask}
-                onChange={(e) => setShowMask(e.target.checked)}
-                className="rounded text-[#1C1C1E] focus:ring-0 cursor-pointer"
-              />
-            </label>
-          </div>
         </div>
       )}
     </div>
