@@ -18,9 +18,11 @@ import {
   Activity,
 } from 'lucide-react';
 
+import { fetchApi } from '../../../lib/api';
+
 export default function APIGatewaysPage() {
   // PAGASA Weather API State
-  const [pagasaKey, setPagasaKey] = useState('pagasa_live_sec_89f3a8b29c11');
+  const [pagasaKey, setPagasaKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [pagasaInterval, setPagasaInterval] = useState('5');
   const [pagasaStatus, setPagasaStatus] = useState<'healthy' | 'checking'>('healthy');
@@ -31,10 +33,10 @@ export default function APIGatewaysPage() {
 
   // IoT Sensor MQTT Gateway
   const [mqttBroker, setMqttBroker] = useState('mqtts://telemetry.cebucity.gov.ph:8883');
-  const [activeSensorsCount, setActiveSensorsCount] = useState(3);
+  const [activeSensorsCount, setActiveSensorsCount] = useState(0);
 
   // SMS Gateway
-  const [smsApiKey, setSmsApiKey] = useState('philsms_prod_99a8b1c4e5f2');
+  const [smsApiKey, setSmsApiKey] = useState('');
   const [smsSenderId, setSmsSenderId] = useState('CEBU_CDRRMO');
 
   const [savedSuccess, setSavedSuccess] = useState(false);

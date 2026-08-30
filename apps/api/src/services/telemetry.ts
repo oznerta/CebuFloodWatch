@@ -1,68 +1,65 @@
 import { HydrologicalSensorStation } from '@cebufloodwatch/shared';
 
-const SENSOR_STATIONS: HydrologicalSensorStation[] = [
-  {
-    id: 'station_mabolo_suba',
-    station_name: 'Mabolo River Telemetry Gauge (Suba Station)',
-    river_basin: 'Suba / Tejero Catchment',
-    barangay_name: 'Mabolo',
-    latitude: 10.325,
-    longitude: 123.9167,
-    water_level_meters: 2.15,
-    alert_level_1_meters: 1.4,
-    critical_overflow_meters: 2.0,
-    rainfall_rate_mmh: 42.5,
-    trend: 'rising',
-    status: 'critical_breach',
-    last_reading_at: new Date().toISOString(),
-  },
-  {
-    id: 'station_mahiga_creek',
-    station_name: 'Mahiga Creek Hydrological Station',
-    river_basin: 'Mahiga River Basin',
-    barangay_name: 'Kasambagan',
-    latitude: 10.334,
-    longitude: 123.914,
-    water_level_meters: 1.62,
-    alert_level_1_meters: 1.2,
-    critical_overflow_meters: 1.8,
-    rainfall_rate_mmh: 31.0,
-    trend: 'rising',
-    status: 'watch',
-    last_reading_at: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-  },
-  {
-    id: 'station_guadalupe_river',
-    station_name: 'Guadalupe River Midstream Sensor',
-    river_basin: 'Guadalupe River Basin',
-    barangay_name: 'Guadalupe',
-    latitude: 10.328,
-    longitude: 123.882,
-    water_level_meters: 0.85,
-    alert_level_1_meters: 1.5,
-    critical_overflow_meters: 2.2,
-    rainfall_rate_mmh: 12.0,
-    trend: 'stable',
-    status: 'normal',
-    last_reading_at: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
-  },
-  {
-    id: 'station_subangdaku_sensor',
-    station_name: 'Subangdaku Tributary Sensor',
-    river_basin: 'Mandaue-Cebu Border Basin',
-    barangay_name: 'Subangdaku / Banilad',
-    latitude: 10.341,
-    longitude: 123.922,
-    water_level_meters: 1.15,
-    alert_level_1_meters: 1.3,
-    critical_overflow_meters: 1.9,
-    rainfall_rate_mmh: 18.5,
-    trend: 'stable',
-    status: 'normal',
-    last_reading_at: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
-  },
-];
+// Runtime store for real IoT River Telemetry Stations
+const SENSOR_STATIONS: HydrologicalSensorStation[] = [];
 
-export function getHydrologicalStations(): HydrologicalSensorStation[] {
+export function getTelemetryStations(): HydrologicalSensorStation[] {
   return SENSOR_STATIONS;
+}
+
+export const getHydrologicalStations = getTelemetryStations;
+
+export function updateSensorReading(
+  stationId: string,
+  reading: {
+    station_name?: string;
+    river_basin?: string;
+    barangay_name?: string;
+    latitude?: number;
+    longitude?: number;
+    water_level_meters: number;
+    rainfall_rate_mmh?: number;
+    alert_level_1_meters?: number;
+    critical_overflow_meters?: number;
+  }
+): HydrologicalSensorStation {
+  let station = SENSOR_STATIONS.find((s) => s.id === stationId);
+
+  const alert1 = reading.alert_level_1_meters || 1.5;
+  const crit = reading.critical_overflow_meters || 2.2;
+  let status: HydrologicalSensorStation['status'] = 'normal';
+
+  if (reading.water_level_meters >= crit) {
+    status = 'critical_breach';
+  } else if (reading.water_level_meters >= alert1) {
+    status = 'watch';
+  }
+
+  if (station) {
+    const prevLevel = station.water_level_meters;
+    station.water_level_meters = reading.water_level_meters;
+    station.rainfall_rate_mmh = reading.rainfall_rate_mmh ?? station.rainfall_rate_mmh;
+    station.status = status;
+    station.trend = reading.water_level_meters > prevLevel ? 'rising' : reading.water_level_meters < prevLevel ? 'receding' : 'stable';
+    station.last_reading_at = new Date().toISOString();
+  } else {
+    station = {
+      id: stationId,
+      station_name: reading.station_name || `Sensor Node ${stationId}`,
+      river_basin: reading.river_basin || 'Cebu River Basin',
+      barangay_name: reading.barangay_name || 'Cebu City',
+      latitude: reading.latitude || 10.3157,
+      longitude: reading.longitude || 123.8854,
+      water_level_meters: reading.water_level_meters,
+      alert_level_1_meters: alert1,
+      critical_overflow_meters: crit,
+      rainfall_rate_mmh: reading.rainfall_rate_mmh || 0,
+      trend: 'stable',
+      status,
+      last_reading_at: new Date().toISOString(),
+    };
+    SENSOR_STATIONS.push(station);
+  }
+
+  return station;
 }

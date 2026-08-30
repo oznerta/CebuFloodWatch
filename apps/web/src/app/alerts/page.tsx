@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { fetchApi } from '../../lib/api';
 import { getSocket } from '../../lib/socket';
+import { CEBU_BARANGAY_NAMES } from '@cebufloodwatch/shared';
 
 export default function AlertsPage() {
   const [rawNotes, setRawNotes] = useState('');
@@ -159,14 +160,14 @@ export default function AlertsPage() {
                 <select
                   value={targetBarangay}
                   onChange={(e) => setTargetBarangay(e.target.value)}
-                  className="w-full bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl px-3.5 py-2.5 text-xs font-bold text-[#1C1C1E] focus:outline-none focus:border-[#007AFF]"
+                  className="w-full bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl px-3.5 py-2.5 text-xs font-bold text-[#1C1C1E] focus:outline-none focus:border-[#007AFF] cursor-pointer"
                 >
-                  <option value="Mabolo">Barangay Mabolo</option>
-                  <option value="Kasambagan">Barangay Kasambagan</option>
-                  <option value="Mambaling">Barangay Mambaling</option>
-                  <option value="Guadalupe">Barangay Guadalupe</option>
-                  <option value="Lahug">Barangay Lahug</option>
-                  <option value="Tejero">Barangay Tejero</option>
+                  <option value="Citywide">🚨 Citywide (All 80 Barangays)</option>
+                  {CEBU_BARANGAY_NAMES.map((name) => (
+                    <option key={name} value={name}>
+                      Brgy. {name}
+                    </option>
+                  ))}
                 </select>
               </div>
 

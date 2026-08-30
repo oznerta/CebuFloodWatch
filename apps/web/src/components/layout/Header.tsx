@@ -17,9 +17,11 @@ import { EmergencyHotlineModal } from '../emergency/EmergencyHotlineModal';
 import { VehiclePassabilityModal } from '../tools/VehiclePassabilityModal';
 import { CebuLandmark } from '@cebufloodwatch/shared';
 
+import { fetchApi } from '../../lib/api';
+
 export function Header() {
   const [activeAlert, setActiveAlert] = useState<string>(
-    'OPERATIONAL ADVISORY: Real-time telemetry sensors active across Suba-Mabolo, Mahiga Creek, and Guadalupe catchments.'
+    'Cebu City Flood & Weather Monitoring Active • All Stations Nominal'
   );
 
   const [searchOpen, setSearchOpen] = useState(false);
@@ -35,6 +37,16 @@ export function Header() {
         setUser(JSON.parse(stored));
       }
     } catch {}
+
+    // Load active alert from backend API
+    fetchApi<any[]>('/alerts/active')
+      .then((alerts) => {
+        if (alerts && alerts.length > 0) {
+          const latest = alerts[0];
+          setActiveAlert(`${latest.severity?.toUpperCase()}: ${latest.title_en} — ${latest.body_en}`);
+        }
+      })
+      .catch(() => {});
 
     const socket = getSocket();
     if (socket) {
