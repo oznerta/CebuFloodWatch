@@ -8,14 +8,14 @@ export async function mobileFetch<T>(endpoint: string, options?: RequestInit): P
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : { 'x-mock-role': 'citizen' }),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options?.headers || {}),
     },
   });
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.error?.message || 'Network request failed');
+    throw new Error(data.error?.message || data.error || 'Network request failed');
   }
-  return data.data;
+  return data.data !== undefined ? data.data : data;
 }
