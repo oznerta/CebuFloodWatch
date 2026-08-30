@@ -5,6 +5,13 @@ import { query } from '../config/db.js';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth.js';
 import { checkRateLimit } from '../services/security.js';
 import { getLiveInfrastructureStatus } from '../services/infraHealth.js';
+import { getIO } from '../services/socket.js';
+import {
+  METRO_CEBU_HOTLINES,
+  DisasterHotlineAgency,
+  DEFAULT_VEHICLE_CLEARANCES,
+  VehicleClearanceCategory,
+} from '@cebufloodwatch/shared';
 
 export const adminRouter = Router();
 
@@ -396,3 +403,196 @@ adminRouter.post('/test-ai', async (req: Request, res: Response) => {
     sampleOutput: 'Model connection verified.',
   });
 });
+
+/**
+ * GET /admin/config/hotlines
+ * Admin endpoint to retrieve all configured emergency hotlines
+ */
+adminRouter.get('/config/hotlines', async (_req: Request, res: Response) => {
+  try {
+    const dbRes = await query(`SELECT value FROM public.system_settings WHERE key = 'emergency_hotlines'`);
+    if (dbRes.rows.length > 0 && Array.isArray(dbRes.rows[0].value) && dbRes.rows[0].value.length > 0) {
+      return res.json({ success: true, data: dbRes.rows[0].value as DisasterHotlineAgency[] });
+    }
+  } catch (err: any) {
+    console.warn('Error reading emergency hotlines:', err);
+  }
+  return res.json({ success: true, data: METRO_CEBU_HOTLINES });
+});
+
+/**
+ * PUT /admin/config/hotlines
+ * Admin endpoint to save and publish custom emergency hotlines
+ */
+adminRouter.put('/config/hotlines', async (req: AuthenticatedRequest, res: Response) => {
+  const { hotlines } = req.body;
+
+  if (!Array.isArray(hotlines) || hotlines.length === 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'Hotlines payload must be a non-empty array of hotline objects.',
+    });
+  }
+
+  for (const h of hotlines) {
+    if (!h.name || !h.phone) {
+      return res.status(400).json({
+        success: false,
+        error: 'Each hotline entry must have a valid agency name and phone number.',
+      });
+    }
+  }
+
+  try {
+    await query(
+      `INSERT INTO public.system_settings (key, value, updated_at)
+       VALUES ('emergency_hotlines', $1::jsonb, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [JSON.stringify(hotlines)]
+    );
+
+    const io = getIO();
+    if (io) {
+      io.emit('hotlines:updated', hotlines);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Emergency hotlines updated and broadcasted successfully.',
+      data: hotlines,
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: `Failed to persist emergency hotlines: ${err.message}`,
+    });
+  }
+});
+
+/**
+ * POST /admin/config/hotlines/reset
+ * Reset emergency hotlines to default OCD-7 hotlines
+ */
+adminRouter.post('/config/hotlines/reset', async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    await query(
+      `INSERT INTO public.system_settings (key, value, updated_at)
+       VALUES ('emergency_hotlines', $1::jsonb, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [JSON.stringify(METRO_CEBU_HOTLINES)]
+    );
+
+    const io = getIO();
+    if (io) {
+      io.emit('hotlines:updated', METRO_CEBU_HOTLINES);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Emergency hotlines reset to official Metro Cebu OCD-7 defaults.',
+      data: METRO_CEBU_HOTLINES,
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: `Failed to reset hotlines: ${err.message}`,
+    });
+  }
+});
+
+/**
+ * GET /admin/config/vehicles
+ * Admin endpoint to retrieve all configured vehicle clearance categories
+ */
+adminRouter.get('/config/vehicles', async (_req: Request, res: Response) => {
+  try {
+    const dbRes = await query(`SELECT value FROM public.system_settings WHERE key = 'vehicle_clearances'`);
+    if (dbRes.rows.length > 0 && Array.isArray(dbRes.rows[0].value) && dbRes.rows[0].value.length > 0) {
+      return res.json({ success: true, data: dbRes.rows[0].value as VehicleClearanceCategory[] });
+    }
+  } catch (err: any) {
+    console.warn('Error reading vehicle clearances:', err);
+  }
+  return res.json({ success: true, data: DEFAULT_VEHICLE_CLEARANCES });
+});
+
+/**
+ * PUT /admin/config/vehicles
+ * Admin endpoint to save and publish custom vehicle clearance specifications
+ */
+adminRouter.put('/config/vehicles', async (req: AuthenticatedRequest, res: Response) => {
+  const { vehicles } = req.body;
+
+  if (!Array.isArray(vehicles) || vehicles.length === 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'Vehicles payload must be a non-empty array of vehicle categories.',
+    });
+  }
+
+  for (const v of vehicles) {
+    if (!v.name || v.maxSafeDepthCm === undefined || v.criticalLimitCm === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'Each vehicle category must have a name, maxSafeDepthCm, and criticalLimitCm.',
+      });
+    }
+  }
+
+  try {
+    await query(
+      `INSERT INTO public.system_settings (key, value, updated_at)
+       VALUES ('vehicle_clearances', $1::jsonb, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [JSON.stringify(vehicles)]
+    );
+
+    const io = getIO();
+    if (io) {
+      io.emit('vehicles:updated', vehicles);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Vehicle clearance specifications updated and broadcasted successfully.',
+      data: vehicles,
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: `Failed to persist vehicle clearances: ${err.message}`,
+    });
+  }
+});
+
+/**
+ * POST /admin/config/vehicles/reset
+ * Reset vehicle clearances to manufacturer standard defaults
+ */
+adminRouter.post('/config/vehicles/reset', async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    await query(
+      `INSERT INTO public.system_settings (key, value, updated_at)
+       VALUES ('vehicle_clearances', $1::jsonb, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [JSON.stringify(DEFAULT_VEHICLE_CLEARANCES)]
+    );
+
+    const io = getIO();
+    if (io) {
+      io.emit('vehicles:updated', DEFAULT_VEHICLE_CLEARANCES);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Vehicle clearance specifications reset to manufacturer standard defaults.',
+      data: DEFAULT_VEHICLE_CLEARANCES,
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: `Failed to reset vehicle clearances: ${err.message}`,
+    });
+  }
+});
+

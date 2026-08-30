@@ -205,3 +205,12 @@ export interface DisasterAuditExport {
   road_blockages: any[];
 }
 
+export interface VehicleClearanceCategory {
+  id: string;
+  name: string;
+  maxSafeDepthCm: number;
+  criticalLimitCm: number;
+  icon: string;
+  recommendation: string;
+}
+

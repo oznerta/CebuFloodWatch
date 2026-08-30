@@ -6,3 +6,5 @@ export * from './data/cebuBarangays.js';
 export * from './data/upNoahCebuHazards.js';
 export * from './data/cebuLandmarks.js';
 export * from './data/emergencyHotlines.js';
+export * from './data/vehicleClearances.js';
+

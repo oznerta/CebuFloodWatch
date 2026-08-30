@@ -78,6 +78,7 @@ export function LiveMapScreen() {
 
   // Hotlines Modal State
   const [hotlinesModalOpen, setHotlinesModalOpen] = useState(false);
+  const [hotlines, setHotlines] = useState<any[]>(METRO_CEBU_HOTLINES);
 
   // Map Controls State
   const [showHazards, setShowHazards] = useState(true);
@@ -112,6 +113,11 @@ export function LiveMapScreen() {
 
   useEffect(() => {
     fetchIncidents();
+    mobileFetch<any[]>('/config/hotlines')
+      .then((data) => {
+        if (data && Array.isArray(data) && data.length > 0) setHotlines(data);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -616,7 +622,7 @@ export function LiveMapScreen() {
             </TouchableOpacity>
 
             <ScrollView style={{ maxHeight: 360 }}>
-              {METRO_CEBU_HOTLINES.map((h) => (
+              {hotlines.map((h) => (
                 <View key={h.id} style={styles.hotlineRow}>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

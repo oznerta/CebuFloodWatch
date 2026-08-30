@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   PhoneCall,
   ShieldAlert,
@@ -19,6 +19,8 @@ import {
   METRO_CEBU_HOTLINES,
   DisasterHotlineAgency,
 } from '@cebufloodwatch/shared';
+import { fetchApi } from '../../lib/api';
+import { getSocket } from '../../lib/socket';
 
 interface EmergencyHotlineModalProps {
   isOpen: boolean;
@@ -29,8 +31,32 @@ export function EmergencyHotlineModal({
   isOpen,
   onClose,
 }: EmergencyHotlineModalProps) {
+  const [hotlines, setHotlines] = useState<DisasterHotlineAgency[]>(METRO_CEBU_HOTLINES);
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
   const [sosCopied, setSosCopied] = useState(false);
+
+  useEffect(() => {
+    fetchApi<any>('/config/hotlines')
+      .then((res) => {
+        if (res && res.data && Array.isArray(res.data) && res.data.length > 0) {
+          setHotlines(res.data);
+        }
+      })
+      .catch(() => {});
+
+    const socket = getSocket();
+    if (socket) {
+      const handleUpdate = (updated: DisasterHotlineAgency[]) => {
+        if (Array.isArray(updated) && updated.length > 0) {
+          setHotlines(updated);
+        }
+      };
+      socket.on('hotlines:updated', handleUpdate);
+      return () => {
+        socket.off('hotlines:updated', handleUpdate);
+      };
+    }
+  }, []);
 
   if (!isOpen) return null;
 
@@ -128,7 +154,7 @@ export function EmergencyHotlineModal({
 
         {/* Hotlines List */}
         <div className="p-4 max-h-[380px] overflow-y-auto space-y-2">
-          {METRO_CEBU_HOTLINES.map((item) => (
+          {hotlines.map((item) => (
             <div
               key={item.id}
               className="p-3.5 rounded-2xl bg-[#F8F9FA] border border-[#E5E5EA] hover:bg-white hover:shadow-sm transition-all flex items-center justify-between gap-3"

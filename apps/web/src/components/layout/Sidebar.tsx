@@ -42,6 +42,7 @@ const operationsNav: NavItem[] = [
 const adminNav: NavItem[] = [
   { name: 'AI & Vision Models', href: '/admin/ai', icon: Sparkles },
   { name: 'API Gateways & IoT', href: '/admin/apis', icon: Cpu },
+  { name: 'Emergency Config', href: '/admin/settings', icon: Sliders },
   { name: 'User Management', href: '/admin/users', icon: Users },
   { name: 'OCD-7 Audit Logs', href: '/admin/audit', icon: FileCheck },
 ];
