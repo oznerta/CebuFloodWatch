@@ -6,6 +6,9 @@
 *.key
 secrets.*
 credentials.json
+*serviceAccountKey*.json
+google-services.json
+GoogleService-Info.plist
 .mcp.json
 
 # Node & Dependencies

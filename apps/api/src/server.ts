@@ -5,13 +5,15 @@ import helmet from 'helmet';
 import { config } from './config/env.js';
 import { apiRouter } from './routes/index.js';
 import { initSocketIO } from './services/socket.js';
+import { initFirebaseAdmin } from './config/firebase.js';
 import { errorHandler } from './middleware/error.js';
 
 const app = express();
 const server = http.createServer(app);
 
-// Initialize WebSockets
+// Initialize Real-Time WebSockets & Firebase
 initSocketIO(server);
+initFirebaseAdmin();
 
 // Middleware
 app.use(helmet({ contentSecurityPolicy: false }));
