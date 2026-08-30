@@ -14,7 +14,6 @@ import {
   Building,
   UserPlus,
   LogIn,
-  CheckCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -106,13 +105,13 @@ export default function LoginPage() {
               setTab('login');
               setErrorMessage(null);
             }}
-            className={`flex-1 py-2 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${
+            className={`flex-1 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${
               tab === 'login'
                 ? 'bg-white text-[#1C1C1E] shadow-sm'
                 : 'text-[#6C6C70] hover:text-[#1C1C1E]'
             }`}
           >
-            <LogIn className="w-3.5 h-3.5" />
+            <LogIn className="w-4 h-4" />
             Sign In
           </button>
 
@@ -122,13 +121,13 @@ export default function LoginPage() {
               setTab('register');
               setErrorMessage(null);
             }}
-            className={`flex-1 py-2 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${
+            className={`flex-1 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${
               tab === 'register'
                 ? 'bg-white text-[#1C1C1E] shadow-sm'
                 : 'text-[#6C6C70] hover:text-[#1C1C1E]'
             }`}
           >
-            <UserPlus className="w-3.5 h-3.5" />
+            <UserPlus className="w-4 h-4" />
             Create Account
           </button>
         </div>
@@ -192,6 +191,17 @@ export default function LoginPage() {
             >
               <span>{loading ? 'Authenticating Clearance...' : 'Sign In to Command Center'}</span>
               <ArrowRight className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setTab('register');
+                setErrorMessage(null);
+              }}
+              className="w-full text-center text-xs font-bold text-[#007AFF] hover:underline pt-1"
+            >
+              Don't have an account? Tap here to Create One
             </button>
           </form>
         ) : (
@@ -281,6 +291,17 @@ export default function LoginPage() {
             >
               <span>{loading ? 'Creating Account...' : 'Register & Enter Command Center'}</span>
               <ArrowRight className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setTab('login');
+                setErrorMessage(null);
+              }}
+              className="w-full text-center text-xs font-bold text-[#007AFF] hover:underline pt-1"
+            >
+              Already have an account? Tap here to Sign In
             </button>
           </form>
         )}

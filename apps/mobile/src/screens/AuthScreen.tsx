@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import {
   ShieldCheck,
@@ -19,7 +18,6 @@ import {
   ArrowRight,
   UserPlus,
   LogIn,
-  MapPin,
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mobileFetch } from '../services/api';
@@ -105,7 +103,7 @@ export function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
 
   const handleRegister = async () => {
     if (!fullName.trim() || !email.trim() || !password.trim()) {
-      setErrorMessage('Please fill in all required fields.');
+      setErrorMessage('Please fill in your name, email, and password.');
       return;
     }
 
@@ -163,7 +161,11 @@ export function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Brand Shield & Title */}
         <View style={styles.brandHeader}>
           <View style={styles.shieldIconWrap}>
@@ -178,26 +180,28 @@ export function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
           {/* Segmented Switcher: Sign In vs Register */}
           <View style={styles.segmentedControl}>
             <TouchableOpacity
+              activeOpacity={0.7}
               style={[styles.segmentBtn, tab === 'login' && styles.segmentBtnActive]}
               onPress={() => {
                 setTab('login');
                 setErrorMessage(null);
               }}
             >
-              <LogIn color={tab === 'login' ? '#FFFFFF' : '#6C6C70'} size={14} />
+              <LogIn color={tab === 'login' ? '#FFFFFF' : '#6C6C70'} size={15} />
               <Text style={[styles.segmentText, tab === 'login' && styles.segmentTextActive]}>
                 Sign In
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
+              activeOpacity={0.7}
               style={[styles.segmentBtn, tab === 'register' && styles.segmentBtnActive]}
               onPress={() => {
                 setTab('register');
                 setErrorMessage(null);
               }}
             >
-              <UserPlus color={tab === 'register' ? '#FFFFFF' : '#6C6C70'} size={14} />
+              <UserPlus color={tab === 'register' ? '#FFFFFF' : '#6C6C70'} size={15} />
               <Text style={[styles.segmentText, tab === 'register' && styles.segmentTextActive]}>
                 Create Account
               </Text>
@@ -214,7 +218,7 @@ export function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
           {/* Form Fields */}
           {tab === 'register' && (
             <View style={styles.formGroup}>
-              <Text style={styles.fieldLabel}>FULL NAME</Text>
+              <Text style={styles.fieldLabel}>YOUR FULL NAME</Text>
               <View style={styles.inputRow}>
                 <User color="#8E8E93" size={16} />
                 <TextInput
@@ -263,11 +267,12 @@ export function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
 
           {tab === 'register' && (
             <View style={styles.formGroup}>
-              <Text style={styles.fieldLabel}>HOME BARANGAY GEOFENCE</Text>
+              <Text style={styles.fieldLabel}>SELECT HOME BARANGAY GEOFENCE</Text>
               <View style={styles.barangayPillGrid}>
                 {CEBU_BARANGAYS.map((b) => (
                   <TouchableOpacity
                     key={b}
+                    activeOpacity={0.7}
                     style={[
                       styles.barangayPill,
                       selectedBarangay === b && styles.barangayPillActive,
@@ -290,6 +295,7 @@ export function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
 
           {/* Primary Submit Button */}
           <TouchableOpacity
+            activeOpacity={0.8}
             style={styles.submitBtn}
             onPress={tab === 'login' ? handleLogin : handleRegister}
             disabled={loading}
@@ -299,11 +305,27 @@ export function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
             ) : (
               <>
                 <Text style={styles.submitBtnText}>
-                  {tab === 'login' ? 'Sign In to Flood Network' : 'Register Account'}
+                  {tab === 'login' ? 'Sign In to Flood Network' : 'Create Citizen Account'}
                 </Text>
                 <ArrowRight color="#FFFFFF" size={16} />
               </>
             )}
+          </TouchableOpacity>
+
+          {/* Switch Tab Link at Bottom */}
+          <TouchableOpacity
+            activeOpacity={0.6}
+            style={styles.switchModeLink}
+            onPress={() => {
+              setTab(tab === 'login' ? 'register' : 'login');
+              setErrorMessage(null);
+            }}
+          >
+            <Text style={styles.switchModeText}>
+              {tab === 'login'
+                ? "Don't have an account? Tap here to Register"
+                : 'Already have an account? Tap here to Sign In'}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -374,7 +396,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#F2F2F7',
     borderRadius: 16,
-    padding: 3.5,
+    padding: 4,
     gap: 4,
   },
   segmentBtn: {
@@ -382,9 +404,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 13,
     gap: 6,
+    cursor: 'pointer' as any,
   },
   segmentBtnActive: {
     backgroundColor: '#007AFF',
@@ -394,12 +417,13 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   segmentText: {
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '700',
     color: '#6C6C70',
   },
   segmentTextActive: {
     color: '#FFFFFF',
+    fontWeight: '800',
   },
   errorCard: {
     backgroundColor: '#FFEBEA',
@@ -452,6 +476,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2F2F7',
     borderWidth: 1,
     borderColor: '#E5E5EA',
+    cursor: 'pointer' as any,
   },
   barangayPillActive: {
     backgroundColor: '#007AFF',
@@ -479,11 +504,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 10,
     marginTop: 4,
+    cursor: 'pointer' as any,
   },
   submitBtnText: {
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
+  },
+  switchModeLink: {
+    alignItems: 'center',
+    paddingVertical: 6,
+    cursor: 'pointer' as any,
+  },
+  switchModeText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#007AFF',
   },
   footerNote: {
     fontSize: 10,
