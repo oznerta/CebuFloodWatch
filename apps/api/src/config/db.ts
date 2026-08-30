@@ -3,11 +3,21 @@ import { config } from './env.js';
 
 const { Pool } = pg;
 
+// Clean database URL to allow custom SSL options without libpq override
+const cleanDbUrl = config.databaseUrl.replace(/[?&]sslmode=[^&]+/g, '');
+
+const isCloud = config.databaseUrl.includes('supabase') ||
+  config.databaseUrl.includes('pooler') ||
+  config.databaseUrl.includes('ssl') ||
+  config.databaseUrl.includes('render') ||
+  config.databaseUrl.includes('neon');
+
 export const pool = new Pool({
-  connectionString: config.databaseUrl,
+  connectionString: cleanDbUrl,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 15000,
+  ssl: isCloud ? { rejectUnauthorized: false } : undefined,
 });
 
 pool.on('error', (err) => {
