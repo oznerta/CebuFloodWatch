@@ -27,6 +27,8 @@ import {
   Layers,
   Sliders,
   Compass,
+  Wind,
+  Thermometer,
 } from 'lucide-react';
 import { MapContainer } from '../../components/map/MapContainer';
 import { fetchApi } from '../../lib/api';
@@ -39,6 +41,7 @@ export default function DashboardPage() {
   const [shelters, setShelters] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [stations, setStations] = useState<any[]>([]);
+  const [weatherData, setWeatherData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -47,17 +50,19 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     try {
-      const [reportsData, sheltersData, alertsData, stationsData] = await Promise.all([
+      const [reportsData, sheltersData, alertsData, stationsData, weatherRes] = await Promise.all([
         fetchApi<any[]>('/reports').catch(() => []),
         fetchApi<any[]>('/shelters').catch(() => []),
         fetchApi<any[]>('/alerts/active').catch(() => []),
         fetchApi<any[]>('/telemetry/stations').catch(() => []),
+        fetchApi<any>('/telemetry/weather').catch(() => null),
       ]);
 
       if (reportsData) setReports(reportsData);
       if (sheltersData) setShelters(sheltersData);
       if (alertsData) setAlerts(alertsData);
       if (stationsData) setStations(stationsData);
+      if (weatherRes && weatherRes.data) setWeatherData(weatherRes.data);
     } finally {
       setLoading(false);
     }
@@ -201,6 +206,11 @@ export default function DashboardPage() {
             <Waves className="w-3.5 h-3.5 text-indigo-500" />
             Harmonic Tide {tide >= 0 ? '+' : ''}{tide}m
           </span>
+          <span className="text-xs text-gray-300">&bull;</span>
+          <span className="text-xs font-bold text-sky-600 flex items-center gap-1.5" title="DOST-PAGASA Mactan Doppler Radar & Precipitation Stream">
+            <CloudRain className="w-3.5 h-3.5 text-sky-500" />
+            PAGASA Doppler {weatherData?.precipitation_mmh ?? 0} mm/h &bull; {weatherData?.temperature_c ?? 28.5}&deg;C
+          </span>
         </div>
 
         {/* Right Drawer Toggle Controls */}
@@ -286,7 +296,53 @@ export default function DashboardPage() {
             {/* TAB CONTENT 1: Telemetry & Tides */}
             {activePanel === 'telemetry' && (
               <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-13rem)] pr-1">
-                {/* Oceanic Tidal Card */}
+                {/* 1. DOST-PAGASA Weather Doppler Stream Card */}
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-blue-50/70 border border-sky-100 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-sky-950 flex items-center gap-1.5">
+                      <CloudRain className="w-4 h-4 text-sky-600" />
+                      DOST-PAGASA Weather Doppler
+                    </span>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                      weatherData?.warningTier === 'RED_WARNING'
+                        ? 'bg-rose-100 text-rose-800 border-rose-200'
+                        : weatherData?.warningTier === 'ORANGE_WARNING'
+                        ? 'bg-amber-100 text-amber-800 border-amber-200'
+                        : weatherData?.warningTier === 'YELLOW_WARNING'
+                        ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                        : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                    }`}>
+                      {weatherData?.warningTier === 'NORMAL' ? 'NORMAL RAIN' : weatherData?.warningTier?.replace('_', ' ')}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="p-2.5 rounded-xl bg-white border border-sky-100 text-center">
+                      <p className="text-[10px] font-bold text-gray-500">Rainfall</p>
+                      <p className="text-sm font-black text-sky-700 mt-0.5">
+                        {weatherData?.precipitation_mmh ?? 0} <span className="text-[10px]">mm/h</span>
+                      </p>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white border border-sky-100 text-center">
+                      <p className="text-[10px] font-bold text-gray-500">Temperature</p>
+                      <p className="text-sm font-black text-gray-800 mt-0.5">
+                        {weatherData?.temperature_c ?? 28.5}&deg;C
+                      </p>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white border border-sky-100 text-center">
+                      <p className="text-[10px] font-bold text-gray-500">Wind</p>
+                      <p className="text-sm font-black text-gray-800 mt-0.5">
+                        {weatherData?.wind_speed_kmh ?? 10} <span className="text-[10px]">km/h</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-[11px] font-medium text-gray-600 bg-white/90 p-2.5 rounded-xl border border-sky-100 leading-snug">
+                    <span className="font-bold text-sky-900">Mactan Synoptic Radar:</span> {weatherData?.advisory || 'Normal atmospheric telemetry across Metro Cebu.'}
+                  </div>
+                </div>
+
+                {/* 2. Oceanic Tidal Card */}
                 <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50/50 border border-blue-100/80 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-blue-900 flex items-center gap-1.5">
