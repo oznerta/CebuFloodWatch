@@ -10,7 +10,6 @@ import { ReportFloodScreen } from './src/screens/ReportFloodScreen';
 import { SafeEvacuationScreen } from './src/screens/SafeEvacuationScreen';
 import { SafetyNetworkScreen } from './src/screens/SafetyNetworkScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
-import { COLORS } from './src/constants/theme';
 
 const Tab = createBottomTabNavigator();
 
@@ -35,14 +34,15 @@ export default function App() {
               letterSpacing: -0.4,
             },
             tabBarStyle: {
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'rgba(255, 255, 255, 0.94)',
               borderTopColor: '#E5E5EA',
-              height: 65,
+              borderTopWidth: 1,
+              height: 64,
               paddingBottom: 8,
               paddingTop: 8,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: -4 },
-              shadowOpacity: 0.05,
+              shadowOpacity: 0.06,
               shadowRadius: 16,
             },
             tabBarItemStyle: {
@@ -61,6 +61,7 @@ export default function App() {
             name="LiveMap"
             component={LiveMapScreen}
             options={{
+              headerShown: false, // Edge-to-edge Apple Maps living canvas
               title: 'Cebu Flood Map',
               tabBarLabel: 'Map',
               tabBarIcon: ({ color }) => <Map color={color} size={22} />,

@@ -32,21 +32,21 @@ export function MobileMap({
   <style>
     body, html, #map {
       margin: 0; padding: 0; width: 100%; height: 100%;
-      background: #f8f9fa;
+      background: #F2F2F7;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
     }
     .leaflet-popup-content-wrapper {
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(255, 255, 255, 0.96);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      color: #1c1c1e;
+      color: #1C1C1E;
       border: 1px solid rgba(0,0,0,0.08);
-      border-radius: 16px;
-      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
+      border-radius: 18px;
+      box-shadow: 0 12px 28px -6px rgba(0,0,0,0.18);
       padding: 6px;
     }
     .leaflet-popup-tip {
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(255, 255, 255, 0.96);
     }
     .apple-pin {
       display: flex;
@@ -66,10 +66,9 @@ export function MobileMap({
   <script>
     const map = L.map('map', { zoomControl: false }).setView([10.3180, 123.8980], 13);
     
-    // Apple Maps style crisp Voyager light cartography
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      subdomains: 'abcd',
+    // Clean OpenStreetMap standard tile layer (zero watermark)
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
       maxZoom: 19
     }).addTo(map);
 
@@ -81,14 +80,14 @@ export function MobileMap({
           return {
             color: color,
             fillColor: color,
-            fillOpacity: 0.25,
+            fillOpacity: 0.22,
             weight: 2,
-            dashArray: '3, 6'
+            dashArray: '4, 6'
           };
         },
         onEachFeature: function(feature, layer) {
           if (feature.properties) {
-            layer.bindPopup('<div style="font-size:13px; font-weight:700; color:#1c1c1e;">' + (feature.properties.name || 'UP NOAH Hazard Zone') + '</div><div style="font-size:11px; color:#8e8e93; margin-top:2px;">Return Period: <b style="color:#ff9500;">' + (feature.properties.return_period || '25-Year') + '</b></div>');
+            layer.bindPopup('<div style="font-size:13px; font-weight:800; color:#1C1C1E;">' + (feature.properties.name || 'UP NOAH Hazard Zone') + '</div><div style="font-size:11px; color:#8E8E93; margin-top:2px;">Return Period: <b style="color:#FF9500;">' + (feature.properties.return_period || '25-Year') + '</b></div>');
           }
         }
       }).addTo(map);
@@ -99,12 +98,12 @@ export function MobileMap({
       if (s.latitude && s.longitude) {
         const icon = L.divIcon({
           className: 'apple-pin',
-          html: '<div style="background:#34C759; width:30px; height:30px; border-radius:15px; border:2.5px solid #ffffff; display:flex; align-items:center; justify-content:center; color:#ffffff; font-size:14px; box-shadow: 0 4px 12px rgba(52,199,89,0.4);">🏠</div>',
-          iconSize: [30, 30],
-          iconAnchor: [15, 15]
+          html: '<div style="background:#34C759; width:32px; height:32px; border-radius:16px; border:2.5px solid #FFFFFF; display:flex; align-items:center; justify-content:center; color:#FFFFFF; font-size:15px; box-shadow: 0 4px 14px rgba(52,199,89,0.45);">🏠</div>',
+          iconSize: [32, 32],
+          iconAnchor: [16, 16]
         });
         L.marker([s.latitude, s.longitude], { icon })
-          .bindPopup('<div style="font-size:14px; font-weight:700; color:#1c1c1e;">' + s.name + '</div><div style="font-size:11px; margin-top:4px;"><span style="background:#EBF9EE; color:#34C759; padding:2px 8px; border-radius:10px; font-weight:700; font-size:10px;">' + (s.status || 'OPEN').toUpperCase() + '</span> &bull; <b style="color:#1c1c1e;">' + (s.current_occupancy || 0) + '/' + (s.max_capacity || 100) + ' evacuees</b></div>')
+          .bindPopup('<div style="font-size:14px; font-weight:800; color:#1C1C1E;">' + s.name + '</div><div style="font-size:11px; margin-top:4px;"><span style="background:#EBF9EE; color:#34C759; padding:2px 8px; border-radius:10px; font-weight:800; font-size:10px;">' + (s.status || 'OPEN').toUpperCase() + '</span> &bull; <b style="color:#1C1C1E;">' + (s.current_occupancy || 0) + '/' + (s.max_capacity || 100) + ' evacuees</b></div>')
           .addTo(map);
       }
     });
@@ -115,12 +114,12 @@ export function MobileMap({
         const color = r.flood_depth_level === 'chest' || r.flood_depth_level === 'above_head' ? '#FF3B30' : r.flood_depth_level === 'waist' ? '#FF9500' : '#FFCC00';
         const icon = L.divIcon({
           className: 'apple-pin',
-          html: '<div style="background:' + color + '; width:28px; height:28px; border-radius:14px; border:2.5px solid #ffffff; display:flex; align-items:center; justify-content:center; color:#ffffff; font-size:13px; box-shadow: 0 4px 12px ' + color + '66;">💧</div>',
-          iconSize: [28, 28],
-          iconAnchor: [14, 14]
+          html: '<div style="background:' + color + '; width:30px; height:30px; border-radius:15px; border:2.5px solid #FFFFFF; display:flex; align-items:center; justify-content:center; color:#FFFFFF; font-size:14px; box-shadow: 0 4px 14px ' + color + '66;">💧</div>',
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
         });
         L.marker([r.latitude, r.longitude], { icon })
-          .bindPopup('<div style="font-size:13px; font-weight:700; color:#1c1c1e;">Barangay ' + (r.barangay_name || 'Cebu Area') + '</div><div style="font-size:11px; color:#8e8e93; margin-top:2px;">Water Depth: <b style="color:' + color + '; font-weight:800;">' + (r.flood_depth_level || 'Knee').toUpperCase() + '</b></div><div style="font-size:12px; color:#3a3a3c; margin-top:4px; line-height:1.4;">' + (r.description || '') + '</div>')
+          .bindPopup('<div style="font-size:13px; font-weight:800; color:#1C1C1E;">Barangay ' + (r.barangay_name || 'Cebu Area') + '</div><div style="font-size:11px; color:#8E8E93; margin-top:2px;">Water Depth: <b style="color:' + color + '; font-weight:800;">' + (r.flood_depth_level || 'Knee').toUpperCase() + '</b></div><div style="font-size:12px; color:#3A3A3C; margin-top:4px; line-height:1.4;">' + (r.description || '') + '</div>')
           .addTo(map);
       }
     });
