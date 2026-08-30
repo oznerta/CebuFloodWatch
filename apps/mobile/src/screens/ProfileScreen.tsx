@@ -18,16 +18,9 @@ import {
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const CEBU_BARANGAYS = [
-  'Mabolo',
-  'Kasambagan',
-  'Mambaling',
-  'Guadalupe',
-  'Lahug',
-  'Tejero',
-  'Pari-an',
-  'Banilad',
-];
+import { CEBU_BARANGAY_NAMES } from '@cebufloodwatch/shared';
+
+const CEBU_BARANGAYS = CEBU_BARANGAY_NAMES;
 
 interface ProfileScreenProps {
   onLogout?: () => void;

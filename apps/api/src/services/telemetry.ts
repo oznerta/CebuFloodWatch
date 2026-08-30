@@ -45,11 +45,11 @@ export function updateSensorReading(
   } else {
     station = {
       id: stationId,
-      station_name: reading.station_name || `Sensor Node ${stationId}`,
-      river_basin: reading.river_basin || 'Cebu River Basin',
-      barangay_name: reading.barangay_name || 'Cebu City',
-      latitude: reading.latitude || 10.3157,
-      longitude: reading.longitude || 123.8854,
+      station_name: reading.station_name || `Sensor Station ${stationId}`,
+      river_basin: reading.river_basin || 'Unspecified Basin',
+      barangay_name: reading.barangay_name || 'Unassigned Barangay',
+      latitude: reading.latitude ?? 10.3157,
+      longitude: reading.longitude ?? 123.8854,
       water_level_meters: reading.water_level_meters,
       alert_level_1_meters: alert1,
       critical_overflow_meters: crit,

@@ -98,6 +98,20 @@ alertsRouter.post(
 
       const authorId = req.user?.id || '00000000-0000-4000-8000-000000000001';
 
+      // Resolve barangay_id UUID if a name was provided
+      let resolvedBarangayId: string | null = null;
+      if (barangay_id && barangay_id !== 'all' && barangay_id !== 'citywide') {
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(barangay_id);
+        if (isUUID) {
+          resolvedBarangayId = barangay_id;
+        } else {
+          const bRes = await query(`SELECT id FROM public.barangays WHERE LOWER(name) = LOWER($1) LIMIT 1`, [barangay_id.trim()]);
+          if (bRes.rows.length > 0) {
+            resolvedBarangayId = bRes.rows[0].id;
+          }
+        }
+      }
+
       const sql = `
         INSERT INTO public.alerts (
           author_id, barangay_id, severity, 
@@ -111,7 +125,7 @@ alertsRouter.post(
 
       const result = await query(sql, [
         authorId,
-        barangay_id || null,
+        resolvedBarangayId,
         severity,
         title_en.trim(),
         (title_tl || title_en).trim(),

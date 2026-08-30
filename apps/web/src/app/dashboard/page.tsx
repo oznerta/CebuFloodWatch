@@ -109,10 +109,9 @@ export default function DashboardPage() {
       setReports((prev) =>
         prev.map((r) => (r.id === reportId ? { ...r, status: nextStatus } : r))
       );
-    } catch {
-      setReports((prev) =>
-        prev.map((r) => (r.id === reportId ? { ...r, status: nextStatus } : r))
-      );
+    } catch (err: any) {
+      console.error('Failed to update report status:', err);
+      alert(`Failed to update report status: ${err?.message || 'Server error'}`);
     } finally {
       setActionLoading(null);
     }
@@ -141,14 +140,15 @@ export default function DashboardPage() {
       a.download = `cebufloodwatch_ocd7_audit_${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
-      alert('Audit report successfully downloaded.');
+    } catch (err: any) {
+      console.error('Failed to export audit report:', err);
+      alert(`Failed to export audit report: ${err?.message || 'Server error'}`);
     }
   };
 
   const openSheltersCount = shelters.filter((s) => s.status === 'open').length;
 
-  // Astronomical harmonic tidal prediction
+  // Astronomical harmonic tidal prediction (M2/S2 semi-diurnal harmonic model for Cebu Port MLLW)
   const now = new Date();
   const hour = now.getUTCHours() + 8;
   const tide = Number((0.95 + 0.65 * Math.sin((hour / 12.42) * 2 * Math.PI)).toFixed(2));
@@ -185,9 +185,9 @@ export default function DashboardPage() {
             {openSheltersCount} Open Shelters
           </span>
           <span className="text-xs text-gray-300">&bull;</span>
-          <span className="text-xs font-bold text-indigo-600 flex items-center gap-1">
+          <span className="text-xs font-bold text-indigo-600 flex items-center gap-1" title="Astronomical harmonic tide model for Cebu Port Pier 1 (MLLW)">
             <Waves className="w-3.5 h-3.5 text-indigo-500" />
-            Tide {tide >= 0 ? '+' : ''}{tide}m
+            Harmonic Tide {tide >= 0 ? '+' : ''}{tide}m
           </span>
         </div>
 

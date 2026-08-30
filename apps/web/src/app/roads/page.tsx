@@ -31,8 +31,8 @@ export default function RoadsPage() {
     name: '',
     barangay_name: 'Mabolo',
     status: 'impassable',
-    flood_depth_level: 'waist',
-    blockage_reason: 'River overflow and debris blockage',
+    flood_depth_level: 'knee',
+    blockage_reason: '',
   });
 
   const loadRoads = async () => {

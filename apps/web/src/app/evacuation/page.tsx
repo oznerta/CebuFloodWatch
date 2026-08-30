@@ -38,9 +38,9 @@ export default function EvacuationPage() {
     barangay_name: 'Guadalupe',
     address: '',
     max_capacity: 300,
-    contact_number: '+63 (32) ',
-    water_liters: 1200,
-    food_packs: 400,
+    contact_number: '',
+    water_liters: 0,
+    food_packs: 0,
   });
 
   const loadShelters = async () => {
@@ -164,9 +164,9 @@ export default function EvacuationPage() {
         barangay_name: 'Guadalupe',
         address: '',
         max_capacity: 300,
-        contact_number: '+63 (32) ',
-        water_liters: 1200,
-        food_packs: 400,
+        contact_number: '',
+        water_liters: 0,
+        food_packs: 0,
       });
     } catch (err: any) {
       alert(err.message || 'Failed to register evacuation center');

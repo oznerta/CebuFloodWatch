@@ -78,10 +78,9 @@ export default function ReportsPage() {
       setClusters((prev) =>
         prev.map((c) => (c.id === clusterId ? { ...c, status } : c))
       );
-    } catch {
-      setClusters((prev) =>
-        prev.map((c) => (c.id === clusterId ? { ...c, status } : c))
-      );
+    } catch (err: any) {
+      console.error('Failed to update cluster status:', err);
+      alert(`Failed to update cluster status: ${err?.message || 'Server error'}`);
     } finally {
       setActionLoading(null);
     }
@@ -97,10 +96,9 @@ export default function ReportsPage() {
       setReports((prev) =>
         prev.map((r) => (r.id === reportId ? { ...r, status } : r))
       );
-    } catch {
-      setReports((prev) =>
-        prev.map((r) => (r.id === reportId ? { ...r, status } : r))
-      );
+    } catch (err: any) {
+      console.error('Failed to update report status:', err);
+      alert(`Failed to update report status: ${err?.message || 'Server error'}`);
     } finally {
       setActionLoading(null);
     }

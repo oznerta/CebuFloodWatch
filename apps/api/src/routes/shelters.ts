@@ -160,9 +160,34 @@ sheltersRouter.post(
     try {
       const { name, barangay_id, address, max_capacity, contact_person, contact_number, latitude, longitude, supply_notes } = req.body;
 
-      if (!name || latitude === undefined || longitude === undefined) {
-        return res.status(400).json({ success: false, error: 'Shelter name, latitude, and longitude are required' });
+      if (!name) {
+        return res.status(400).json({ success: false, error: 'Shelter name is required' });
       }
+
+      let resolvedBarangayId: string | null = null;
+      let lat = latitude !== undefined ? parseFloat(latitude) : null;
+      let lng = longitude !== undefined ? parseFloat(longitude) : null;
+
+      const bInput = barangay_id || req.body.barangay_name;
+      if (bInput && bInput !== 'all' && bInput !== 'citywide') {
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bInput);
+        if (isUUID) {
+          resolvedBarangayId = bInput;
+        } else {
+          const bRes = await query(`SELECT id, ST_Y(center_geom) as lat, ST_X(center_geom) as lng FROM public.barangays WHERE LOWER(name) = LOWER($1) LIMIT 1`, [bInput.trim()]);
+          if (bRes.rows.length > 0) {
+            resolvedBarangayId = bRes.rows[0].id;
+            if (lat === null || isNaN(lat)) lat = bRes.rows[0].lat;
+            if (lng === null || isNaN(lng)) lng = bRes.rows[0].lng;
+          }
+        }
+      }
+
+      // Default to Cebu City center if still missing
+      if (lat === null || isNaN(lat)) lat = 10.3157;
+      if (lng === null || isNaN(lng)) lng = 123.8854;
+
+      const rawNotes = supply_notes || (req.body.supplies ? `Water: ${req.body.supplies.water_liters || 0}L, Food: ${req.body.supplies.food_packs || 0} packs` : '');
 
       const sql = `
         INSERT INTO public.evacuation_centers (
@@ -177,14 +202,14 @@ sheltersRouter.post(
 
       const result = await query(sql, [
         name.trim(),
-        barangay_id || null,
+        resolvedBarangayId,
         address || '',
         max_capacity || 300,
         contact_person || '',
         contact_number || '',
-        supply_notes || '',
-        parseFloat(longitude),
-        parseFloat(latitude),
+        rawNotes,
+        lng,
+        lat,
       ]);
 
       const newShelter = result.rows[0];

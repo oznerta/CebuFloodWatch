@@ -26,7 +26,7 @@ interface Operator {
   name: string;
   email: string;
   phone: string;
-  role: 'admin' | 'lgu_officer' | 'barangay_focal' | 'responder' | 'citizen';
+  role: 'admin' | 'barangay_focal' | 'first_responder' | 'citizen';
   barangay: string;
   status: 'active' | 'suspended';
   lastActive: string;
@@ -44,7 +44,7 @@ export default function UserManagementPage() {
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [newRole, setNewRole] = useState<'admin' | 'lgu_officer' | 'barangay_focal' | 'responder'>('lgu_officer');
+  const [newRole, setNewRole] = useState<'admin' | 'barangay_focal' | 'first_responder'>('barangay_focal');
   const [newBarangay, setNewBarangay] = useState('Mabolo');
   const [newPhone, setNewPhone] = useState('');
 
@@ -137,22 +137,16 @@ export default function UserManagementPage() {
             <ShieldCheck className="w-3 h-3" /> System Admin
           </span>
         );
-      case 'lgu_officer':
+      case 'first_responder':
         return (
-          <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-[#007AFF]/10 text-[#007AFF] border border-[#007AFF]/20 flex items-center gap-1">
-            <Building className="w-3 h-3" /> LGU Dispatcher
+          <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-[#34C759]/10 text-[#34C759] border border-[#34C759]/20 flex items-center gap-1">
+            <Key className="w-3 h-3" /> First Responder (WASAR)
           </span>
         );
       case 'barangay_focal':
         return (
           <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-[#FF9500]/10 text-[#FF9500] border border-[#FF9500]/20 flex items-center gap-1">
             <MapPin className="w-3 h-3" /> Barangay Focal
-          </span>
-        );
-      case 'responder':
-        return (
-          <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-[#34C759]/10 text-[#34C759] border border-[#34C759]/20 flex items-center gap-1">
-            <Key className="w-3 h-3" /> WASAR Responder
           </span>
         );
       default:
@@ -204,9 +198,9 @@ export default function UserManagementPage() {
           </span>
         </div>
         <div className="bg-white border border-[#E5E5EA] rounded-2xl p-4 shadow-xs">
-          <span className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">LGU Dispatchers</span>
-          <span className="text-2xl font-black text-[#007AFF]">
-            {operators.filter((o) => o.role === 'lgu_officer').length}
+          <span className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">First Responders</span>
+          <span className="text-2xl font-black text-[#34C759]">
+            {operators.filter((o) => o.role === 'first_responder').length}
           </span>
         </div>
         <div className="bg-white border border-[#E5E5EA] rounded-2xl p-4 shadow-xs">
@@ -389,9 +383,8 @@ export default function UserManagementPage() {
                     onChange={(e) => setNewRole(e.target.value as any)}
                     className="w-full p-2.5 bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl font-bold text-[#1C1C1E] focus:outline-none cursor-pointer"
                   >
-                    <option value="lgu_officer">🚨 LGU Dispatcher</option>
                     <option value="barangay_focal">📍 Barangay Focal</option>
-                    <option value="responder">🛟 WASAR Responder</option>
+                    <option value="first_responder">🛟 First Responder (WASAR / BFP)</option>
                     <option value="admin">👑 System Admin</option>
                   </select>
                 </div>

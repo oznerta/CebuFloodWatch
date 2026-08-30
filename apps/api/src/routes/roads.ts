@@ -109,6 +109,20 @@ roadsRouter.post(
         return res.status(400).json({ success: false, error: 'Road corridor name is required' });
       }
 
+      let resolvedBarangayId: string | null = null;
+      const bInput = barangay_id || req.body.barangay_name;
+      if (bInput && bInput !== 'all' && bInput !== 'citywide') {
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bInput);
+        if (isUUID) {
+          resolvedBarangayId = bInput;
+        } else {
+          const bRes = await query(`SELECT id FROM public.barangays WHERE LOWER(name) = LOWER($1) LIMIT 1`, [bInput.trim()]);
+          if (bRes.rows.length > 0) {
+            resolvedBarangayId = bRes.rows[0].id;
+          }
+        }
+      }
+
       // If coordinates are provided as [[lng, lat], [lng, lat]], construct LineString, else default line in barangay
       let geomSql = `ST_SetSRID(ST_MakeLine(ST_Point(123.89, 10.31), ST_Point(123.895, 10.315)), 4326)`;
       if (Array.isArray(coordinates) && coordinates.length >= 2) {
@@ -128,7 +142,7 @@ roadsRouter.post(
 
       const result = await query(sql, [
         name.trim(),
-        barangay_id || null,
+        resolvedBarangayId,
         Boolean(is_blocked),
         block_reason || null,
         req.user?.id || null,

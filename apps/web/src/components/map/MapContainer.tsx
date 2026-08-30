@@ -429,7 +429,7 @@ export function MapContainer({
             <div style="padding: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
               <div style="font-size: 10px; font-weight: 900; color: #34C759; text-transform: uppercase; letter-spacing: 0.5px;">Evacuation Center</div>
               <div style="font-weight: 900; font-size: 14px; color: #1C1C1E; margin-top: 2px;">${shelter.name}</div>
-              <div style="font-size: 11px; color: #8E8E93; margin-top: 2px;">Brgy. ${shelter.barangay_name || 'Cebu City'}</div>
+              <div style="font-size: 11px; color: #8E8E93; margin-top: 2px;">Brgy. ${shelter.barangay_name || 'Unassigned Area'}</div>
               <div style="margin-top: 6px; font-size: 11px; font-weight: 800; color: #1C1C1E; background: #E8F5E9; padding: 4px 8px; border-radius: 8px;">
                 Occupancy: <span style="color: #2E7D32;">${shelter.current_occupancy || 0}</span> / ${shelter.max_capacity || 100}
               </div>
@@ -467,7 +467,7 @@ export function MapContainer({
           new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
             <div style="padding: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
               <div style="font-size: 10px; font-weight: 900; color: ${color}; text-transform: uppercase; letter-spacing: 0.5px;">Live Flood Report</div>
-              <div style="font-weight: 900; font-size: 14px; color: #1C1C1E; margin-top: 2px;">Brgy. ${report.barangay_name || 'Cebu City'}</div>
+              <div style="font-weight: 900; font-size: 14px; color: #1C1C1E; margin-top: 2px;">Brgy. ${report.barangay_name || 'Unassigned Area'}</div>
               <div style="font-size: 11px; color: #3A3A3C; margin-top: 4px;">${report.description || 'Reported flood stage'}</div>
               <div style="margin-top: 6px; font-size: 10px; font-weight: 900; color: ${color}; background: #FFEBEE; padding: 4px 8px; border-radius: 8px;">
                 Depth: ${report.flood_depth_level?.toUpperCase() || 'UNKNOWN'}
