@@ -302,12 +302,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 3. Single Unified Slide-Over Command Drawer (Docked on Right) */}
+      {/* 3. Single Unified Slide-Over Command Drawer (Docked on Right with Fixed Bottom Margin) */}
       {activePanel && (
-        <div className="absolute top-20 right-6 z-20 w-96 max-h-[calc(100vh-7.5rem)] pointer-events-auto flex flex-col animate-in fade-in slide-in-from-right-6 duration-200">
-          <div className="bg-white/95 backdrop-blur-2xl border border-gray-200/90 rounded-3xl p-5 shadow-2xl flex flex-col overflow-hidden space-y-4">
+        <div className="absolute top-20 right-6 bottom-6 z-20 w-96 pointer-events-auto flex flex-col max-h-[calc(100vh-6.5rem)] animate-in fade-in slide-in-from-right-6 duration-200">
+          <div className="bg-white/95 backdrop-blur-2xl border border-gray-200/90 rounded-3xl p-5 shadow-2xl flex flex-col overflow-hidden max-h-full h-full space-y-4">
             {/* Drawer Header */}
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
               <div className="flex items-center gap-2">
                 {activePanel === 'telemetry' ? (
                   <Radio className="w-4 h-4 text-blue-600" />
@@ -337,7 +337,7 @@ export default function DashboardPage() {
 
             {/* TAB CONTENT 1: Telemetry & Tides */}
             {activePanel === 'telemetry' && (
-              <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-13rem)] pr-1">
+              <div className="space-y-4 overflow-y-auto flex-1 pr-1.5 scrollbar-thin">
                 {/* 1. DOST-PAGASA Weather Doppler Stream Card */}
                 <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-blue-50/70 border border-sky-100 space-y-3 shadow-xs">
                   <div className="flex items-center justify-between">
@@ -513,7 +513,7 @@ export default function DashboardPage() {
 
             {/* TAB CONTENT 2: Citizen Incident Triage */}
             {activePanel === 'triage' && (
-              <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-13rem)] pr-1">
+              <div className="space-y-3 overflow-y-auto flex-1 pr-1.5 scrollbar-thin">
                 {reports.length > 0 ? (
                   reports.map((report) => (
                     <div
