@@ -18,23 +18,23 @@ import {
   Navigation,
   Mountain,
   AlertTriangle,
-  ChevronUp,
-  Maximize2,
-  Minimize2,
-  ListFilter,
+  Zap,
+  Droplets,
+  HeartPulse,
+  Package,
+  Map as MapIcon,
 } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
 import { COLORS } from '../constants/theme';
 import { getOfflineShelters, getOfflineCorridors } from '../services/sqlite';
 import { mobileFetch } from '../services/api';
-import { MobileMap } from '../components/MobileMap';
 
 export function SafeEvacuationScreen() {
+  const navigation = useNavigation<any>();
   const [shelters, setShelters] = useState<any[]>([]);
   const [corridors, setCorridors] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'shelters' | 'corridors'>('shelters');
   const [selectedCorridor, setSelectedCorridor] = useState<any | null>(null);
-  const [sheetExpanded, setSheetExpanded] = useState(false);
-  const [isImmersiveFullscreen, setIsImmersiveFullscreen] = useState(false);
 
   useEffect(() => {
     async function loadEvacuationData() {
@@ -70,294 +70,268 @@ export function SafeEvacuationScreen() {
     }
   };
 
+  const handleViewOnLiveMap = () => {
+    navigation.navigate('LiveMap');
+  };
+
   return (
     <View style={styles.container}>
-      {/* 1. Fullscreen Map Backdrop */}
-      <View style={StyleSheet.absoluteFillObject}>
-        <MobileMap shelters={shelters} showHazards={false} />
+      {/* 1. Top Header & Offline Banner */}
+      <View style={styles.headerContainer}>
+        <View style={styles.offlineBanner}>
+          <View style={styles.offlineTag}>
+            <WifiOff color="#007AFF" size={13} />
+            <Text style={styles.offlineText}>2-Tier SQLite Offline Cache Active</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.sosQuickBtn}
+            onPress={() => Linking.openURL('tel:161')}
+          >
+            <Phone color="#FFFFFF" size={12} />
+            <Text style={styles.sosQuickText}>CDRRMO 161</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 2. Apple Segmented Control Tabs */}
+        <View style={styles.segmentedControl}>
+          <TouchableOpacity
+            style={[
+              styles.segmentBtn,
+              activeTab === 'shelters' && styles.segmentBtnActive,
+            ]}
+            onPress={() => {
+              setActiveTab('shelters');
+              setSelectedCorridor(null);
+            }}
+          >
+            <Home
+              color={activeTab === 'shelters' ? '#FFFFFF' : '#6C6C70'}
+              size={15}
+            />
+            <Text
+              style={[
+                styles.segmentText,
+                activeTab === 'shelters' && styles.segmentTextActive,
+              ]}
+            >
+              Shelter Directory ({shelters.length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.segmentBtn,
+              activeTab === 'corridors' && styles.segmentBtnActive,
+            ]}
+            onPress={() => setActiveTab('corridors')}
+          >
+            <Compass
+              color={activeTab === 'corridors' ? '#FFFFFF' : '#6C6C70'}
+              size={15}
+            />
+            <Text
+              style={[
+                styles.segmentText,
+                activeTab === 'corridors' && styles.segmentTextActive,
+              ]}
+            >
+              Safe Corridors ({corridors.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* 2. Floating Top Header & Segmented HUD */}
-      {isImmersiveFullscreen ? (
-        <View style={styles.fullscreenExitHud}>
-          <TouchableOpacity
-            style={styles.exitFocusBtn}
-            onPress={() => setIsImmersiveFullscreen(false)}
-          >
-            <Minimize2 color="#007AFF" size={16} />
-            <Text style={styles.exitFocusText}>Exit Fullscreen Map</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={styles.topHudContainer}>
-          {/* Offline Mode Banner with Fullscreen Pill */}
-          <View style={styles.offlineBannerPill}>
-            <WifiOff color="#007AFF" size={14} />
-            <Text style={styles.offlineBannerText}>
-              2-Tier Offline SQLite Active
-            </Text>
-
-            <TouchableOpacity
-              style={styles.fullscreenIconBtn}
-              onPress={() => setIsImmersiveFullscreen(true)}
-              accessibilityLabel="Fullscreen Focus"
-            >
-              <Maximize2 color="#007AFF" size={13} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Apple Segmented Control */}
-          <View style={styles.segmentedControl}>
-            <TouchableOpacity
-              style={[
-                styles.segmentBtn,
-                activeTab === 'shelters' && styles.segmentBtnActive,
-              ]}
-              onPress={() => {
-                setActiveTab('shelters');
-                setSelectedCorridor(null);
-              }}
-            >
-              <Home
-                color={activeTab === 'shelters' ? '#FFFFFF' : '#6C6C70'}
-                size={15}
-              />
-              <Text
-                style={[
-                  styles.segmentText,
-                  activeTab === 'shelters' && styles.segmentTextActive,
-                ]}
-              >
-                Shelters ({shelters.length})
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.segmentBtn,
-                activeTab === 'corridors' && styles.segmentBtnActive,
-              ]}
-              onPress={() => setActiveTab('corridors')}
-            >
-              <Compass
-                color={activeTab === 'corridors' ? '#FFFFFF' : '#6C6C70'}
-                size={15}
-              />
-              <Text
-                style={[
-                  styles.segmentText,
-                  activeTab === 'corridors' && styles.segmentTextActive,
-                ]}
-              >
-                Corridors ({corridors.length})
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* 3. Floating Bottom Sheet Evacuation Panel */}
-      {isImmersiveFullscreen ? (
-        <View style={styles.fullscreenBottomTrigger}>
-          <TouchableOpacity
-            style={styles.minimalFeedPill}
-            onPress={() => setIsImmersiveFullscreen(false)}
-          >
-            <ListFilter color="#007AFF" size={14} />
-            <Text style={styles.minimalFeedText}>
-              Show {activeTab === 'shelters' ? 'Shelters' : 'Corridors'} List
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View
-          style={[
-            styles.bottomSheet,
-            sheetExpanded && styles.bottomSheetExpanded,
-          ]}
-        >
-          <TouchableOpacity
-            style={styles.sheetHandleArea}
-            onPress={() => setSheetExpanded(!sheetExpanded)}
-          >
-            <View style={styles.handleBar} />
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>
-                {activeTab === 'shelters'
-                  ? 'Open Evacuation Centers'
-                  : 'Safe High-Ground Corridors'}
-              </Text>
-              <View style={styles.togglePill}>
-                <Text style={styles.toggleText}>
-                  {sheetExpanded ? 'Collapse' : 'Expand'}
-                </Text>
-                <ChevronUp
-                  color="#007AFF"
-                  size={14}
-                  style={{
-                    transform: [{ rotate: sheetExpanded ? '180deg' : '0deg' }],
-                  }}
-                />
-              </View>
-            </View>
-          </TouchableOpacity>
-
-          {activeTab === 'shelters' ? (
-            <FlatList
-              data={sheetExpanded ? shelters : shelters.slice(0, 2)}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => {
-                const occPct = Math.round(
-                  ((item.current_occupancy || 0) / item.max_capacity) * 100
-                );
-                return (
-                  <View style={styles.shelterCard}>
-                    <View style={styles.cardTopRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.barangayTag}>
-                          Barangay {item.barangay_name || 'Cebu'}
-                        </Text>
-                        <Text style={styles.shelterName}>{item.name}</Text>
-                        <Text style={styles.shelterAddress}>{item.address}</Text>
-                      </View>
-
-                      <View
-                        style={[
-                          styles.statusBadge,
-                          item.status === 'open'
-                            ? styles.statusOpen
-                            : styles.statusFull,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.statusText,
-                            item.status === 'open'
-                              ? styles.statusTextOpen
-                              : styles.statusTextFull,
-                          ]}
-                        >
-                          {item.status?.toUpperCase()}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Progress Bar */}
-                    <View style={styles.occupancyBox}>
-                      <View style={styles.occupancyLabels}>
-                        <Text style={styles.occupancyLabel}>Occupancy Capacity</Text>
-                        <Text style={styles.occupancyValue}>
-                          {item.current_occupancy || 0} / {item.max_capacity} ({occPct}%)
-                        </Text>
-                      </View>
-                      <View style={styles.barBackground}>
-                        <View
-                          style={[
-                            styles.barFill,
-                            {
-                              width: `${Math.min(100, occPct)}%`,
-                              backgroundColor: occPct >= 90 ? '#FF3B30' : '#34C759',
-                            },
-                          ]}
-                        />
-                      </View>
-                    </View>
-
-                    {/* Card Action Buttons */}
-                    <View style={styles.cardActionsRow}>
-                      <Text style={styles.distanceBadge}>
-                        📍 {item.distance_meters ? `${item.distance_meters}m away` : 'Metro Cebu Safe Zone'}
-                      </Text>
-
-                      {item.contact_number && (
-                        <TouchableOpacity
-                          style={styles.callButton}
-                          onPress={() => handleCall(item.contact_number)}
-                        >
-                          <Phone color="#FFFFFF" size={13} />
-                          <Text style={styles.callButtonText}>Call Center</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-                );
-              }}
-            />
-          ) : selectedCorridor ? (
-            /* Step-by-step route view */
-            <ScrollView style={styles.detailScroll} contentContainerStyle={styles.detailScrollContent}>
-              <TouchableOpacity
-                style={styles.backBtn}
-                onPress={() => setSelectedCorridor(null)}
-              >
-                <Text style={styles.backBtnText}>← All High-Ground Corridors</Text>
-              </TouchableOpacity>
-
-              <Text style={styles.corridorTitle}>{selectedCorridor.route_name}</Text>
-              <Text style={styles.corridorDestination}>
-                Target: {selectedCorridor.destination_shelter}
-              </Text>
-
-              <View style={styles.metricsGrid}>
-                <View style={styles.metricCard}>
-                  <Navigation color="#007AFF" size={18} />
-                  <Text style={styles.metricBig}>{selectedCorridor.distance_meters}m</Text>
-                  <Text style={styles.metricSmall}>Distance</Text>
-                </View>
-                <View style={styles.metricCard}>
-                  <Mountain color="#34C759" size={18} />
-                  <Text style={styles.metricBig}>+{selectedCorridor.elevation_gain_meters}m</Text>
-                  <Text style={styles.metricSmall}>Elevation Gain</Text>
-                </View>
-              </View>
-
-              <View style={styles.hazardAlertPill}>
-                <AlertTriangle color="#FF9500" size={16} />
-                <Text style={styles.hazardAlertText}>
-                  {selectedCorridor.hazard_avoidance_notes}
-                </Text>
-              </View>
-
-              <Text style={styles.stepsTitle}>Turn-by-Turn Waypoints</Text>
-              {selectedCorridor.turn_steps?.map((step: string, index: number) => (
-                <View key={index} style={styles.stepCard}>
-                  <View style={styles.stepBadge}>
-                    <Text style={styles.stepBadgeNum}>{index + 1}</Text>
-                  </View>
-                  <Text style={styles.stepDesc}>{step}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          ) : (
-            /* Corridors List */
-            <FlatList
-              data={sheetExpanded ? corridors : corridors.slice(0, 2)}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.corridorRow}
-                  onPress={() => setSelectedCorridor(item)}
-                >
+      {/* 3. Main Directory Body */}
+      {activeTab === 'shelters' ? (
+        <FlatList
+          data={shelters}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => {
+            const occPct = Math.round(
+              ((item.current_occupancy || 0) / item.max_capacity) * 100
+            );
+            return (
+              <View style={styles.shelterCard}>
+                <View style={styles.cardTopRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.corridorOrigin}>From Barangay {item.origin_barangay}</Text>
-                    <Text style={styles.corridorName}>{item.route_name}</Text>
-                    <Text style={styles.corridorTarget}>
-                      To {item.destination_shelter} ({item.distance_meters}m)
+                    <Text style={styles.barangayTag}>
+                      BARANGAY {item.barangay_name?.toUpperCase() || 'CEBU'}
+                    </Text>
+                    <Text style={styles.shelterName}>{item.name}</Text>
+                    <Text style={styles.shelterAddress}>
+                      📍 {item.distance_meters ? `${item.distance_meters}m away` : 'Metro Cebu Zone'} &bull; {item.address || 'Designated Disaster Center'}
                     </Text>
                   </View>
-                  <View style={styles.safeTag}>
-                    <CheckCircle color="#34C759" size={14} />
-                    <Text style={styles.safeTagText}>Safe</Text>
+
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      item.status === 'open' ? styles.statusOpen : styles.statusFull,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusText,
+                        item.status === 'open' ? styles.statusTextOpen : styles.statusTextFull,
+                      ]}
+                    >
+                      {item.status?.toUpperCase()}
+                    </Text>
                   </View>
-                </TouchableOpacity>
-              )}
-            />
+                </View>
+
+                {/* Capacity Gauge */}
+                <View style={styles.occupancyBox}>
+                  <View style={styles.occupancyLabels}>
+                    <Text style={styles.occupancyLabel}>Occupancy Capacity</Text>
+                    <Text style={styles.occupancyValue}>
+                      {item.current_occupancy || 0} / {item.max_capacity} ({occPct}%)
+                    </Text>
+                  </View>
+                  <View style={styles.barBackground}>
+                    <View
+                      style={[
+                        styles.barFill,
+                        {
+                          width: `${Math.min(100, occPct)}%`,
+                          backgroundColor: occPct >= 90 ? '#FF3B30' : '#34C759',
+                        },
+                      ]}
+                    />
+                  </View>
+                </View>
+
+                {/* Facility Badges */}
+                <View style={styles.facilitiesRow}>
+                  <View style={styles.facilityPill}>
+                    <Zap color="#FF9500" size={11} />
+                    <Text style={styles.facilityText}>Generator Backup</Text>
+                  </View>
+                  <View style={styles.facilityPill}>
+                    <Droplets color="#007AFF" size={11} />
+                    <Text style={styles.facilityText}>Clean Water</Text>
+                  </View>
+                  <View style={styles.facilityPill}>
+                    <HeartPulse color="#FF3B30" size={11} />
+                    <Text style={styles.facilityText}>First Aid</Text>
+                  </View>
+                </View>
+
+                {/* Action Buttons */}
+                <View style={styles.cardActionsRow}>
+                  <TouchableOpacity
+                    style={styles.viewMapButton}
+                    onPress={handleViewOnLiveMap}
+                  >
+                    <MapIcon color="#007AFF" size={13} />
+                    <Text style={styles.viewMapText}>View on Live Map</Text>
+                  </TouchableOpacity>
+
+                  {item.contact_number && (
+                    <TouchableOpacity
+                      style={styles.callButton}
+                      onPress={() => handleCall(item.contact_number)}
+                    >
+                      <Phone color="#FFFFFF" size={13} />
+                      <Text style={styles.callButtonText}>Call Center</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            );
+          }}
+        />
+      ) : selectedCorridor ? (
+        /* Step-by-Step Waypoint Detail View */
+        <ScrollView style={styles.detailScroll} contentContainerStyle={styles.detailScrollContent}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => setSelectedCorridor(null)}
+          >
+            <Text style={styles.backBtnText}>← Back to All Corridors</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.corridorTitle}>{selectedCorridor.route_name}</Text>
+          <Text style={styles.corridorDestination}>
+            Destination: {selectedCorridor.destination_shelter}
+          </Text>
+
+          <View style={styles.metricsGrid}>
+            <View style={styles.metricCard}>
+              <Navigation color="#007AFF" size={18} />
+              <Text style={styles.metricBig}>{selectedCorridor.distance_meters}m</Text>
+              <Text style={styles.metricSmall}>Total Distance</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Mountain color="#34C759" size={18} />
+              <Text style={styles.metricBig}>+{selectedCorridor.elevation_gain_meters}m</Text>
+              <Text style={styles.metricSmall}>Elevation Gain</Text>
+            </View>
+          </View>
+
+          <View style={styles.hazardAlertPill}>
+            <AlertTriangle color="#FF9500" size={16} />
+            <Text style={styles.hazardAlertText}>
+              {selectedCorridor.hazard_avoidance_notes}
+            </Text>
+          </View>
+
+          <Text style={styles.stepsTitle}>Turn-by-Turn Flood-Free Waypoints</Text>
+          {selectedCorridor.turn_steps?.map((step: string, index: number) => (
+            <View key={index} style={styles.stepCard}>
+              <View style={styles.stepBadge}>
+                <Text style={styles.stepBadgeNum}>{index + 1}</Text>
+              </View>
+              <Text style={styles.stepDesc}>{step}</Text>
+            </View>
+          ))}
+
+          <TouchableOpacity
+            style={styles.primaryActionBtn}
+            onPress={handleViewOnLiveMap}
+          >
+            <MapIcon color="#FFFFFF" size={16} />
+            <Text style={styles.primaryActionText}>Inspect Route on Live Map</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      ) : (
+        /* Corridors Directory List */
+        <FlatList
+          data={corridors}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.corridorCard}
+              onPress={() => setSelectedCorridor(item)}
+            >
+              <View style={styles.corridorTop}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.corridorOrigin}>FROM BARANGAY {item.origin_barangay?.toUpperCase()}</Text>
+                  <Text style={styles.corridorName}>{item.route_name}</Text>
+                  <Text style={styles.corridorTarget}>
+                    Target: {item.destination_shelter} &bull; {item.distance_meters}m distance
+                  </Text>
+                </View>
+                <View style={styles.safeTag}>
+                  <CheckCircle color="#34C759" size={13} />
+                  <Text style={styles.safeTagText}>Verified Safe</Text>
+                </View>
+              </View>
+
+              <Text style={styles.corridorSnippet}>
+                {item.hazard_avoidance_notes}
+              </Text>
+
+              <View style={styles.corridorFooter}>
+                <Text style={styles.seeRouteText}>See Turn-by-Turn Waypoints →</Text>
+              </View>
+            </TouchableOpacity>
           )}
-        </View>
+        />
       )}
     </View>
   );
@@ -368,104 +342,53 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F2F2F7',
   },
-  topHudContainer: {
-    position: 'absolute',
-    top: 12,
-    left: 14,
-    right: 14,
-    zIndex: 20,
-    gap: 8,
-  },
-  fullscreenExitHud: {
-    position: 'absolute',
-    top: 16,
-    right: 14,
-    zIndex: 30,
-  },
-  exitFocusBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-  },
-  exitFocusText: {
-    color: '#007AFF',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  fullscreenBottomTrigger: {
-    position: 'absolute',
-    bottom: 20,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 30,
-  },
-  minimalFeedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 22,
+  headerContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    paddingTop: 12,
+    paddingBottom: 10,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+    gap: 10,
   },
-  minimalFeedText: {
-    color: '#007AFF',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  offlineBannerPill: {
+  offlineBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    borderRadius: 20,
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
   },
-  offlineBannerText: {
+  offlineTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#E5F1FF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  offlineText: {
     color: '#007AFF',
     fontSize: 11,
     fontWeight: '700',
   },
-  fullscreenIconBtn: {
-    padding: 4,
-    borderRadius: 10,
-    backgroundColor: '#E5F1FF',
+  sosQuickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF3B30',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 4,
+  },
+  sosQuickText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
   },
   segmentedControl: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    borderRadius: 20,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 16,
+    padding: 3.5,
     gap: 4,
   },
   segmentBtn: {
@@ -474,7 +397,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    borderRadius: 16,
+    borderRadius: 13,
     gap: 6,
   },
   segmentBtnActive: {
@@ -493,97 +416,44 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
   },
-  bottomSheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    maxHeight: 280,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    zIndex: 25,
-  },
-  bottomSheetExpanded: {
-    maxHeight: 520,
-  },
-  sheetHandleArea: {
-    paddingTop: 10,
-    paddingBottom: 8,
-    paddingHorizontal: 18,
-    alignItems: 'center',
-  },
-  handleBar: {
-    width: 38,
-    height: 4.5,
-    borderRadius: 3,
-    backgroundColor: '#D1D1D6',
-    marginBottom: 8,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-  },
-  sheetTitle: {
-    color: '#1C1C1E',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  togglePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#F2F2F7',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
-  },
-  toggleText: {
-    color: '#007AFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
   listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-    gap: 10,
+    padding: 16,
+    paddingBottom: 36,
+    gap: 12,
   },
   shelterCard: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 18,
-    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#E5E5EA',
-    gap: 10,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
   },
   cardTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: 8,
   },
   barangayTag: {
     color: '#007AFF',
     fontSize: 10,
     fontWeight: '800',
-    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   shelterName: {
     color: '#1C1C1E',
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
     marginTop: 2,
   },
   shelterAddress: {
     color: '#8E8E93',
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 2,
   },
   statusBadge: {
@@ -626,7 +496,7 @@ const styles = StyleSheet.create({
   },
   barBackground: {
     height: 6,
-    backgroundColor: '#E5E5EA',
+    backgroundColor: '#F2F2F7',
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -634,25 +504,56 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 3,
   },
+  facilitiesRow: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  facilityPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F8F9FA',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  facilityText: {
+    fontSize: 10,
+    color: '#6C6C70',
+    fontWeight: '600',
+  },
   cardActionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-    paddingTop: 8,
+    borderTopColor: '#F2F2F7',
+    paddingTop: 10,
+    gap: 8,
   },
-  distanceBadge: {
-    color: '#8E8E93',
+  viewMapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    gap: 6,
+  },
+  viewMapText: {
+    color: '#007AFF',
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   callButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#34C759',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 12,
     gap: 6,
     shadowColor: '#34C759',
@@ -665,30 +566,37 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
   },
-  corridorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8F9FA',
-    borderRadius: 16,
-    padding: 14,
+  corridorCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#E5E5EA',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+  },
+  corridorTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   corridorOrigin: {
     color: '#007AFF',
     fontSize: 10,
     fontWeight: '800',
-    textTransform: 'uppercase',
   },
   corridorName: {
     color: '#1C1C1E',
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     marginTop: 2,
   },
   corridorTarget: {
     color: '#8E8E93',
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 2,
   },
   safeTag: {
@@ -705,12 +613,31 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
+  corridorSnippet: {
+    color: '#3A3A3C',
+    fontSize: 12,
+    lineHeight: 16,
+    backgroundColor: '#F8F9FA',
+    padding: 10,
+    borderRadius: 12,
+  },
+  corridorFooter: {
+    borderTopWidth: 1,
+    borderTopColor: '#F2F2F7',
+    paddingTop: 8,
+    alignItems: 'flex-end',
+  },
+  seeRouteText: {
+    color: '#007AFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
   detailScroll: {
     flex: 1,
   },
   detailScrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 28,
+    padding: 16,
+    paddingBottom: 36,
     gap: 12,
   },
   backBtn: {
@@ -736,9 +663,9 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
-    borderRadius: 14,
-    padding: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 14,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E5E5EA',
@@ -758,7 +685,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF4E5',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 12,
     gap: 8,
     borderWidth: 1,
@@ -769,6 +696,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     flex: 1,
     fontWeight: '600',
+    lineHeight: 16,
   },
   stepsTitle: {
     fontSize: 14,
@@ -779,7 +707,7 @@ const styles = StyleSheet.create({
   stepCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FFFFFF',
     borderRadius: 14,
     padding: 12,
     gap: 10,
@@ -800,9 +728,28 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   stepDesc: {
-    color: '#3A3A3C',
-    fontSize: 12,
     flex: 1,
-    lineHeight: 18,
+    fontSize: 12,
+    color: '#1C1C1E',
+    lineHeight: 16,
+  },
+  primaryActionBtn: {
+    backgroundColor: '#007AFF',
+    borderRadius: 16,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 6,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+  },
+  primaryActionText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
   },
 });
