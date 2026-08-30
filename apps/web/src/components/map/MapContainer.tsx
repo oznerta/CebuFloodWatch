@@ -14,6 +14,8 @@ import {
   Eye,
   ShieldAlert,
   Info,
+  Plus,
+  Minus,
 } from 'lucide-react';
 
 interface MapContainerProps {
@@ -85,10 +87,8 @@ export function MapContainer({
       maxBounds: CEBU_CITY_RESTRICTED_BOUNDS, // Confine camera strictly to Cebu City
       pitch: is3DMode ? 45 : 15,
       bearing: 0,
+      attributionControl: false, // Clean map without cluttered default text
     });
-
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
-    map.addControl(new maplibregl.ScaleControl(), 'bottom-right');
 
     const setupLayers = () => {
       // 0. Inverse Mask (Hides everything outside Cebu City perimeter)
@@ -478,29 +478,51 @@ export function MapContainer({
       {/* MapLibre DOM Node */}
       <div ref={mapContainerRef} className="w-full h-full" />
 
-      {/* Floating 3D Tilt & Recenter Controls (Docked cleanly at bottom-right) */}
-      <div className="absolute bottom-24 right-3.5 z-10 flex flex-col gap-2 pointer-events-auto">
-        {/* 3D Isometric Tilt Toggle */}
-        <button
-          onClick={toggle3DMode}
-          title="Toggle 3D Terrain View"
-          className={`p-2.5 rounded-2xl border shadow-lg backdrop-blur-md transition-all cursor-pointer ${
-            is3DMode
-              ? 'bg-[#007AFF] border-[#007AFF] text-white'
-              : 'bg-white/90 border-[#E5E5EA] text-[#1C1C1E] hover:bg-white'
-          }`}
-        >
-          <Mountain className="w-4 h-4" />
-        </button>
+      {/* Unified Map Command Capsule (Bottom-Right, Zero Overlap) */}
+      <div className="absolute bottom-6 right-6 z-20 flex items-center gap-2 pointer-events-auto">
+        <div className="flex items-center bg-white/95 backdrop-blur-2xl border border-gray-200/90 rounded-2xl shadow-xl p-1 gap-1">
+          {/* Zoom In */}
+          <button
+            onClick={() => mapRef.current?.zoomIn()}
+            title="Zoom In"
+            className="w-8 h-8 rounded-xl hover:bg-gray-100 flex items-center justify-center text-gray-700 font-bold transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
 
-        {/* Center on Cebu City */}
-        <button
-          onClick={handleResetToCebuCenter}
-          title="Recenter strictly on Cebu City"
-          className="p-2.5 rounded-2xl bg-white/90 border border-[#E5E5EA] hover:bg-white text-[#1C1C1E] shadow-lg backdrop-blur-md transition-all cursor-pointer"
-        >
-          <Compass className="w-4 h-4 text-[#007AFF]" />
-        </button>
+          {/* Zoom Out */}
+          <button
+            onClick={() => mapRef.current?.zoomOut()}
+            title="Zoom Out"
+            className="w-8 h-8 rounded-xl hover:bg-gray-100 flex items-center justify-center text-gray-700 font-bold transition-all cursor-pointer"
+          >
+            <Minus className="w-4 h-4" />
+          </button>
+
+          <div className="w-px h-4 bg-gray-200 mx-0.5" />
+
+          {/* 3D Isometric View */}
+          <button
+            onClick={toggle3DMode}
+            title={is3DMode ? 'Switch to 2D Top-Down View' : 'Switch to 3D Terrain Angle'}
+            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+              is3DMode
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'hover:bg-gray-100 text-gray-700'
+            }`}
+          >
+            <Mountain className="w-4 h-4" />
+          </button>
+
+          {/* Recenter Cebu City */}
+          <button
+            onClick={handleResetToCebuCenter}
+            title="Recenter strictly on Cebu City Urban Plain"
+            className="w-8 h-8 rounded-xl hover:bg-gray-100 flex items-center justify-center text-blue-600 transition-all cursor-pointer"
+          >
+            <Compass className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* NOAH Hazard Return-Period Layer Switcher (Compact Expandable Pill) */}
