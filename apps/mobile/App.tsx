@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Map, PlusCircle, ShieldCheck, User } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { LiveMapScreen } from './src/screens/LiveMapScreen';
 import { ReportFloodScreen } from './src/screens/ReportFloodScreen';
@@ -16,12 +17,38 @@ const Tab = createBottomTabNavigator();
 export default function App() {
   const [userSession, setUserSession] = useState<{
     name: string;
-    phone?: string;
-    email?: string;
-    isAnonymous?: boolean;
+    email: string;
+    token: string;
+    barangay?: string;
   } | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // If citizen hasn't selected an auth path, present the AuthScreen
+  useEffect(() => {
+    AsyncStorage.getItem('user_session')
+      .then((stored) => {
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (parsed && parsed.token && parsed.email) {
+              setUserSession(parsed);
+            }
+          } catch {}
+        }
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem('user_token');
+    await AsyncStorage.removeItem('user_session');
+    setUserSession(null);
+  };
+
+  // If citizen hasn't logged in with email, present the AuthScreen
+  if (loading) {
+    return null;
+  }
+
   if (!userSession) {
     return (
       <SafeAreaProvider>
@@ -113,13 +140,14 @@ export default function App() {
           {/* 4. Settings & Geofence Alerts */}
           <Tab.Screen
             name="Profile"
-            component={ProfileScreen}
             options={{
               title: 'Settings & Alerts',
               tabBarLabel: 'Settings',
               tabBarIcon: ({ color }) => <User color={color} size={22} />,
             }}
-          />
+          >
+            {() => <ProfileScreen onLogout={handleLogout} />}
+          </Tab.Screen>
         </Tab.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

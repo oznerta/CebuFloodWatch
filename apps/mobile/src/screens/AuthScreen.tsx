@@ -9,59 +9,153 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import {
   ShieldCheck,
-  Phone,
   Mail,
   Lock,
+  User,
   ArrowRight,
-  UserCheck,
-  Sparkles,
+  UserPlus,
+  LogIn,
+  MapPin,
 } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { mobileFetch } from '../services/api';
+
+const CEBU_BARANGAYS = [
+  'Mabolo',
+  'Kasambagan',
+  'Mambaling',
+  'Guadalupe',
+  'Lahug',
+  'Tejero',
+  'Pari-an',
+  'Banilad',
+];
 
 interface AuthScreenProps {
-  onSuccess: (userData: { name: string; phone?: string; email?: string; isAnonymous?: boolean }) => void;
+  onSuccess: (userData: {
+    name: string;
+    email: string;
+    token: string;
+    barangay?: string;
+  }) => void;
   onCancel?: () => void;
 }
 
 export function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
-  const [authMode, setAuthMode] = useState<'phone' | 'email'>('phone');
-  const [phone, setPhone] = useState('+63 917 123 4567');
+  const [tab, setTab] = useState<'login' | 'register'>('login');
+
+  // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('Juan Citizen');
+  const [fullName, setFullName] = useState('');
+  const [selectedBarangay, setSelectedBarangay] = useState('Mabolo');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handlePhoneSubmit = () => {
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      setErrorMessage('Please enter both email and password.');
+      return;
+    }
+
+    setErrorMessage(null);
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      onSuccess({
-        name: fullName || 'Cebu Citizen',
-        phone,
-        isAnonymous: false,
+
+    try {
+      const res = await mobileFetch<any>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password: password.trim(),
+        }),
       });
-    }, 600);
+
+      if (res && res.success && res.user && res.token) {
+        await AsyncStorage.setItem('user_token', res.token);
+        await AsyncStorage.setItem(
+          'user_session',
+          JSON.stringify({
+            name: res.user.name,
+            email: res.user.email,
+            role: res.user.role,
+            barangay: res.user.barangay || 'Mabolo',
+            token: res.token,
+          })
+        );
+
+        onSuccess({
+          name: res.user.name,
+          email: res.user.email,
+          token: res.token,
+          barangay: res.user.barangay,
+        });
+      } else {
+        setErrorMessage(res?.error || 'Authentication failed. Please check your credentials.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Invalid email or password.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleEmailSubmit = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      onSuccess({
-        name: fullName || 'Cebu Citizen',
-        email,
-        isAnonymous: false,
-      });
-    }, 600);
-  };
+  const handleRegister = async () => {
+    if (!fullName.trim() || !email.trim() || !password.trim()) {
+      setErrorMessage('Please fill in all required fields.');
+      return;
+    }
 
-  const handleAnonymous = () => {
-    onSuccess({
-      name: 'Guest Citizen',
-      isAnonymous: true,
-    });
+    if (password.length < 6) {
+      setErrorMessage('Password must be at least 6 characters.');
+      return;
+    }
+
+    setErrorMessage(null);
+    setLoading(true);
+
+    try {
+      const res = await mobileFetch<any>('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          full_name: fullName.trim(),
+          email: email.trim().toLowerCase(),
+          password: password.trim(),
+          role: 'citizen',
+          barangay: selectedBarangay,
+        }),
+      });
+
+      if (res && res.success && res.user && res.token) {
+        await AsyncStorage.setItem('user_token', res.token);
+        await AsyncStorage.setItem(
+          'user_session',
+          JSON.stringify({
+            name: res.user.name,
+            email: res.user.email,
+            role: res.user.role,
+            barangay: res.user.barangay || selectedBarangay,
+            token: res.token,
+          })
+        );
+
+        onSuccess({
+          name: res.user.name,
+          email: res.user.email,
+          token: res.token,
+          barangay: res.user.barangay,
+        });
+      } else {
+        setErrorMessage(res?.error || 'Registration failed.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Error creating account.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -81,98 +175,123 @@ export function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
 
         {/* Auth Card */}
         <View style={styles.authCard}>
-          {/* Segmented Auth Method Switcher */}
+          {/* Segmented Switcher: Sign In vs Register */}
           <View style={styles.segmentedControl}>
             <TouchableOpacity
-              style={[styles.segmentBtn, authMode === 'phone' && styles.segmentBtnActive]}
-              onPress={() => setAuthMode('phone')}
+              style={[styles.segmentBtn, tab === 'login' && styles.segmentBtnActive]}
+              onPress={() => {
+                setTab('login');
+                setErrorMessage(null);
+              }}
             >
-              <Phone color={authMode === 'phone' ? '#FFFFFF' : '#6C6C70'} size={14} />
-              <Text style={[styles.segmentText, authMode === 'phone' && styles.segmentTextActive]}>
-                Mobile SMS OTP
+              <LogIn color={tab === 'login' ? '#FFFFFF' : '#6C6C70'} size={14} />
+              <Text style={[styles.segmentText, tab === 'login' && styles.segmentTextActive]}>
+                Sign In
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.segmentBtn, authMode === 'email' && styles.segmentBtnActive]}
-              onPress={() => setAuthMode('email')}
+              style={[styles.segmentBtn, tab === 'register' && styles.segmentBtnActive]}
+              onPress={() => {
+                setTab('register');
+                setErrorMessage(null);
+              }}
             >
-              <Mail color={authMode === 'email' ? '#FFFFFF' : '#6C6C70'} size={14} />
-              <Text style={[styles.segmentText, authMode === 'email' && styles.segmentTextActive]}>
-                Email Account
+              <UserPlus color={tab === 'register' ? '#FFFFFF' : '#6C6C70'} size={14} />
+              <Text style={[styles.segmentText, tab === 'register' && styles.segmentTextActive]}>
+                Create Account
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Form Fields */}
-          <View style={styles.formGroup}>
-            <Text style={styles.fieldLabel}>YOUR FULL NAME</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Juan Dela Cruz"
-              placeholderTextColor="#8E8E93"
-              value={fullName}
-              onChangeText={setFullName}
-            />
-          </View>
+          {/* Error Message Banner */}
+          {errorMessage && (
+            <View style={styles.errorCard}>
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          )}
 
-          {authMode === 'phone' ? (
+          {/* Form Fields */}
+          {tab === 'register' && (
             <View style={styles.formGroup}>
-              <Text style={styles.fieldLabel}>MOBILE PHONE NUMBER (FOR EMERGENCY SMS)</Text>
+              <Text style={styles.fieldLabel}>FULL NAME</Text>
               <View style={styles.inputRow}>
-                <Phone color="#8E8E93" size={16} />
+                <User color="#8E8E93" size={16} />
                 <TextInput
                   style={styles.inputFlex}
-                  placeholder="+63 900 000 0000"
+                  placeholder="e.g. Maria Santos"
                   placeholderTextColor="#8E8E93"
-                  keyboardType="phone-pad"
-                  value={phone}
-                  onChangeText={setPhone}
+                  value={fullName}
+                  onChangeText={setFullName}
                 />
               </View>
-              <Text style={styles.fieldHint}>
-                We will send localized disaster warnings and family safety updates to this number.
-              </Text>
             </View>
-          ) : (
-            <>
-              <View style={styles.formGroup}>
-                <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
-                <View style={styles.inputRow}>
-                  <Mail color="#8E8E93" size={16} />
-                  <TextInput
-                    style={styles.inputFlex}
-                    placeholder="juan@email.com"
-                    placeholderTextColor="#8E8E93"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    value={email}
-                    onChangeText={setEmail}
-                  />
-                </View>
-              </View>
+          )}
 
-              <View style={styles.formGroup}>
-                <Text style={styles.fieldLabel}>PASSWORD</Text>
-                <View style={styles.inputRow}>
-                  <Lock color="#8E8E93" size={16} />
-                  <TextInput
-                    style={styles.inputFlex}
-                    placeholder="••••••••"
-                    placeholderTextColor="#8E8E93"
-                    secureTextEntry
-                    value={password}
-                    onChangeText={setPassword}
-                  />
-                </View>
+          <View style={styles.formGroup}>
+            <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
+            <View style={styles.inputRow}>
+              <Mail color="#8E8E93" size={16} />
+              <TextInput
+                style={styles.inputFlex}
+                placeholder="name@email.com"
+                placeholderTextColor="#8E8E93"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.fieldLabel}>
+              {tab === 'register' ? 'PASSWORD (MIN. 6 CHARACTERS)' : 'PASSWORD'}
+            </Text>
+            <View style={styles.inputRow}>
+              <Lock color="#8E8E93" size={16} />
+              <TextInput
+                style={styles.inputFlex}
+                placeholder="••••••••"
+                placeholderTextColor="#8E8E93"
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+              />
+            </View>
+          </View>
+
+          {tab === 'register' && (
+            <View style={styles.formGroup}>
+              <Text style={styles.fieldLabel}>HOME BARANGAY GEOFENCE</Text>
+              <View style={styles.barangayPillGrid}>
+                {CEBU_BARANGAYS.map((b) => (
+                  <TouchableOpacity
+                    key={b}
+                    style={[
+                      styles.barangayPill,
+                      selectedBarangay === b && styles.barangayPillActive,
+                    ]}
+                    onPress={() => setSelectedBarangay(b)}
+                  >
+                    <Text
+                      style={[
+                        styles.barangayPillText,
+                        selectedBarangay === b && styles.barangayPillTextActive,
+                      ]}
+                    >
+                      {b}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            </>
+            </View>
           )}
 
           {/* Primary Submit Button */}
           <TouchableOpacity
             style={styles.submitBtn}
-            onPress={authMode === 'phone' ? handlePhoneSubmit : handleEmailSubmit}
+            onPress={tab === 'login' ? handleLogin : handleRegister}
             disabled={loading}
           >
             {loading ? (
@@ -180,24 +299,11 @@ export function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
             ) : (
               <>
                 <Text style={styles.submitBtnText}>
-                  {authMode === 'phone' ? 'Verify & Continue with SMS' : 'Sign In / Register'}
+                  {tab === 'login' ? 'Sign In to Flood Network' : 'Register Account'}
                 </Text>
                 <ArrowRight color="#FFFFFF" size={16} />
               </>
             )}
-          </TouchableOpacity>
-
-          {/* Divider */}
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>EMERGENCY ACCESS</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Anonymous Emergency Bypass Button */}
-          <TouchableOpacity style={styles.anonymousBtn} onPress={handleAnonymous}>
-            <UserCheck color="#007AFF" size={16} />
-            <Text style={styles.anonymousBtnText}>Continue as Anonymous Citizen</Text>
           </TouchableOpacity>
         </View>
 
@@ -217,7 +323,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingTop: 36,
+    paddingTop: 40,
     paddingBottom: 40,
     alignItems: 'center',
     gap: 20,
@@ -288,12 +394,25 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   segmentText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '700',
     color: '#6C6C70',
   },
   segmentTextActive: {
     color: '#FFFFFF',
+  },
+  errorCard: {
+    backgroundColor: '#FFEBEA',
+    borderWidth: 1,
+    borderColor: '#FFD0CE',
+    borderRadius: 14,
+    padding: 10,
+  },
+  errorText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF3B30',
+    textAlign: 'center',
   },
   formGroup: {
     gap: 6,
@@ -303,17 +422,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#8E8E93',
     letterSpacing: 0.4,
-  },
-  input: {
-    backgroundColor: '#F8F9FA',
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1C1C1E',
   },
   inputRow: {
     flexDirection: 'row',
@@ -332,10 +440,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1C1C1E',
   },
-  fieldHint: {
-    fontSize: 10,
-    color: '#8E8E93',
-    lineHeight: 14,
+  barangayPillGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  barangayPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: '#F2F2F7',
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  barangayPillActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  barangayPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1C1C1E',
+  },
+  barangayPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   submitBtn: {
     flexDirection: 'row',
@@ -349,39 +478,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
+    marginTop: 4,
   },
   submitBtnText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '800',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E5E5EA',
-  },
-  dividerText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#8E8E93',
-  },
-  anonymousBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F2F2F7',
-    borderRadius: 18,
-    paddingVertical: 12,
-    gap: 6,
-  },
-  anonymousBtnText: {
-    color: '#007AFF',
-    fontSize: 12,
     fontWeight: '800',
   },
   footerNote: {

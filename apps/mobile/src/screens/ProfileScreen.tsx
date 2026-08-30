@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,21 +7,16 @@ import {
   ScrollView,
   Switch,
   Alert,
-  Modal,
 } from 'react-native';
 import {
   User,
   Bell,
-  Globe,
   CheckCircle2,
   Shield,
   LogOut,
-  LogIn,
-  Phone,
-  Radio,
+  Mail,
 } from 'lucide-react-native';
-import { COLORS } from '../constants/theme';
-import { AuthScreen } from './AuthScreen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CEBU_BARANGAYS = [
   'Mabolo',
@@ -34,22 +29,34 @@ const CEBU_BARANGAYS = [
   'Banilad',
 ];
 
-export function ProfileScreen() {
+interface ProfileScreenProps {
+  onLogout?: () => void;
+}
+
+export function ProfileScreen({ onLogout }: ProfileScreenProps) {
   const [currentUser, setCurrentUser] = useState<{
     name: string;
-    phone?: string;
-    email?: string;
-    isAnonymous?: boolean;
-  }>({
-    name: 'Juan Citizen',
-    phone: '+63 917 123 4567',
-    isAnonymous: false,
-  });
+    email: string;
+    barangay?: string;
+  } | null>(null);
 
-  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [selectedBarangay, setSelectedBarangay] = useState('Mabolo');
   const [language, setLanguage] = useState<'en' | 'ceb'>('ceb');
   const [pushEnabled, setPushEnabled] = useState(true);
+
+  useEffect(() => {
+    AsyncStorage.getItem('user_session').then((stored) => {
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setCurrentUser(parsed);
+          if (parsed.barangay) {
+            setSelectedBarangay(parsed.barangay);
+          }
+        } catch {}
+      }
+    });
+  }, []);
 
   const handleSelectBarangay = (b: string) => {
     setSelectedBarangay(b);
@@ -59,18 +66,14 @@ export function ProfileScreen() {
     );
   };
 
-  const handleAuthSuccess = (userData: any) => {
-    setCurrentUser(userData);
-    setAuthModalOpen(false);
-    Alert.alert('Welcome', `Logged in as ${userData.name}. Emergency notifications active.`);
-  };
-
-  const handleLogout = () => {
-    setCurrentUser({
-      name: 'Guest Citizen',
-      isAnonymous: true,
-    });
-    Alert.alert('Signed Out', 'Switched to anonymous citizen mode.');
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem('user_token');
+    await AsyncStorage.removeItem('user_session');
+    if (onLogout) {
+      onLogout();
+    } else {
+      Alert.alert('Signed Out', 'You have been signed out. Please restart the app to log in again.');
+    }
   };
 
   return (
@@ -80,12 +83,8 @@ export function ProfileScreen() {
         <View style={styles.avatar}>
           <User color="#007AFF" size={32} />
         </View>
-        <Text style={styles.userName}>{currentUser.name}</Text>
-        <Text style={styles.userPhone}>
-          {currentUser.isAnonymous
-            ? 'Anonymous Citizen Session'
-            : currentUser.phone || currentUser.email}
-        </Text>
+        <Text style={styles.userName}>{currentUser?.name || 'Registered Citizen'}</Text>
+        <Text style={styles.userEmail}>{currentUser?.email || 'citizen@email.com'}</Text>
 
         <View style={styles.geofenceTag}>
           <Shield color="#34C759" size={13} />
@@ -94,24 +93,14 @@ export function ProfileScreen() {
           </Text>
         </View>
 
-        {/* Auth Action Button */}
-        {currentUser.isAnonymous ? (
-          <TouchableOpacity
-            style={styles.authActionBtn}
-            onPress={() => setAuthModalOpen(true)}
-          >
-            <LogIn color="#FFFFFF" size={14} />
-            <Text style={styles.authActionBtnText}>Sign In / Link Phone Number</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={styles.logoutBtn}
-            onPress={handleLogout}
-          >
-            <LogOut color="#8E8E93" size={13} />
-            <Text style={styles.logoutBtnText}>Switch Account / Sign Out</Text>
-          </TouchableOpacity>
-        )}
+        {/* Logout Button */}
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={handleLogout}
+        >
+          <LogOut color="#FF3B30" size={14} />
+          <Text style={styles.logoutBtnText}>Sign Out of Account</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Section 1: Home Barangay Geofence */}
@@ -225,19 +214,6 @@ export function ProfileScreen() {
           Disaster Warning & Evacuation Network &bull; CDRRMO Metro Cebu
         </Text>
       </View>
-
-      {/* Auth Modal */}
-      <Modal
-        visible={authModalOpen}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setAuthModalOpen(false)}
-      >
-        <AuthScreen
-          onSuccess={handleAuthSuccess}
-          onCancel={() => setAuthModalOpen(false)}
-        />
-      </Modal>
     </ScrollView>
   );
 }
@@ -279,7 +255,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1C1C1E',
   },
-  userPhone: {
+  userEmail: {
     fontSize: 12,
     color: '#8E8E93',
     fontWeight: '600',
@@ -299,37 +275,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-  authActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
-    gap: 6,
-    marginTop: 10,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-  },
-  authActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
-  },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingVertical: 8,
-    marginTop: 6,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: '#FFEBEA',
+    marginTop: 10,
   },
   logoutBtnText: {
-    fontSize: 11,
-    color: '#8E8E93',
-    fontWeight: '700',
+    fontSize: 11.5,
+    color: '#FF3B30',
+    fontWeight: '800',
   },
   sectionHeader: {
     marginTop: 8,
