@@ -87,6 +87,16 @@ export default function DashboardPage() {
           prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s))
         );
       });
+
+      socket.on('telemetry:updated', (updatedStation: any) => {
+        setStations((prev) => {
+          const exists = prev.some((s) => s.id === updatedStation.id);
+          if (exists) {
+            return prev.map((s) => (s.id === updatedStation.id ? updatedStation : s));
+          }
+          return [...prev, updatedStation];
+        });
+      });
     }
 
     return () => {
@@ -95,6 +105,7 @@ export default function DashboardPage() {
         socket.off('report:status_changed');
         socket.off('alert:broadcast');
         socket.off('shelter:updated');
+        socket.off('telemetry:updated');
       }
     };
   }, []);
@@ -161,6 +172,7 @@ export default function DashboardPage() {
         <MapContainer
           reports={reports}
           shelters={shelters}
+          stations={stations}
           className="w-full h-full rounded-none border-0"
           showHazardControls={true}
         />

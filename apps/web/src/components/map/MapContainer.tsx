@@ -16,6 +16,7 @@ interface MapContainerProps {
   reports?: any[];
   shelters?: any[];
   roads?: any[];
+  stations?: any[];
   className?: string;
   showHazardControls?: boolean;
 }
@@ -99,6 +100,7 @@ export function MapContainer({
   reports = [],
   shelters = [],
   roads = [],
+  stations = [],
   className = 'h-[500px] w-full',
   showHazardControls = true,
 }: MapContainerProps) {
@@ -479,7 +481,60 @@ export function MapContainer({
 
       markersRef.current.push(marker);
     });
-  }, [reports, shelters, mapLoaded]);
+
+    // Render Hydrological River Sensor Stations
+    stations.forEach((st) => {
+      if (!st.latitude || !st.longitude) return;
+
+      const isBreach = st.status === 'critical_breach';
+      const isWatch = st.status === 'watch';
+      const color = isBreach ? '#FF3B30' : isWatch ? '#FF9500' : '#007AFF';
+      const statusLabel = isBreach ? 'CRITICAL BREACH' : isWatch ? 'WATCH LEVEL' : 'NORMAL FLOW';
+
+      const el = document.createElement('div');
+      el.className = 'cursor-pointer group';
+      el.innerHTML = `
+        <div class="relative flex items-center justify-center">
+          <span class="animate-ping absolute inline-flex h-8 w-8 rounded-full opacity-75" style="background-color: ${color}"></span>
+          <div class="w-8 h-8 rounded-2xl border-2 border-white shadow-xl flex items-center justify-center text-white transform hover:scale-125 transition-transform" style="background-color: ${color}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+        </div>
+      `;
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([st.longitude, st.latitude])
+        .setPopup(
+          new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
+            <div style="padding: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+              <div style="font-size: 10px; font-weight: 900; color: ${color}; text-transform: uppercase; letter-spacing: 0.5px;">
+                River Telemetry Station &bull; ${statusLabel}
+              </div>
+              <div style="font-weight: 900; font-size: 13px; color: #1C1C1E; margin-top: 2px;">${st.station_name}</div>
+              <div style="font-size: 11px; color: #8E8E93; margin-top: 2px;">${st.river_basin} &bull; Brgy. ${st.barangay_name}</div>
+              
+              <div style="margin-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 11px;">
+                <div style="background: #F2F2F7; padding: 4px 6px; border-radius: 8px; font-weight: 800;">
+                  Level: <span style="color: ${color}; font-weight: 900;">${st.water_level_meters}m</span>
+                </div>
+                <div style="background: #F2F2F7; padding: 4px 6px; border-radius: 8px; font-weight: 800;">
+                  Rain: <span style="color: #007AFF;">${st.rainfall_rate_mmh || 0} mm/h</span>
+                </div>
+              </div>
+
+              <div style="margin-top: 4px; font-size: 10px; color: #6C6C70; font-weight: 600;">
+                Alert 1: ${st.alert_level_1_meters}m &bull; Critical: ${st.critical_overflow_meters}m
+              </div>
+            </div>
+          `)
+        )
+        .addTo(mapRef.current!);
+
+      markersRef.current.push(marker);
+    });
+  }, [reports, shelters, stations, mapLoaded]);
 
   // Handle Fly-To Custom Events
   useEffect(() => {
