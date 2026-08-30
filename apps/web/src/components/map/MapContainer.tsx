@@ -4,20 +4,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import {
   Layers,
-  Maximize2,
-  Minimize2,
   Compass,
-  MapPin,
   Mountain,
   Satellite,
-  Sun,
-  Eye,
-  ShieldAlert,
-  Info,
+  Map as MapIcon,
   Plus,
   Minus,
-  Globe,
-  Map as MapIcon,
 } from 'lucide-react';
 
 interface MapContainerProps {
@@ -31,74 +23,78 @@ interface MapContainerProps {
 type MapTileStyle = 'satellite' | 'vector' | 'terrain';
 type FloodScenario = '5yr' | '25yr' | '100yr' | 'none';
 
-// Ultra High-Resolution Global Satellite Imagery with Google Maps Hybrid & Elevation
-const TILE_STYLES: Record<MapTileStyle, { name: string; icon: any; style: any }> = {
-  satellite: {
-    name: 'Google Satellite Hybrid',
-    icon: Satellite,
-    style: {
-      version: 8,
-      sources: {
-        'google-satellite': {
-          type: 'raster',
-          tiles: [
-            'https://mt0.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-            'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-            'https://mt2.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-            'https://mt3.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-          ],
-          tileSize: 256,
-          maxzoom: 20,
-        },
-      },
-      layers: [
-        {
-          id: 'google-satellite-base',
-          type: 'raster',
-          source: 'google-satellite',
-          minzoom: 0,
-          maxzoom: 22,
-        },
+// Ultra-Stable Unified Multi-Basemap Root Style (All basemaps pre-loaded as bottom raster layers)
+const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    'google-satellite-src': {
+      type: 'raster',
+      tiles: [
+        'https://mt0.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+        'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+        'https://mt2.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+        'https://mt3.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
       ],
+      tileSize: 256,
+      maxzoom: 20,
+    },
+    'osm-streets-src': {
+      type: 'raster',
+      tiles: [
+        'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      ],
+      tileSize: 256,
+      maxzoom: 19,
+    },
+    'esri-topo-src': {
+      type: 'raster',
+      tiles: [
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+      ],
+      tileSize: 256,
+      maxzoom: 19,
     },
   },
-  vector: {
-    name: 'Clean Vector Streets',
-    icon: MapIcon,
-    style: 'https://tiles.openfreemap.org/styles/positron',
-  },
-  terrain: {
-    name: 'Topographic Relief',
-    icon: Mountain,
-    style: {
-      version: 8,
-      sources: {
-        'esri-topo': {
-          type: 'raster',
-          tiles: [
-            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-          ],
-          tileSize: 256,
-          maxzoom: 19,
-        },
-      },
-      layers: [
-        {
-          id: 'esri-topo-base',
-          type: 'raster',
-          source: 'esri-topo',
-          minzoom: 0,
-          maxzoom: 20,
-        },
-      ],
+  layers: [
+    {
+      id: 'base-layer-satellite',
+      type: 'raster',
+      source: 'google-satellite-src',
+      minzoom: 0,
+      maxzoom: 22,
+      layout: { visibility: 'visible' },
     },
-  },
+    {
+      id: 'base-layer-vector',
+      type: 'raster',
+      source: 'osm-streets-src',
+      minzoom: 0,
+      maxzoom: 22,
+      layout: { visibility: 'none' },
+    },
+    {
+      id: 'base-layer-terrain',
+      type: 'raster',
+      source: 'esri-topo-src',
+      minzoom: 0,
+      maxzoom: 22,
+      layout: { visibility: 'none' },
+    },
+  ],
+};
+
+const TILE_STYLES_INFO: Record<MapTileStyle, { name: string; icon: any }> = {
+  satellite: { name: 'Google Satellite', icon: Satellite },
+  vector: { name: 'Street Map', icon: MapIcon },
+  terrain: { name: 'Topo Relief', icon: Mountain },
 };
 
 // Strict Cebu City Bounding Box (Southwest to Northeast)
 const CEBU_CITY_RESTRICTED_BOUNDS: [[number, number], [number, number]] = [
-  [123.70, 10.20], // Southwest boundary
-  [124.05, 10.55], // Northeast boundary
+  [123.68, 10.18], // Southwest boundary
+  [124.08, 10.58], // Northeast boundary
 ];
 
 export function MapContainer({
@@ -125,12 +121,12 @@ export function MapContainer({
   const [showLayersMenu, setShowLayersMenu] = useState(false);
   const [showStyleMenu, setShowStyleMenu] = useState(false);
 
-  // Setup layers callback for initial load & style reloads
+  // Setup vector and flood layers strictly ONCE
   const setupLayers = () => {
     if (!mapRef.current) return;
     const map = mapRef.current;
 
-    // 0. Inverse Mask (Hides everything outside Cebu City perimeter)
+    // 0. Inverse Mask (Dimes/hides neighboring municipalities)
     if (!map.getSource('cebu-city-mask')) {
       map.addSource('cebu-city-mask', {
         type: 'geojson',
@@ -142,8 +138,8 @@ export function MapContainer({
         type: 'fill',
         source: 'cebu-city-mask',
         paint: {
-          'fill-color': '#0F172A',
-          'fill-opacity': 0.75,
+          'fill-color': '#0B1120',
+          'fill-opacity': 0.78,
         },
       });
     }
@@ -162,7 +158,7 @@ export function MapContainer({
         paint: {
           'line-color': '#38BDF8',
           'line-width': 3,
-          'line-opacity': 0.9,
+          'line-opacity': 0.95,
         },
       });
     }
@@ -189,10 +185,10 @@ export function MapContainer({
         type: 'line',
         source: 'cebu-city-barangays',
         paint: {
-          'line-color': '#E2E8F0',
-          'line-width': 1,
+          'line-color': '#FFFFFF',
+          'line-width': 0.9,
           'line-dasharray': [3, 2],
-          'line-opacity': 0.6,
+          'line-opacity': 0.7,
         },
       });
 
@@ -208,7 +204,7 @@ export function MapContainer({
           .setLngLat(e.lngLat)
           .setHTML(`
             <div style="font-family: sans-serif; padding: 4px;">
-              <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #007AFF;">Cebu City Barangay</div>
+              <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #38BDF8;">Cebu City Barangay</div>
               <div style="font-size: 14px; font-weight: 900; color: #1C1C1E; margin-top: 2px;">Brgy. ${bgyName}</div>
               <div style="font-size: 11px; color: #6C6C70; margin-top: 4px;">Jurisdiction: CDRRMO District</div>
             </div>
@@ -236,7 +232,7 @@ export function MapContainer({
         source: 'cebu-flood-5yr',
         paint: {
           'fill-color': ['coalesce', ['get', 'color'], '#FFCC00'],
-          'fill-opacity': 0.32,
+          'fill-opacity': 0.35,
         },
       });
       map.addLayer({
@@ -246,7 +242,7 @@ export function MapContainer({
         paint: {
           'line-color': ['coalesce', ['get', 'color'], '#FFCC00'],
           'line-width': 0.8,
-          'line-opacity': 0.5,
+          'line-opacity': 0.6,
         },
       });
     }
@@ -262,7 +258,7 @@ export function MapContainer({
         source: 'cebu-flood-25yr',
         paint: {
           'fill-color': ['coalesce', ['get', 'color'], '#FF9500'],
-          'fill-opacity': 0.38,
+          'fill-opacity': 0.40,
         },
       });
       map.addLayer({
@@ -272,7 +268,7 @@ export function MapContainer({
         paint: {
           'line-color': ['coalesce', ['get', 'color'], '#FF9500'],
           'line-width': 0.8,
-          'line-opacity': 0.6,
+          'line-opacity': 0.65,
         },
       });
     }
@@ -288,7 +284,7 @@ export function MapContainer({
         source: 'cebu-flood-100yr',
         paint: {
           'fill-color': ['coalesce', ['get', 'color'], '#FF3B30'],
-          'fill-opacity': 0.42,
+          'fill-opacity': 0.45,
         },
       });
       map.addLayer({
@@ -298,7 +294,7 @@ export function MapContainer({
         paint: {
           'line-color': ['coalesce', ['get', 'color'], '#FF3B30'],
           'line-width': 1.0,
-          'line-opacity': 0.65,
+          'line-opacity': 0.75,
         },
       });
     }
@@ -334,23 +330,20 @@ export function MapContainer({
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    const initialStyle = TILE_STYLES[currentStyle].style;
-
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: initialStyle,
+      style: ROOT_MAP_STYLE,
       center: [123.8950, 10.3160], // Downtown / Cebu City Urban Basin
       zoom: 13.5,
       minZoom: 11.0, // Restrict zooming out to neighboring islands/sea
-      maxZoom: 20.0, // Allow zooming in close just like Google Maps
-      maxBounds: CEBU_CITY_RESTRICTED_BOUNDS, // Confine camera strictly to Cebu City
+      maxZoom: 20.5, // Ultra deep zoom capability
+      maxBounds: CEBU_CITY_RESTRICTED_BOUNDS,
       pitch: is3DMode ? 45 : 0,
       bearing: 0,
-      attributionControl: false, // Clean map without cluttered default text
+      attributionControl: false,
     });
 
     map.on('load', setupLayers);
-    map.on('style.load', setupLayers);
     mapRef.current = map;
 
     return () => {
@@ -359,12 +352,37 @@ export function MapContainer({
     };
   }, []);
 
-  // Handle Dynamic Base Style Switch
+  // Instant zero-latency basemap raster layer visibility toggle (NO setStyle wipeouts)
   const handleSwitchStyle = (styleKey: MapTileStyle) => {
     setCurrentStyle(styleKey);
     setShowStyleMenu(false);
     if (!mapRef.current) return;
-    mapRef.current.setStyle(TILE_STYLES[styleKey].style);
+    const map = mapRef.current;
+
+    // Toggle raster base layers
+    if (map.getLayer('base-layer-satellite')) {
+      map.setLayoutProperty('base-layer-satellite', 'visibility', styleKey === 'satellite' ? 'visible' : 'none');
+    }
+    if (map.getLayer('base-layer-vector')) {
+      map.setLayoutProperty('base-layer-vector', 'visibility', styleKey === 'vector' ? 'visible' : 'none');
+    }
+    if (map.getLayer('base-layer-terrain')) {
+      map.setLayoutProperty('base-layer-terrain', 'visibility', styleKey === 'terrain' ? 'visible' : 'none');
+    }
+
+    // Dynamic inverse mask color
+    if (map.getLayer('cebu-outside-mask')) {
+      map.setPaintProperty(
+        'cebu-outside-mask',
+        'fill-color',
+        styleKey === 'satellite' ? '#0B1120' : '#E2E8F0'
+      );
+      map.setPaintProperty(
+        'cebu-outside-mask',
+        'fill-opacity',
+        styleKey === 'satellite' ? 0.78 : 0.90
+      );
+    }
   };
 
   // Sync Scenario Visibility
@@ -493,7 +511,7 @@ export function MapContainer({
 
       mapRef.current.flyTo({
         center: [longitude, latitude],
-        zoom: 16.5,
+        zoom: 17.0,
         pitch: 45,
         duration: 1500,
       });
@@ -553,8 +571,8 @@ export function MapContainer({
         {showStyleMenu && (
           <div className="absolute bottom-12 right-0 bg-white/95 backdrop-blur-2xl border border-gray-200 rounded-2xl p-2 shadow-2xl space-y-1 min-w-[170px] animate-in fade-in zoom-in-95">
             <div className="text-[10px] font-black uppercase text-gray-400 px-2 py-1">Basemap Imagery</div>
-            {(Object.keys(TILE_STYLES) as MapTileStyle[]).map((key) => {
-              const item = TILE_STYLES[key];
+            {(Object.keys(TILE_STYLES_INFO) as MapTileStyle[]).map((key) => {
+              const item = TILE_STYLES_INFO[key];
               const Icon = item.icon;
               const isSelected = currentStyle === key;
 
@@ -584,7 +602,7 @@ export function MapContainer({
             }`}
           >
             <Satellite className="w-3.5 h-3.5 text-blue-500" />
-            <span className="capitalize">{currentStyle}</span>
+            <span className="capitalize">{TILE_STYLES_INFO[currentStyle].name}</span>
           </button>
 
           <div className="w-px h-4 bg-gray-200 mx-0.5" />
