@@ -1,7 +1,22 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Home, Users, Plus, Minus, CheckCircle, AlertTriangle, XCircle, Droplets, Utensils, HeartPulse, Bed } from 'lucide-react';
+import {
+  Home,
+  Users,
+  Plus,
+  Minus,
+  CheckCircle,
+  AlertTriangle,
+  XCircle,
+  Droplets,
+  Utensils,
+  HeartPulse,
+  Bed,
+  RefreshCw,
+  Inbox,
+  Phone,
+} from 'lucide-react';
 import { fetchApi } from '../../lib/api';
 import { getSocket } from '../../lib/socket';
 
@@ -15,41 +30,7 @@ export default function EvacuationPage() {
       const data = await fetchApi<any[]>('/shelters');
       setShelters(data || []);
     } catch {
-      setShelters([
-        {
-          id: '1',
-          name: 'Mabolo Elementary School Gymnasium',
-          barangay_name: 'Mabolo',
-          address: 'M.J. Cuenco Ave, Mabolo, Cebu City',
-          max_capacity: 350,
-          current_occupancy: 85,
-          status: 'open',
-          contact_number: '+63 32 231 1234',
-          supplies: { water_liters: 1200, food_packs: 450, medical_kits: 30, bedding_sets: 200 },
-        },
-        {
-          id: '2',
-          name: 'Kasambagan Sports Complex',
-          barangay_name: 'Kasambagan',
-          address: 'Pres. Quirino St, Kasambagan, Cebu City',
-          max_capacity: 250,
-          current_occupancy: 240,
-          status: 'full',
-          contact_number: '+63 32 232 5678',
-          supplies: { water_liters: 400, food_packs: 110, medical_kits: 15, bedding_sets: 80 },
-        },
-        {
-          id: '3',
-          name: 'Guadalupe Barangay Gymnasium',
-          barangay_name: 'Guadalupe',
-          address: 'Guadalupe Main Rd, Cebu City',
-          max_capacity: 500,
-          current_occupancy: 120,
-          status: 'open',
-          contact_number: '+63 32 254 9876',
-          supplies: { water_liters: 2500, food_packs: 900, medical_kits: 60, bedding_sets: 400 },
-        },
-      ]);
+      setShelters([]);
     } finally {
       setLoading(false);
     }
@@ -59,14 +40,18 @@ export default function EvacuationPage() {
     loadShelters();
 
     const socket = getSocket();
-    socket.on('shelter:updated', (updated) => {
-      setShelters((prev) =>
-        prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s))
-      );
-    });
+    if (socket) {
+      socket.on('shelter:updated', (updated) => {
+        setShelters((prev) =>
+          prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s))
+        );
+      });
+    }
 
     return () => {
-      socket.off('shelter:updated');
+      if (socket) {
+        socket.off('shelter:updated');
+      }
     };
   }, []);
 
@@ -74,7 +59,7 @@ export default function EvacuationPage() {
     const target = shelters.find((s) => s.id === shelterId);
     if (!target) return;
 
-    const nextOccupancy = Math.max(0, Math.min(target.max_capacity, target.current_occupancy + delta));
+    const nextOccupancy = Math.max(0, Math.min(target.max_capacity, (target.current_occupancy || 0) + delta));
     setUpdatingId(shelterId);
 
     try {
@@ -83,222 +68,204 @@ export default function EvacuationPage() {
         body: JSON.stringify({ current_occupancy: nextOccupancy }),
       });
       setShelters((prev) =>
-        prev.map((s) =>
-          s.id === shelterId
-            ? { ...s, current_occupancy: nextOccupancy, status: nextOccupancy >= s.max_capacity ? 'full' : 'open' }
-            : s
-        )
+        prev.map((s) => (s.id === shelterId ? { ...s, current_occupancy: nextOccupancy } : s))
       );
     } catch {
       setShelters((prev) =>
-        prev.map((s) =>
-          s.id === shelterId
-            ? { ...s, current_occupancy: nextOccupancy, status: nextOccupancy >= s.max_capacity ? 'full' : 'open' }
-            : s
-        )
+        prev.map((s) => (s.id === shelterId ? { ...s, current_occupancy: nextOccupancy } : s))
       );
     } finally {
       setUpdatingId(null);
     }
   };
 
-  const handleSetStatus = async (shelterId: string, newStatus: 'open' | 'full' | 'closed') => {
+  const handleToggleStatus = async (shelterId: string, nextStatus: string) => {
     setUpdatingId(shelterId);
     try {
       await fetchApi(`/shelters/${shelterId}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: nextStatus }),
       });
       setShelters((prev) =>
-        prev.map((s) => (s.id === shelterId ? { ...s, status: newStatus } : s))
+        prev.map((s) => (s.id === shelterId ? { ...s, status: nextStatus } : s))
       );
     } catch {
       setShelters((prev) =>
-        prev.map((s) => (s.id === shelterId ? { ...s, status: newStatus } : s))
+        prev.map((s) => (s.id === shelterId ? { ...s, status: nextStatus } : s))
       );
     } finally {
       setUpdatingId(null);
     }
   };
 
-  const totalCap = shelters.reduce((acc, s) => acc + s.max_capacity, 0);
-  const totalOcc = shelters.reduce((acc, s) => acc + s.current_occupancy, 0);
+  const totalCapacity = shelters.reduce((acc, s) => acc + (s.max_capacity || 0), 0);
+  const totalOccupancy = shelters.reduce((acc, s) => acc + (s.current_occupancy || 0), 0);
+  const occupancyPercentage = totalCapacity > 0 ? Math.round((totalOccupancy / totalCapacity) * 100) : 0;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10">
+      {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-[#1C1C1E]">
-            Evacuation Centers & Shelter Grid
+            Evacuation Shelter Management
           </h1>
           <p className="text-sm text-[#8E8E93] mt-1 font-medium">
-            Real-time occupancy tracking, capacity thresholds, and relief supply inventory
+            Real-time occupancy tracking, resource stocks, and status broadcasts across Metro Cebu
           </p>
         </div>
 
-        {/* Global Summary Badge */}
-        <div className="flex items-center gap-4 bg-white border border-[#E5E5EA] px-5 py-2.5 rounded-2xl text-xs shadow-sm font-medium">
-          <div>
-            <span className="text-[#8E8E93]">Total Evacuees:</span>
-            <span className="ml-1.5 font-extrabold text-[#1C1C1E]">{totalOcc}</span>
+        <button
+          onClick={loadShelters}
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-[#E5E5EA] rounded-xl text-xs font-extrabold text-[#1C1C1E] shadow-sm hover:bg-[#F2F2F7] transition-all"
+        >
+          <RefreshCw className="w-4 h-4 text-[#8E8E93]" />
+          Sync Registry
+        </button>
+      </div>
+
+      {/* Aggregate Metrics Ribbon */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white border border-[#E5E5EA] rounded-2xl p-5 shadow-sm space-y-1">
+          <div className="flex items-center justify-between text-[#8E8E93]">
+            <span className="text-xs font-bold uppercase tracking-wider">Total Hosted Evacuees</span>
+            <Users className="w-4 h-4 text-[#007AFF]" />
           </div>
-          <div className="h-4 w-px bg-[#E5E5EA]" />
-          <div>
-            <span className="text-[#8E8E93]">Capacity:</span>
-            <span className="ml-1.5 font-extrabold text-[#1C1C1E]">{totalCap}</span>
+          <p className="text-2xl font-black text-[#1C1C1E]">
+            {totalOccupancy} <span className="text-sm font-normal text-[#8E8E93]">/ {totalCapacity} Cap</span>
+          </p>
+        </div>
+
+        <div className="bg-white border border-[#E5E5EA] rounded-2xl p-5 shadow-sm space-y-1">
+          <div className="flex items-center justify-between text-[#8E8E93]">
+            <span className="text-xs font-bold uppercase tracking-wider">Overall Occupancy</span>
+            <Home className="w-4 h-4 text-[#34C759]" />
           </div>
-          <div className="h-4 w-px bg-[#E5E5EA]" />
-          <div>
-            <span className="text-[#8E8E93]">System Load:</span>
-            <span className="ml-1.5 font-extrabold text-[#007AFF]">
-              {totalCap > 0 ? Math.round((totalOcc / totalCap) * 100) : 0}%
-            </span>
+          <p className="text-2xl font-black text-[#1C1C1E]">{occupancyPercentage}%</p>
+        </div>
+
+        <div className="bg-white border border-[#E5E5EA] rounded-2xl p-5 shadow-sm space-y-1">
+          <div className="flex items-center justify-between text-[#8E8E93]">
+            <span className="text-xs font-bold uppercase tracking-wider">Active Open Centers</span>
+            <CheckCircle className="w-4 h-4 text-[#34C759]" />
           </div>
+          <p className="text-2xl font-black text-[#34C759]">
+            {shelters.filter((s) => s.status === 'open').length} <span className="text-sm font-normal text-[#8E8E93]">/ {shelters.length} Sites</span>
+          </p>
         </div>
       </div>
 
-      {/* Shelter Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {shelters.map((shelter) => {
-          const occPct = Math.round((shelter.current_occupancy / shelter.max_capacity) * 100);
-          const isUpdating = updatingId === shelter.id;
+      {/* Shelters Grid */}
+      {shelters.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {shelters.map((shelter) => {
+            const occPct = Math.round(((shelter.current_occupancy || 0) / (shelter.max_capacity || 100)) * 100);
+            const isUpdating = updatingId === shelter.id;
 
-          return (
-            <div
-              key={shelter.id}
-              className="bg-white border border-[#E5E5EA] rounded-2xl p-6 flex flex-col justify-between hover:shadow-md transition-shadow space-y-4 shadow-sm"
-            >
-              {/* Header */}
-              <div>
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <span className="text-[11px] font-extrabold text-[#007AFF] uppercase tracking-wider">
-                      Barangay {shelter.barangay_name || 'Cebu Zone'}
+            return (
+              <div
+                key={shelter.id}
+                className="bg-white border border-[#E5E5EA] rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between space-y-4"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#007AFF]">
+                        Barangay {shelter.barangay_name}
+                      </span>
+                      <h3 className="font-extrabold text-base text-[#1C1C1E] mt-0.5 leading-snug">
+                        {shelter.name}
+                      </h3>
+                      <p className="text-xs text-[#8E8E93] mt-1">{shelter.address || 'Designated Disaster Center'}</p>
+                    </div>
+
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                        shelter.status === 'open'
+                          ? 'bg-[#EBF9EE] text-[#34C759]'
+                          : shelter.status === 'full'
+                          ? 'bg-[#FFEBEA] text-[#FF3B30]'
+                          : 'bg-[#F2F2F7] text-[#8E8E93]'
+                      }`}
+                    >
+                      {shelter.status}
                     </span>
-                    <h3 className="font-extrabold text-base text-[#1C1C1E] mt-0.5">
-                      {shelter.name}
-                    </h3>
                   </div>
 
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase ${
+                  {/* Occupancy Progress Bar */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex justify-between text-xs font-bold">
+                      <span className="text-[#6C6C70]">Occupancy</span>
+                      <span className="text-[#1C1C1E]">
+                        {shelter.current_occupancy || 0} / {shelter.max_capacity || 0} ({occPct}%)
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-[#E5E5EA] rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          occPct >= 90
+                            ? 'bg-[#FF3B30]'
+                            : occPct >= 70
+                            ? 'bg-[#FF9500]'
+                            : 'bg-[#34C759]'
+                        }`}
+                        style={{ width: `${Math.min(100, occPct)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {shelter.contact_number && (
+                    <div className="flex items-center gap-1.5 text-xs text-[#6C6C70] font-medium pt-1">
+                      <Phone className="w-3.5 h-3.5 text-[#007AFF]" />
+                      <span>{shelter.contact_number}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Operator Actions */}
+                <div className="pt-3 border-t border-[#F2F2F7] flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleAdjustOccupancy(shelter.id, -10)}
+                      disabled={isUpdating || (shelter.current_occupancy || 0) <= 0}
+                      className="p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] hover:bg-[#E5E5EA] text-[#1C1C1E] text-xs font-bold transition-all disabled:opacity-40"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleAdjustOccupancy(shelter.id, 10)}
+                      disabled={isUpdating || (shelter.current_occupancy || 0) >= (shelter.max_capacity || 0)}
+                      className="p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] hover:bg-[#E5E5EA] text-[#1C1C1E] text-xs font-bold transition-all disabled:opacity-40"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => handleToggleStatus(shelter.id, shelter.status === 'open' ? 'full' : 'open')}
+                    disabled={isUpdating}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
                       shelter.status === 'open'
-                        ? 'bg-[#EBF9EE] text-[#34C759]'
-                        : shelter.status === 'full'
-                        ? 'bg-[#FFF4E5] text-[#FF9500]'
-                        : 'bg-[#F2F2F7] text-[#8E8E93]'
+                        ? 'bg-[#FFEBEA] text-[#FF3B30] hover:bg-[#FF3B30] hover:text-white'
+                        : 'bg-[#EBF9EE] text-[#34C759] hover:bg-[#34C759] hover:text-white'
                     }`}
                   >
-                    {shelter.status}
-                  </span>
-                </div>
-                <p className="text-xs text-[#8E8E93] mt-1 font-medium">{shelter.address}</p>
-              </div>
-
-              {/* Capacity Progress Bar */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-[#6C6C70]">Occupancy Level</span>
-                  <span className={occPct >= 90 ? 'text-[#FF3B30] font-extrabold' : 'text-[#1C1C1E]'}>
-                    {shelter.current_occupancy} / {shelter.max_capacity} ({occPct}%)
-                  </span>
-                </div>
-                <div className="w-full bg-[#F2F2F7] rounded-full h-2.5 overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-300 ${
-                      occPct >= 90 ? 'bg-[#FF3B30]' : occPct >= 70 ? 'bg-[#FF9500]' : 'bg-[#34C759]'
-                    }`}
-                    style={{ width: `${Math.min(100, occPct)}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Occupancy Stepper Controls */}
-              <div className="bg-[#F8F9FA] p-3 rounded-xl flex items-center justify-between border border-[#E5E5EA]">
-                <span className="text-xs font-bold text-[#6C6C70]">Quick Adjust</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleAdjustOccupancy(shelter.id, -10)}
-                    disabled={isUpdating || shelter.current_occupancy <= 0}
-                    className="w-7 h-7 rounded-lg bg-white border border-[#E5E5EA] shadow-sm flex items-center justify-center text-[#1C1C1E] hover:bg-[#F2F2F7] disabled:opacity-30"
-                  >
-                    <Minus className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="text-xs font-extrabold text-[#1C1C1E] px-2 min-w-[32px] text-center">
-                    {shelter.current_occupancy}
-                  </span>
-                  <button
-                    onClick={() => handleAdjustOccupancy(shelter.id, 10)}
-                    disabled={isUpdating || shelter.current_occupancy >= shelter.max_capacity}
-                    className="w-7 h-7 rounded-lg bg-white border border-[#E5E5EA] shadow-sm flex items-center justify-center text-[#1C1C1E] hover:bg-[#F2F2F7] disabled:opacity-30"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
+                    {shelter.status === 'open' ? 'Set as Full' : 'Re-open Shelter'}
                   </button>
                 </div>
               </div>
-
-              {/* Supply Inventory Levels */}
-              {shelter.supplies && (
-                <div className="grid grid-cols-2 gap-2 text-xs pt-3 border-t border-[#F2F2F7]">
-                  <div className="flex items-center gap-1.5 text-[#6C6C70] font-medium">
-                    <Droplets className="w-3.5 h-3.5 text-[#007AFF]" />
-                    <span>{shelter.supplies.water_liters || 0} L Water</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[#6C6C70] font-medium">
-                    <Utensils className="w-3.5 h-3.5 text-[#FF9500]" />
-                    <span>{shelter.supplies.food_packs || 0} Food</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[#6C6C70] font-medium">
-                    <HeartPulse className="w-3.5 h-3.5 text-[#FF3B30]" />
-                    <span>{shelter.supplies.medical_kits || 0} Meds</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[#6C6C70] font-medium">
-                    <Bed className="w-3.5 h-3.5 text-[#AF52DE]" />
-                    <span>{shelter.supplies.bedding_sets || 0} Beds</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Status Switcher Buttons */}
-              <div className="flex gap-2 pt-2">
-                <button
-                  onClick={() => handleSetStatus(shelter.id, 'open')}
-                  disabled={isUpdating || shelter.status === 'open'}
-                  className={`flex-1 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
-                    shelter.status === 'open'
-                      ? 'bg-[#34C759] text-white shadow-md shadow-green-500/20'
-                      : 'bg-[#F2F2F7] text-[#6C6C70] hover:text-[#1C1C1E]'
-                  }`}
-                >
-                  Open
-                </button>
-                <button
-                  onClick={() => handleSetStatus(shelter.id, 'full')}
-                  disabled={isUpdating || shelter.status === 'full'}
-                  className={`flex-1 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
-                    shelter.status === 'full'
-                      ? 'bg-[#FF9500] text-white shadow-md shadow-orange-500/20'
-                      : 'bg-[#F2F2F7] text-[#6C6C70] hover:text-[#1C1C1E]'
-                  }`}
-                >
-                  Full
-                </button>
-                <button
-                  onClick={() => handleSetStatus(shelter.id, 'closed')}
-                  disabled={isUpdating || shelter.status === 'closed'}
-                  className={`flex-1 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
-                    shelter.status === 'closed'
-                      ? 'bg-[#FF3B30] text-white shadow-md shadow-red-500/20'
-                      : 'bg-[#F2F2F7] text-[#6C6C70] hover:text-[#1C1C1E]'
-                  }`}
-                >
-                  Closed
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="bg-white border border-[#E5E5EA] rounded-3xl p-12 text-center space-y-3 shadow-xs">
+          <Inbox className="w-10 h-10 text-[#C7C7CC] mx-auto" />
+          <h3 className="text-base font-extrabold text-[#1C1C1E]">No Evacuation Shelters Registered</h3>
+          <p className="text-xs text-[#8E8E93] max-w-sm mx-auto">
+            Designated evacuation centers and school gymnasiums will be displayed here once synchronized with the database.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

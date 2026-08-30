@@ -1,12 +1,15 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
   ShieldAlert,
   Search,
   PhoneCall,
   Gauge,
   Sparkles,
+  LogIn,
+  User,
 } from 'lucide-react';
 import { getSocket } from '../../lib/socket';
 import { OmnibarSearchModal } from '../search/OmnibarSearchModal';
@@ -16,28 +19,40 @@ import { CebuLandmark } from '@cebufloodwatch/shared';
 
 export function Header() {
   const [activeAlert, setActiveAlert] = useState<string>(
-    'CRITICAL FLOOD WARNING: Mahiga Creek overflowing in Subangdaku / Kasambagan. Mandatory evacuation along river banks.'
+    'OPERATIONAL ADVISORY: Real-time telemetry sensors active across Suba-Mabolo, Mahiga Creek, and Guadalupe catchments.'
   );
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [hotlineOpen, setHotlineOpen] = useState(false);
   const [passabilityOpen, setPassabilityOpen] = useState(false);
+  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
 
   useEffect(() => {
-    const socket = getSocket();
-    socket.on('alert:new', (newAlert) => {
-      if (newAlert && newAlert.title_en) {
-        setActiveAlert(`${newAlert.severity?.toUpperCase()}: ${newAlert.title_en} — ${newAlert.body_en}`);
+    // Check localStorage user session
+    try {
+      const stored = localStorage.getItem('cebu_auth_user');
+      if (stored) {
+        setUser(JSON.parse(stored));
       }
-    });
+    } catch {}
+
+    const socket = getSocket();
+    if (socket) {
+      socket.on('alert:new', (newAlert) => {
+        if (newAlert && newAlert.title_en) {
+          setActiveAlert(`${newAlert.severity?.toUpperCase()}: ${newAlert.title_en} — ${newAlert.body_en}`);
+        }
+      });
+    }
 
     return () => {
-      socket.off('alert:new');
+      if (socket) {
+        socket.off('alert:new');
+      }
     };
   }, []);
 
   const handleSelectLandmark = (landmark: CebuLandmark) => {
-    // Dispatch a custom window event so MapContainer can fly to it
     window.dispatchEvent(
       new CustomEvent('map:flyto', {
         detail: {
@@ -54,14 +69,14 @@ export function Header() {
     <>
       <header className="h-16 border-b border-[#E5E5EA] bg-white/90 backdrop-blur-md flex items-center justify-between px-6 z-10 sticky top-0 shadow-sm gap-4">
         {/* Alert Ticker */}
-        <div className="flex-1 max-w-xl flex items-center gap-3 bg-[#FFEBEA] border border-[#FFD0CE] rounded-full px-4 py-2 overflow-hidden shadow-xs">
+        <div className="flex-1 max-w-xl flex items-center gap-3 bg-[#E5F1FF] border border-[#CCE3FF] rounded-full px-4 py-2 overflow-hidden shadow-xs">
           <span className="flex h-2.5 w-2.5 relative flex-shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF3B30] opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#FF3B30]"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#007AFF] opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#007AFF]"></span>
           </span>
-          <span className="text-[11px] font-extrabold text-[#FF3B30] uppercase tracking-wider flex-shrink-0 flex items-center gap-1">
+          <span className="text-[11px] font-extrabold text-[#007AFF] uppercase tracking-wider flex-shrink-0 flex items-center gap-1">
             <ShieldAlert className="w-3.5 h-3.5" />
-            Alert Bulletin:
+            Live Bulletin:
           </span>
           <div className="text-xs text-[#1C1C1E] font-semibold truncate">
             {activeAlert}
@@ -103,16 +118,23 @@ export function Header() {
             <span>Hotlines (161)</span>
           </button>
 
-          {/* User avatar / status */}
-          <div className="hidden sm:flex items-center gap-2.5 pl-2 border-l border-[#E5E5EA]">
-            <div className="w-9 h-9 rounded-full bg-[#E5F1FF] border border-[#CCE3FF] flex items-center justify-center font-extrabold text-xs text-[#007AFF]">
-              DR
+          {/* User Profile / Login Link */}
+          <Link
+            href="/login"
+            className="flex items-center gap-2.5 pl-2 border-l border-[#E5E5EA] group"
+          >
+            <div className="w-9 h-9 rounded-full bg-[#E5F1FF] border border-[#CCE3FF] flex items-center justify-center font-extrabold text-xs text-[#007AFF] group-hover:bg-[#007AFF] group-hover:text-white transition-all shadow-xs">
+              <User className="w-4 h-4" />
             </div>
             <div className="hidden xl:block text-left text-xs">
-              <p className="font-extrabold text-[#1C1C1E]">Disaster Operations</p>
-              <p className="text-[10px] text-[#8E8E93]">Metro Cebu Cluster</p>
+              <p className="font-extrabold text-[#1C1C1E] group-hover:text-[#007AFF] transition-colors">
+                {user ? user.name : 'Sign In'}
+              </p>
+              <p className="text-[10px] text-[#8E8E93]">
+                {user ? `${user.role?.toUpperCase()} Access` : 'Official Portal'}
+              </p>
             </div>
-          </div>
+          </Link>
         </div>
       </header>
 

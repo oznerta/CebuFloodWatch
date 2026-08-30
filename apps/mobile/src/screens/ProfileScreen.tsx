@@ -7,9 +7,21 @@ import {
   ScrollView,
   Switch,
   Alert,
+  Modal,
 } from 'react-native';
-import { User, Bell, Globe, CheckCircle2, Shield } from 'lucide-react-native';
+import {
+  User,
+  Bell,
+  Globe,
+  CheckCircle2,
+  Shield,
+  LogOut,
+  LogIn,
+  Phone,
+  Radio,
+} from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
+import { AuthScreen } from './AuthScreen';
 
 const CEBU_BARANGAYS = [
   'Mabolo',
@@ -23,16 +35,42 @@ const CEBU_BARANGAYS = [
 ];
 
 export function ProfileScreen() {
+  const [currentUser, setCurrentUser] = useState<{
+    name: string;
+    phone?: string;
+    email?: string;
+    isAnonymous?: boolean;
+  }>({
+    name: 'Juan Citizen',
+    phone: '+63 917 123 4567',
+    isAnonymous: false,
+  });
+
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [selectedBarangay, setSelectedBarangay] = useState('Mabolo');
-  const [language, setLanguage] = useState<'en' | 'tl'>('en');
+  const [language, setLanguage] = useState<'en' | 'ceb'>('ceb');
   const [pushEnabled, setPushEnabled] = useState(true);
 
   const handleSelectBarangay = (b: string) => {
     setSelectedBarangay(b);
     Alert.alert(
-      'Home Barangay Updated',
-      `Subscribed to FCM topic "topics/barangay_${b.toLowerCase()}". You will receive localized flood warnings and evacuation notices for ${b}.`
+      'Home Barangay Geofence Updated',
+      `Subscribed to real-time flood crests, river overflow alerts, and road passability for Barangay ${b}.`
     );
+  };
+
+  const handleAuthSuccess = (userData: any) => {
+    setCurrentUser(userData);
+    setAuthModalOpen(false);
+    Alert.alert('Welcome', `Logged in as ${userData.name}. Emergency notifications active.`);
+  };
+
+  const handleLogout = () => {
+    setCurrentUser({
+      name: 'Guest Citizen',
+      isAnonymous: true,
+    });
+    Alert.alert('Signed Out', 'Switched to anonymous citizen mode.');
   };
 
   return (
@@ -42,16 +80,41 @@ export function ProfileScreen() {
         <View style={styles.avatar}>
           <User color="#007AFF" size={32} />
         </View>
-        <Text style={styles.userName}>Registered Cebu Citizen</Text>
+        <Text style={styles.userName}>{currentUser.name}</Text>
+        <Text style={styles.userPhone}>
+          {currentUser.isAnonymous
+            ? 'Anonymous Citizen Session'
+            : currentUser.phone || currentUser.email}
+        </Text>
+
         <View style={styles.geofenceTag}>
           <Shield color="#34C759" size={13} />
           <Text style={styles.geofenceText}>
             Subscribed: Barangay {selectedBarangay} Geofence
           </Text>
         </View>
+
+        {/* Auth Action Button */}
+        {currentUser.isAnonymous ? (
+          <TouchableOpacity
+            style={styles.authActionBtn}
+            onPress={() => setAuthModalOpen(true)}
+          >
+            <LogIn color="#FFFFFF" size={14} />
+            <Text style={styles.authActionBtnText}>Sign In / Link Phone Number</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={handleLogout}
+          >
+            <LogOut color="#8E8E93" size={13} />
+            <Text style={styles.logoutBtnText}>Switch Account / Sign Out</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Section 1: Home Barangay Selector */}
+      {/* Section 1: Home Barangay Geofence */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Home Barangay Geofence</Text>
       </View>
@@ -88,7 +151,7 @@ export function ProfileScreen() {
         </View>
       </View>
 
-      {/* Section 2: Notifications */}
+      {/* Section 2: Emergency Notifications */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Emergency Alerts</Text>
       </View>
@@ -99,9 +162,9 @@ export function ProfileScreen() {
             <Bell color="#007AFF" size={18} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.settingLabel}>FCM Barangay Push Warnings</Text>
+            <Text style={styles.settingLabel}>CDRRMO Flood Crest Warnings</Text>
             <Text style={styles.settingSub}>
-              Instant alerts for flood crests & closed roads
+              Instant push alerts for critical river levels and impassable roads
             </Text>
           </View>
           <Switch
@@ -114,11 +177,28 @@ export function ProfileScreen() {
 
       {/* Section 3: Language Preference */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Language / Wika</Text>
+        <Text style={styles.sectionTitle}>Disaster Language / Pinulongan</Text>
       </View>
 
       <View style={styles.insetCard}>
         <View style={styles.segmentedLanguage}>
+          <TouchableOpacity
+            style={[
+              styles.langPill,
+              language === 'ceb' && styles.langPillActive,
+            ]}
+            onPress={() => setLanguage('ceb')}
+          >
+            <Text
+              style={[
+                styles.langText,
+                language === 'ceb' && styles.langTextActive,
+              ]}
+            >
+              Cebuano / Bisaya (Default)
+            </Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[
               styles.langPill,
@@ -135,33 +215,29 @@ export function ProfileScreen() {
               English
             </Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.langPill,
-              language === 'tl' && styles.langPillActive,
-            ]}
-            onPress={() => setLanguage('tl')}
-          >
-            <Text
-              style={[
-                styles.langText,
-                language === 'tl' && styles.langTextActive,
-              ]}
-            >
-              Tagalog / Filipino
-            </Text>
-          </TouchableOpacity>
         </View>
       </View>
 
       {/* Footer */}
       <View style={styles.footer}>
-        <Text style={styles.appVersion}>CebuFloodWatch iOS v1.5.0</Text>
+        <Text style={styles.appVersion}>CebuFloodWatch Citizen Edition v1.5.0</Text>
         <Text style={styles.appCredits}>
-          Dual-Platform Disaster Warning & Evacuation System &bull; CIT-University
+          Disaster Warning & Evacuation Network &bull; CDRRMO Metro Cebu
         </Text>
       </View>
+
+      {/* Auth Modal */}
+      <Modal
+        visible={authModalOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setAuthModalOpen(false)}
+      >
+        <AuthScreen
+          onSuccess={handleAuthSuccess}
+          onCancel={() => setAuthModalOpen(false)}
+        />
+      </Modal>
     </ScrollView>
   );
 }
@@ -187,6 +263,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 12,
+    gap: 4,
   },
   avatar: {
     width: 68,
@@ -195,12 +272,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5F1FF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 6,
   },
   userName: {
     fontSize: 18,
     fontWeight: '800',
     color: '#1C1C1E',
+  },
+  userPhone: {
+    fontSize: 12,
+    color: '#8E8E93',
+    fontWeight: '600',
   },
   geofenceTag: {
     flexDirection: 'row',
@@ -214,7 +296,39 @@ const styles = StyleSheet.create({
   },
   geofenceText: {
     color: '#34C759',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  authActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
+    gap: 6,
+    marginTop: 10,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+  },
+  authActionBtnText: {
+    color: '#FFFFFF',
     fontSize: 12,
+    fontWeight: '800',
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    marginTop: 6,
+  },
+  logoutBtnText: {
+    fontSize: 11,
+    color: '#8E8E93',
     fontWeight: '700',
   },
   sectionHeader: {
@@ -222,8 +336,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '800',
     color: '#8E8E93',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -253,10 +367,10 @@ const styles = StyleSheet.create({
   barangayChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#F8F9FA',
+    gap: 6,
+    backgroundColor: '#F2F2F7',
     paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingVertical: 8,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E5E5EA',
@@ -264,15 +378,11 @@ const styles = StyleSheet.create({
   barangayChipActive: {
     backgroundColor: '#007AFF',
     borderColor: '#007AFF',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
   },
   chipText: {
-    fontSize: 13,
-    fontWeight: '600',
     color: '#1C1C1E',
+    fontSize: 12,
+    fontWeight: '600',
   },
   chipTextActive: {
     color: '#FFFFFF',
@@ -286,13 +396,13 @@ const styles = StyleSheet.create({
   settingIconWrap: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 10,
     backgroundColor: '#E5F1FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   settingLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#1C1C1E',
   },
@@ -304,25 +414,26 @@ const styles = StyleSheet.create({
   segmentedLanguage: {
     flexDirection: 'row',
     backgroundColor: '#F2F2F7',
-    borderRadius: 16,
-    padding: 4,
+    borderRadius: 14,
+    padding: 3,
     gap: 4,
   },
   langPill: {
     flex: 1,
-    paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 12,
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 11,
   },
   langPillActive: {
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
-    shadowRadius: 6,
+    shadowRadius: 4,
   },
   langText: {
-    fontSize: 13,
+    fontSize: 11.5,
     fontWeight: '600',
     color: '#8E8E93',
   },
@@ -336,13 +447,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   appVersion: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#8E8E93',
   },
   appCredits: {
     fontSize: 10,
-    color: '#AEAEC2',
+    color: '#C7C7CC',
     textAlign: 'center',
   },
 });
