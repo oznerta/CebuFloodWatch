@@ -163,6 +163,8 @@ export function MapContainer({
   const [is3DMode, setIs3DMode] = useState(false);
   const [showLayersMenu, setShowLayersMenu] = useState(false);
   const [showStyleMenu, setShowStyleMenu] = useState(false);
+  const [mouseCoords, setMouseCoords] = useState<{ lng: number; lat: number } | null>(null);
+  const [currentZoom, setCurrentZoom] = useState<number>(13.5);
 
   // Setup vector and flood layers on load
   const setupLayers = () => {
@@ -242,10 +244,24 @@ export function MapContainer({
         popupRef.current = new maplibregl.Popup({ closeButton: true, className: 'cebu-clean-popup' })
           .setLngLat(e.lngLat)
           .setHTML(`
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 6px; min-width: 170px;">
-              <div style="font-size: 10px; font-weight: 900; text-transform: uppercase; color: #007AFF; letter-spacing: 0.5px;">Cebu City Barangay</div>
-              <div style="font-size: 15px; font-weight: 900; color: #1C1C1E; margin-top: 2px;">Brgy. ${bgyName}</div>
-              <div style="font-size: 11px; color: #8E8E93; margin-top: 4px;">CDRRMO Disaster Operational Sector</div>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 230px;">
+              <div style="background: linear-gradient(135deg, #007AFF 0%, #0051A8 100%); color: #FFFFFF; padding: 12px 14px; border-top-left-radius: 24px; border-top-right-radius: 24px;">
+                <div style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.85;">CEBU CITY OPERATIONAL SECTOR</div>
+                <div style="font-size: 16px; font-weight: 900; margin-top: 2px; letter-spacing: -0.2px;">Brgy. ${bgyName}</div>
+              </div>
+              <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+                  <span style="color: #8E8E93; font-weight: 600;">CDRRMO Sector:</span>
+                  <span style="font-weight: 800; color: #1C1C1E;">CEB-${bgyName.slice(0, 3).toUpperCase()}</span>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+                  <span style="color: #8E8E93; font-weight: 600;">Flood Monitoring:</span>
+                  <span style="font-weight: 900; color: #34C759; background: #E8F8EE; padding: 2px 8px; border-radius: 6px;">NOMINAL</span>
+                </div>
+                <div style="border-top: 1px solid #E5E5EA; margin-top: 4px; padding-top: 8px; font-size: 10px; color: #8E8E93; text-align: center;">
+                  Official LGU Cebu City Administrative Boundary
+                </div>
+              </div>
             </div>
           `)
           .addTo(map);
@@ -386,19 +402,26 @@ export function MapContainer({
         popupRef.current = new maplibregl.Popup({ closeButton: true, className: 'cebu-clean-popup' })
           .setLngLat(e.lngLat)
           .setHTML(`
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 8px; min-width: 220px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                <span style="font-size: 10px; font-weight: 900; text-transform: uppercase; color: ${levelColor}; letter-spacing: 0.5px;">DOST-UP NOAH Official</span>
-                <span style="font-size: 9px; font-weight: 900; background: ${levelBg}; color: ${levelColor}; border: 1px solid ${levelColor}40; padding: 2px 6px; border-radius: 6px;">LEVEL ${level}</span>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 250px;">
+              <div style="background: ${level === 3 ? 'linear-gradient(135deg, #E53935 0%, #B71C1C 100%)' : level === 2 ? 'linear-gradient(135deg, #FF9900 0%, #E65100 100%)' : 'linear-gradient(135deg, #FFE600 0%, #D4B106 100%)'}; color: ${level === 1 ? '#1C1C1E' : '#FFFFFF'}; padding: 12px 14px; border-top-left-radius: 24px; border-top-right-radius: 24px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <span style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9;">DOST-UP NOAH OFFICIAL</span>
+                  <span style="font-size: 9px; font-weight: 900; background: ${level === 1 ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.25)'}; padding: 2px 7px; border-radius: 9999px;">LEVEL ${level}</span>
+                </div>
+                <div style="font-size: 15px; font-weight: 900; margin-top: 3px;">${hazardName}</div>
               </div>
-              <div style="font-size: 14px; font-weight: 900; color: #1C1C1E; margin-top: 4px;">${hazardName}</div>
-              
-              <div style="margin-top: 6px; font-size: 11px; font-weight: 800; color: #1C1C1E; background: #F2F2F7; padding: 6px 8px; border-radius: 8px;">
-                Depth Range: <strong style="color: ${levelColor};">${depth}</strong> &bull; <span style="color: #636366; font-size: 10px;">${returnPeriod}</span>
-              </div>
-
-              <div style="margin-top: 6px; font-size: 10px; color: #636366; line-height: 1.35;">
-                ${advisory}
+              <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="background: #F2F2F7; padding: 8px 10px; border-radius: 12px; font-size: 11px; display: flex; align-items: center; justify-content: space-between;">
+                  <span style="font-weight: 700; color: #6C6C70;">Inundation Depth:</span>
+                  <strong style="color: ${levelColor}; font-size: 12px;">${depth}</strong>
+                </div>
+                <div style="font-size: 10.5px; color: #3A3A3C; line-height: 1.4; background: ${levelBg}; padding: 8px 10px; border-radius: 12px; border: 1px solid ${levelColor}30;">
+                  ${advisory}
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #8E8E93; padding-top: 2px;">
+                  <span>Simulation: ${returnPeriod}</span>
+                  <span style="font-weight: 800; color: #007AFF;">LGU CDRRMO</span>
+                </div>
               </div>
             </div>
           `)
@@ -426,6 +449,15 @@ export function MapContainer({
     });
 
     map.on('load', setupLayers);
+    map.on('mousemove', (e: any) => {
+      if (e.lngLat) {
+        setMouseCoords({ lng: e.lngLat.lng, lat: e.lngLat.lat });
+      }
+    });
+    map.on('zoom', () => {
+      setCurrentZoom(map.getZoom());
+    });
+
     mapRef.current = map;
 
     return () => {
@@ -527,12 +559,22 @@ export function MapContainer({
         .setLngLat([shelter.longitude, shelter.latitude])
         .setPopup(
           new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
-            <div style="padding: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-              <div style="font-size: 10px; font-weight: 900; color: ${color}; text-transform: uppercase; letter-spacing: 0.5px;">Evacuation Center</div>
-              <div style="font-weight: 900; font-size: 14px; color: #1C1C1E; margin-top: 2px;">${shelter.name}</div>
-              <div style="font-size: 11px; color: #8E8E93; margin-top: 2px;">Brgy. ${shelter.barangay_name || 'Cebu City'}</div>
-              <div style="margin-top: 6px; font-size: 11px; font-weight: 800; color: #1C1C1E; background: #F2F2F7; padding: 4px 8px; border-radius: 8px;">
-                Status: <span style="color: ${color}; font-weight: 900;">${isOpen ? 'OPEN FOR REFUGE' : 'CLOSED'}</span>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 230px;">
+              <div style="background: ${isOpen ? 'linear-gradient(135deg, #34C759 0%, #248A3D 100%)' : 'linear-gradient(135deg, #8E8E93 0%, #636366 100%)'}; color: #FFFFFF; padding: 12px 14px; border-top-left-radius: 24px; border-top-right-radius: 24px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <span style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9;">EVACUATION REFUGE</span>
+                  <span style="font-size: 9px; font-weight: 900; background: rgba(255,255,255,0.25); padding: 2px 7px; border-radius: 9999px;">${isOpen ? 'OPEN' : 'CLOSED'}</span>
+                </div>
+                <div style="font-size: 15px; font-weight: 900; margin-top: 3px;">${shelter.name}</div>
+              </div>
+              <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="font-size: 11px; color: #3A3A3C;">
+                  <strong>Location:</strong> Brgy. ${shelter.barangay_name || 'Cebu City'}
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; background: #F2F2F7; padding: 6px 10px; border-radius: 10px;">
+                  <span style="color: #8E8E93; font-weight: 600;">Refuge Capacity:</span>
+                  <span style="font-weight: 900; color: #1C1C1E;">${shelter.capacity_people || 500} evacuees</span>
+                </div>
               </div>
             </div>
           `)
@@ -566,12 +608,22 @@ export function MapContainer({
         .setLngLat([report.longitude, report.latitude])
         .setPopup(
           new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
-            <div style="padding: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-              <div style="font-size: 10px; font-weight: 900; color: ${color}; text-transform: uppercase; letter-spacing: 0.5px;">Live Flood Incident</div>
-              <div style="font-weight: 900; font-size: 14px; color: #1C1C1E; margin-top: 2px;">Brgy. ${report.barangay_name || 'Area'}</div>
-              <div style="font-size: 11px; color: #3A3A3C; margin-top: 4px;">${report.description || 'Reported flood stage'}</div>
-              <div style="margin-top: 6px; font-size: 10px; font-weight: 900; color: ${color}; background: #FFEBEE; padding: 4px 8px; border-radius: 8px;">
-                Depth: ${report.flood_depth_level?.toUpperCase() || 'UNKNOWN'}
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 240px;">
+              <div style="background: ${isSevere ? 'linear-gradient(135deg, #FF3B30 0%, #C62828 100%)' : 'linear-gradient(135deg, #FF9500 0%, #E65100 100%)'}; color: #FFFFFF; padding: 12px 14px; border-top-left-radius: 24px; border-top-right-radius: 24px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <span style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9;">CITIZEN INCIDENT REPORT</span>
+                  <span style="font-size: 9px; font-weight: 900; background: rgba(255,255,255,0.25); padding: 2px 7px; border-radius: 9999px;">${report.flood_depth_level?.toUpperCase() || 'FLOOD'}</span>
+                </div>
+                <div style="font-size: 15px; font-weight: 900; margin-top: 3px;">Brgy. ${report.barangay_name || 'Area'}</div>
+              </div>
+              <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="font-size: 11.5px; color: #1C1C1E; line-height: 1.4;">
+                  ${report.description || 'Verified flood incident pin.'}
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #8E8E93; border-top: 1px solid #E5E5EA; padding-top: 6px;">
+                  <span>Reported: ${new Date(report.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span style="font-weight: 800; color: #007AFF;">Status: ${report.status?.toUpperCase() || 'VERIFIED'}</span>
+                </div>
               </div>
             </div>
           `)
@@ -607,24 +659,30 @@ export function MapContainer({
         .setLngLat([st.longitude, st.latitude])
         .setPopup(
           new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
-            <div style="padding: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-width: 190px;">
-              <div style="font-size: 10px; font-weight: 900; color: ${color}; text-transform: uppercase; letter-spacing: 0.5px;">
-                River Telemetry Station &bull; ${statusLabel}
-              </div>
-              <div style="font-weight: 900; font-size: 14px; color: #1C1C1E; margin-top: 2px;">${st.station_name}</div>
-              <div style="font-size: 11px; color: #8E8E93; margin-top: 2px;">${st.river_basin} &bull; Brgy. ${st.barangay_name}</div>
-              
-              <div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 11px;">
-                <div style="background: #F2F2F7; padding: 5px 8px; border-radius: 8px; font-weight: 800;">
-                  Level: <strong style="color: ${color}; font-size: 12px;">${st.water_level_meters}m</strong>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 250px;">
+              <div style="background: ${isBreach ? 'linear-gradient(135deg, #FF3B30 0%, #D32F2F 100%)' : isWatch ? 'linear-gradient(135deg, #FF9500 0%, #E65100 100%)' : 'linear-gradient(135deg, #007AFF 0%, #0051A8 100%)'}; color: #FFFFFF; padding: 12px 14px; border-top-left-radius: 24px; border-top-right-radius: 24px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <span style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9;">RIVER TELEMETRY NODE</span>
+                  <span style="font-size: 9px; font-weight: 900; background: rgba(255,255,255,0.25); padding: 2px 7px; border-radius: 9999px;">${statusLabel}</span>
                 </div>
-                <div style="background: #F2F2F7; padding: 5px 8px; border-radius: 8px; font-weight: 800;">
-                  Rain: <strong style="color: #007AFF; font-size: 12px;">${st.rainfall_rate_mmh || 0} mm/h</strong>
-                </div>
+                <div style="font-size: 15px; font-weight: 900; margin-top: 3px;">${st.station_name}</div>
+                <div style="font-size: 10px; opacity: 0.85; margin-top: 1px;">${st.river_basin} &bull; Brgy. ${st.barangay_name}</div>
               </div>
-
-              <div style="margin-top: 6px; font-size: 10px; color: #6C6C70; font-weight: 600;">
-                Alert 1: ${st.alert_level_1_meters}m &bull; Critical: ${st.critical_overflow_meters}m
+              <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                  <div style="background: #F2F2F7; padding: 8px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 9px; font-weight: 700; color: #8E8E93; text-transform: uppercase;">Water Level</div>
+                    <div style="font-size: 14px; font-weight: 900; color: ${color}; margin-top: 1px;">${st.water_level_meters}m</div>
+                  </div>
+                  <div style="background: #F2F2F7; padding: 8px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 9px; font-weight: 700; color: #8E8E93; text-transform: uppercase;">Rainfall</div>
+                    <div style="font-size: 14px; font-weight: 900; color: #007AFF; margin-top: 1px;">${st.rainfall_rate_mmh || 0} mm/h</div>
+                  </div>
+                </div>
+                <div style="font-size: 10px; color: #8E8E93; display: flex; justify-content: space-between; border-top: 1px solid #E5E5EA; padding-top: 6px;">
+                  <span>Alert 1: <strong>${st.alert_level_1_meters}m</strong></span>
+                  <span>Critical: <strong style="color: #FF3B30;">${st.critical_overflow_meters}m</strong></span>
+                </div>
               </div>
             </div>
           `)
@@ -672,9 +730,15 @@ export function MapContainer({
       popupRef.current = new maplibregl.Popup({ closeButton: true, className: 'cebu-clean-popup' })
         .setLngLat([longitude, latitude])
         .setHTML(`
-          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 4px 6px;">
-            <div style="font-size: 10px; font-weight: 800; color: #007AFF; text-transform: uppercase;">Selected Target</div>
-            <div style="font-weight: 800; font-size: 13px; color: #1C1C1E; margin-top: 2px;">${name || 'Location Target'}</div>
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 220px;">
+            <div style="background: linear-gradient(135deg, #007AFF 0%, #0051A8 100%); color: #FFFFFF; padding: 10px 14px; border-top-left-radius: 24px; border-top-right-radius: 24px;">
+              <div style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.85;">RADAR TARGET LOCK</div>
+              <div style="font-size: 14px; font-weight: 900; margin-top: 2px;">${name || 'Location Target'}</div>
+            </div>
+            <div style="padding: 10px 14px; font-size: 11px; color: #6C6C70; display: flex; align-items: center; justify-content: space-between;">
+              <span>Cebu City Grid</span>
+              <span style="font-weight: 800; color: #007AFF;">${latitude.toFixed(4)}°N, ${longitude.toFixed(4)}°E</span>
+            </div>
           </div>
         `)
         .addTo(mapRef.current);
@@ -945,6 +1009,24 @@ export function MapContainer({
           )}
         </div>
       )}
+
+      {/* Bottom Right Live GIS Coordinates & Scale HUD Dock */}
+      <div className="absolute bottom-6 right-6 z-10 pointer-events-none hidden md:flex items-center gap-3 px-3.5 py-2 rounded-2xl bg-white/95 backdrop-blur-2xl border border-gray-200/90 text-[11px] font-bold text-gray-700 shadow-xl">
+        <div className="flex items-center gap-1.5 text-blue-600">
+          <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+          <span>WGS84 Datum</span>
+        </div>
+        <span className="w-px h-3 bg-gray-200" />
+        <span className="font-mono text-gray-800">Zoom {currentZoom.toFixed(1)}</span>
+        {mouseCoords && (
+          <>
+            <span className="w-px h-3 bg-gray-200" />
+            <span className="font-mono text-gray-900 font-extrabold">
+              {mouseCoords.lat.toFixed(4)}° N, {mouseCoords.lng.toFixed(4)}° E
+            </span>
+          </>
+        )}
+      </div>
     </div>
   );
 }
