@@ -44,16 +44,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const stored = localStorage.getItem('cebu_auth_user');
       if (stored) {
         const parsed = JSON.parse(stored);
-        setUser(parsed);
+        if (parsed && parsed.token) {
+          setUser(parsed);
+          // Set cookie for middleware
+          document.cookie = `cebu_session=${parsed.token}; path=/; max-age=604800; SameSite=Lax`;
+        } else {
+          setUser(null);
+          localStorage.removeItem('cebu_auth_user');
+          document.cookie = 'cebu_session=; path=/; max-age=0';
+        }
+      } else {
+        setUser(null);
+        document.cookie = 'cebu_session=; path=/; max-age=0';
       }
     } catch {
+      setUser(null);
       localStorage.removeItem('cebu_auth_user');
+      document.cookie = 'cebu_session=; path=/; max-age=0';
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // Enforce Protected Routes
+  // Enforce Protected Routes on client navigation
   useEffect(() => {
     if (!isLoading) {
       const isPublic = PUBLIC_ROUTES.some((r) => pathname?.startsWith(r));
@@ -70,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email, password }),
       });
 
-      if (res && res.success && res.user) {
+      if (res && res.success && res.user && res.token) {
         const session: UserSession = {
           id: res.user.id,
           name: res.user.name,
@@ -81,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setUser(session);
         localStorage.setItem('cebu_auth_user', JSON.stringify(session));
+        document.cookie = `cebu_session=${res.token}; path=/; max-age=604800; SameSite=Lax`;
         router.push('/dashboard');
         return { success: true };
       }
@@ -112,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }),
       });
 
-      if (res && res.success && res.user) {
+      if (res && res.success && res.user && res.token) {
         const session: UserSession = {
           id: res.user.id,
           name: res.user.name,
@@ -123,6 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setUser(session);
         localStorage.setItem('cebu_auth_user', JSON.stringify(session));
+        document.cookie = `cebu_session=${res.token}; path=/; max-age=604800; SameSite=Lax`;
         router.push('/dashboard');
         return { success: true };
       }
@@ -136,6 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('cebu_auth_user');
+    document.cookie = 'cebu_session=; path=/; max-age=0';
     router.push('/login');
   };
 
