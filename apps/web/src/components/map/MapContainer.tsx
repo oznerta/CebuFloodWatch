@@ -66,6 +66,7 @@ export function MapContainer({
   const [selectedScenario, setSelectedScenario] = useState<FloodScenario>('25yr');
   const [showBarangays, setShowBarangays] = useState(true);
   const [showBoundary, setShowBoundary] = useState(true);
+  const [showMask, setShowMask] = useState(true);
   const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('vector');
   const [is3DMode, setIs3DMode] = useState(false);
 
@@ -89,6 +90,24 @@ export function MapContainer({
     map.addControl(new maplibregl.ScaleControl(), 'bottom-right');
 
     const setupLayers = () => {
+      // 0. Inverse Mask (Hides everything outside Cebu City perimeter)
+      if (!map.getSource('cebu-city-mask')) {
+        map.addSource('cebu-city-mask', {
+          type: 'geojson',
+          data: '/data/cebu_city_mask.geojson',
+        });
+
+        map.addLayer({
+          id: 'cebu-outside-mask',
+          type: 'fill',
+          source: 'cebu-city-mask',
+          paint: {
+            'fill-color': '#E5E5EA',
+            'fill-opacity': 0.94,
+          },
+        });
+      }
+
       // 1. Cebu City Official Outer Boundary
       if (!map.getSource('cebu-city-boundary')) {
         map.addSource('cebu-city-boundary', {
@@ -103,7 +122,7 @@ export function MapContainer({
           paint: {
             'line-color': '#007AFF',
             'line-width': 3.5,
-            'line-opacity': 0.85,
+            'line-opacity': 0.9,
           },
         });
 
@@ -309,7 +328,8 @@ export function MapContainer({
 
     setVisibility(['cebu-barangay-lines', 'cebu-barangay-fills'], showBarangays);
     setVisibility(['cebu-city-border-glow', 'cebu-city-fill'], showBoundary);
-  }, [mapLoaded, selectedScenario, showBarangays, showBoundary]);
+    setVisibility(['cebu-outside-mask'], showMask);
+  }, [mapLoaded, selectedScenario, showBarangays, showBoundary, showMask]);
 
   // Sync Markers for Live Incident Reports & Shelters
   useEffect(() => {
@@ -584,6 +604,18 @@ export function MapContainer({
                 checked={showBoundary}
                 onChange={(e) => setShowBoundary(e.target.checked)}
                 className="rounded text-[#007AFF] focus:ring-0 cursor-pointer"
+              />
+            </label>
+
+            <label className="flex items-center justify-between cursor-pointer select-none">
+              <span className="flex items-center gap-1.5 text-[#1C1C1E]">
+                <span className="w-2 h-2 rounded-full bg-[#8E8E93]" /> Hide Outside Areas
+              </span>
+              <input
+                type="checkbox"
+                checked={showMask}
+                onChange={(e) => setShowMask(e.target.checked)}
+                className="rounded text-[#1C1C1E] focus:ring-0 cursor-pointer"
               />
             </label>
           </div>
