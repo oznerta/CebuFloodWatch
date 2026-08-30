@@ -185,13 +185,20 @@ export function MapContainer({
           id: 'hazard-5yr-fill',
           type: 'fill',
           source: 'cebu-flood-5yr',
-          paint: { 'fill-color': '#FFCC00', 'fill-opacity': 0.35 },
+          paint: {
+            'fill-color': ['coalesce', ['get', 'color'], '#FFCC00'],
+            'fill-opacity': 0.45,
+          },
         });
         map.addLayer({
           id: 'hazard-5yr-line',
           type: 'line',
           source: 'cebu-flood-5yr',
-          paint: { 'line-color': '#FFCC00', 'line-width': 1.5, 'line-opacity': 0.7 },
+          paint: {
+            'line-color': ['coalesce', ['get', 'color'], '#FFCC00'],
+            'line-width': 1.5,
+            'line-opacity': 0.75,
+          },
         });
       }
 
@@ -204,13 +211,20 @@ export function MapContainer({
           id: 'hazard-25yr-fill',
           type: 'fill',
           source: 'cebu-flood-25yr',
-          paint: { 'fill-color': '#FF9500', 'fill-opacity': 0.4 },
+          paint: {
+            'fill-color': ['coalesce', ['get', 'color'], '#FF9500'],
+            'fill-opacity': 0.45,
+          },
         });
         map.addLayer({
           id: 'hazard-25yr-line',
           type: 'line',
           source: 'cebu-flood-25yr',
-          paint: { 'line-color': '#FF9500', 'line-width': 1.5, 'line-opacity': 0.8 },
+          paint: {
+            'line-color': ['coalesce', ['get', 'color'], '#FF9500'],
+            'line-width': 1.5,
+            'line-opacity': 0.8,
+          },
         });
       }
 
@@ -223,15 +237,46 @@ export function MapContainer({
           id: 'hazard-100yr-fill',
           type: 'fill',
           source: 'cebu-flood-100yr',
-          paint: { 'fill-color': '#FF3B30', 'fill-opacity': 0.45 },
+          paint: {
+            'fill-color': ['coalesce', ['get', 'color'], '#FF3B30'],
+            'fill-opacity': 0.5,
+          },
         });
         map.addLayer({
           id: 'hazard-100yr-line',
           type: 'line',
           source: 'cebu-flood-100yr',
-          paint: { 'line-color': '#FF3B30', 'line-width': 2, 'line-opacity': 0.9 },
+          paint: {
+            'line-color': ['coalesce', ['get', 'color'], '#FF3B30'],
+            'line-width': 2,
+            'line-opacity': 0.9,
+          },
         });
       }
+
+      // Click interaction for Flood Hazard Polygons
+      const floodLayers = ['hazard-5yr-fill', 'hazard-25yr-fill', 'hazard-100yr-fill'];
+      floodLayers.forEach((layerId) => {
+        map.on('click', layerId, (e: any) => {
+          if (!e.features || e.features.length === 0) return;
+          const props = e.features[0].properties || {};
+          const hazardName = props.hazard_name || 'Flood Hazard Zone';
+          const returnPeriod = props.return_period || 'UP NOAH Scenario';
+          const depth = props.depth_range || 'Inundation Zone';
+
+          if (popupRef.current) popupRef.current.remove();
+          popupRef.current = new maplibregl.Popup({ closeButton: true })
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div style="font-family: sans-serif; padding: 4px;">
+                <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #FF3B30;">UP NOAH Simulation</div>
+                <div style="font-size: 13px; font-weight: 900; color: #1C1C1E; margin-top: 2px;">${hazardName}</div>
+                <div style="font-size: 11px; color: #6C6C70; margin-top: 2px;">Depth: ${depth} &bull; ${returnPeriod}</div>
+              </div>
+            `)
+            .addTo(map);
+        });
+      });
 
       setMapLoaded(true);
     };
