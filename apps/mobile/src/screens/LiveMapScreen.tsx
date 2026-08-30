@@ -5,8 +5,11 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  TextInput,
   ActivityIndicator,
-  Dimensions,
+  Modal,
+  Linking,
+  ScrollView,
 } from 'react-native';
 import {
   MapPin,
@@ -16,10 +19,28 @@ import {
   Maximize2,
   Minimize2,
   ListFilter,
+  Search,
+  PhoneCall,
+  Gauge,
+  X,
+  Compass,
+  HeartPulse,
+  Activity,
+  Home,
+  Route,
+  Building,
+  Check,
+  Share2,
 } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 import { mobileFetch } from '../services/api';
 import { MobileMap } from '../components/MobileMap';
+import {
+  searchCebuLandmarks,
+  CebuLandmark,
+  METRO_CEBU_HOTLINES,
+  DisasterHotlineAgency,
+} from '@cebufloodwatch/shared';
 
 export function LiveMapScreen() {
   const [reports, setReports] = useState<any[]>([]);
@@ -29,6 +50,17 @@ export function LiveMapScreen() {
   const [filterDepth, setFilterDepth] = useState<string>('all');
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [isImmersiveFullscreen, setIsImmersiveFullscreen] = useState(false);
+
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<CebuLandmark[]>([]);
+  const [searchActive, setSearchActive] = useState(false);
+  const [selectedLandmark, setSelectedLandmark] = useState<CebuLandmark | null>(null);
+
+  // Modals State
+  const [hotlinesModalOpen, setHotlinesModalOpen] = useState(false);
+  const [passabilityModalOpen, setPassabilityModalOpen] = useState(false);
+  const [calcDepth, setCalcDepth] = useState<number>(35); // in cm
 
   const fetchIncidents = async () => {
     try {
@@ -105,6 +137,20 @@ export function LiveMapScreen() {
     fetchIncidents();
   }, []);
 
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      setSearchResults(searchCebuLandmarks(searchQuery));
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery]);
+
+  const handleSelectLandmark = (item: CebuLandmark) => {
+    setSelectedLandmark(item);
+    setSearchQuery(item.name);
+    setSearchActive(false);
+  };
+
   const filteredReports =
     filterDepth === 'all'
       ? reports
@@ -113,18 +159,42 @@ export function LiveMapScreen() {
   const getDepthColor = (level: string) => {
     switch (level) {
       case 'ankle':
-        return '#34C759'; // Apple Green
+        return '#34C759';
       case 'knee':
-        return '#FFCC00'; // Apple Yellow
+        return '#FFCC00';
       case 'waist':
-        return '#FF9500'; // Apple Orange
+        return '#FF9500';
       case 'chest':
-        return '#FF3B30'; // Apple Red
+        return '#FF3B30';
       case 'above_head':
-        return '#AF52DE'; // Apple Purple
+        return '#AF52DE';
       default:
         return COLORS.primary;
     }
+  };
+
+  const getCategoryIcon = (cat: CebuLandmark['category']) => {
+    switch (cat) {
+      case 'hospital':
+        return <HeartPulse color="#FF3B30" size={16} />;
+      case 'sensor':
+        return <Activity color="#007AFF" size={16} />;
+      case 'shelter':
+        return <Home color="#34C759" size={16} />;
+      case 'road':
+        return <Route color="#FF9500" size={16} />;
+      default:
+        return <Building color="#007AFF" size={16} />;
+    }
+  };
+
+  const handleCall = (phone: string) => {
+    Linking.openURL(`tel:${phone}`);
+  };
+
+  const handleShareSOS = () => {
+    const msg = `🚨 EMERGENCY DISASTER SOS (Metro Cebu): Need rescue assistance. GPS: https://maps.google.com/?q=10.3157,123.8854 (Tracked live on CebuFloodWatch)`;
+    Linking.openURL(`sms:?body=${encodeURIComponent(msg)}`);
   };
 
   return (
@@ -138,9 +208,8 @@ export function LiveMapScreen() {
         />
       </View>
 
-      {/* 2. Floating Top Header & Fullscreen Focus HUD */}
+      {/* 2. Floating Top Header & Search HUD */}
       {isImmersiveFullscreen ? (
-        /* Minimal Floating Chip when in Fullscreen Focus Mode */
         <View style={styles.fullscreenExitHud}>
           <TouchableOpacity
             style={styles.exitFocusBtn}
@@ -151,26 +220,91 @@ export function LiveMapScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        /* Standard Floating Top HUD */
         <View style={styles.topHudContainer}>
-          {/* Apple Frosted Glass Hazard Banner */}
-          <View style={styles.floatingHazardPill}>
-            <Layers color="#FF9500" size={16} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.hazardTitle}>UP NOAH Flood Zones Active</Text>
-              <Text style={styles.hazardSub}>5y, 25y & 100y return period overlays</Text>
-            </View>
+          {/* Spotlight Search Bar */}
+          <View style={styles.searchBarContainer}>
+            <Search color="#8E8E93" size={16} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search Cebu barangays, landmarks, hospitals..."
+              placeholderTextColor="#8E8E93"
+              value={searchQuery}
+              onChangeText={(text) => {
+                setSearchQuery(text);
+                setSearchActive(true);
+              }}
+              onFocus={() => setSearchActive(true)}
+            />
+            {searchQuery.length > 0 ? (
+              <TouchableOpacity
+                onPress={() => {
+                  setSearchQuery('');
+                  setSelectedLandmark(null);
+                  setSearchActive(false);
+                }}
+              >
+                <X color="#8E8E93" size={16} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
 
+          {/* Autocomplete Dropdown List */}
+          {searchActive && searchResults.length > 0 && (
+            <View style={styles.searchResultsDropdown}>
+              {searchResults.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.searchResultRow}
+                  onPress={() => handleSelectLandmark(item)}
+                >
+                  <View style={styles.resultIconWrap}>
+                    {getCategoryIcon(item.category)}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.resultTitle}>{item.name}</Text>
+                    <Text style={styles.resultSub}>
+                      Barangay {item.barangay} &bull; {item.category.toUpperCase()}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Quick Action Utilities Row */}
+          <View style={styles.utilitiesRow}>
+            {/* Hotlines Button */}
             <TouchableOpacity
-              style={styles.fullscreenPillBtn}
+              style={styles.utilityPill}
+              onPress={() => setHotlinesModalOpen(true)}
+            >
+              <PhoneCall color="#FF3B30" size={13} />
+              <Text style={[styles.utilityText, { color: '#FF3B30' }]}>
+                Hotlines (161)
+              </Text>
+            </TouchableOpacity>
+
+            {/* Vehicle Clearance Calculator */}
+            <TouchableOpacity
+              style={styles.utilityPill}
+              onPress={() => setPassabilityModalOpen(true)}
+            >
+              <Gauge color="#007AFF" size={13} />
+              <Text style={styles.utilityText}>Vehicle Clearance</Text>
+            </TouchableOpacity>
+
+            {/* Fullscreen Mode */}
+            <TouchableOpacity
+              style={styles.iconUtilityBtn}
               onPress={() => setIsImmersiveFullscreen(true)}
               accessibilityLabel="Fullscreen Focus"
             >
               <Maximize2 color="#007AFF" size={14} />
             </TouchableOpacity>
 
+            {/* Refresh */}
             <TouchableOpacity
-              style={styles.refreshIconBtn}
+              style={styles.iconUtilityBtn}
               onPress={() => {
                 setRefreshing(true);
                 fetchIncidents();
@@ -180,10 +314,10 @@ export function LiveMapScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Big Apple Segmented Control Pills */}
+          {/* Filter Pills */}
           <View style={styles.segmentedFilterRow}>
             {[
-              { id: 'all', label: 'All Incidents' },
+              { id: 'all', label: 'All' },
               { id: 'knee', label: 'Knee+' },
               { id: 'waist', label: 'Waist+' },
               { id: 'chest', label: 'Chest+' },
@@ -215,7 +349,6 @@ export function LiveMapScreen() {
 
       {/* 3. Floating Bottom Sheet Telemetry Feed (Apple Maps Style) */}
       {isImmersiveFullscreen ? (
-        /* Minimal Bottom Drawer Trigger in Fullscreen Mode */
         <View style={styles.fullscreenBottomTrigger}>
           <TouchableOpacity
             style={styles.minimalFeedPill}
@@ -223,7 +356,7 @@ export function LiveMapScreen() {
           >
             <ListFilter color="#007AFF" size={14} />
             <Text style={styles.minimalFeedText}>
-              Show Incident Feed ({filteredReports.length})
+              Show Feed ({filteredReports.length})
             </Text>
           </TouchableOpacity>
         </View>
@@ -234,7 +367,6 @@ export function LiveMapScreen() {
             sheetExpanded && styles.bottomSheetCardExpanded,
           ]}
         >
-          {/* Handle Bar / Toggle */}
           <TouchableOpacity
             style={styles.sheetHandleArea}
             onPress={() => setSheetExpanded(!sheetExpanded)}
@@ -244,7 +376,7 @@ export function LiveMapScreen() {
               <View>
                 <Text style={styles.sheetTitle}>Active Flood Incidents</Text>
                 <Text style={styles.sheetSub}>
-                  {filteredReports.length} reports in Metro Cebu
+                  {filteredReports.length} reports verified in Metro Cebu
                 </Text>
               </View>
               <View style={styles.expandTogglePill}>
@@ -262,7 +394,6 @@ export function LiveMapScreen() {
             </View>
           </TouchableOpacity>
 
-          {/* Incident List */}
           {loading ? (
             <View style={styles.loadingBox}>
               <ActivityIndicator color={COLORS.primary} size="small" />
@@ -321,6 +452,174 @@ export function LiveMapScreen() {
           )}
         </View>
       )}
+
+      {/* Emergency Hotlines Modal */}
+      <Modal
+        visible={hotlinesModalOpen}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setHotlinesModalOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <PhoneCall color="#FF3B30" size={20} />
+                <Text style={styles.modalTitle}>Cebu Emergency Hotlines</Text>
+              </View>
+              <TouchableOpacity onPress={() => setHotlinesModalOpen(false)}>
+                <X color="#8E8E93" size={20} />
+              </TouchableOpacity>
+            </View>
+
+            {/* 1-Tap SOS Share */}
+            <TouchableOpacity style={styles.sosShareBtn} onPress={handleShareSOS}>
+              <Share2 color="#FFFFFF" size={16} />
+              <Text style={styles.sosShareText}>Send 1-Tap GPS Emergency SMS</Text>
+            </TouchableOpacity>
+
+            <ScrollView style={{ maxHeight: 360 }}>
+              {METRO_CEBU_HOTLINES.map((h) => (
+                <View key={h.id} style={styles.hotlineRow}>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.hotlineAgency}>{h.agency}</Text>
+                      {h.shortCode && (
+                        <Text style={styles.hotlineShortCode}>{h.shortCode}</Text>
+                      )}
+                    </View>
+                    <Text style={styles.hotlineDesc}>{h.description}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.hotlineCallBtn}
+                    onPress={() => handleCall(h.phone)}
+                  >
+                    <PhoneCall color="#FFFFFF" size={14} />
+                    <Text style={styles.hotlineCallText}>Call</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Vehicle Passability Calculator Modal */}
+      <Modal
+        visible={passabilityModalOpen}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setPassabilityModalOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Gauge color="#007AFF" size={20} />
+                <Text style={styles.modalTitle}>Vehicle Clearance Calculator</Text>
+              </View>
+              <TouchableOpacity onPress={() => setPassabilityModalOpen(false)}>
+                <X color="#8E8E93" size={20} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.calcSub}>
+              Select water depth to evaluate safe crossing feasibility:
+            </Text>
+
+            {/* Depth Selector Chips */}
+            <View style={styles.calcChipsRow}>
+              {[
+                { label: 'Ankle (15cm)', val: 15 },
+                { label: 'Knee (35cm)', val: 35 },
+                { label: 'Waist (90cm)', val: 90 },
+                { label: 'Chest (140cm)', val: 140 },
+              ].map((p) => (
+                <TouchableOpacity
+                  key={p.val}
+                  style={[
+                    styles.calcChip,
+                    calcDepth === p.val && styles.calcChipActive,
+                  ]}
+                  onPress={() => setCalcDepth(p.val)}
+                >
+                  <Text
+                    style={[
+                      styles.calcChipText,
+                      calcDepth === p.val && styles.calcChipTextActive,
+                    ]}
+                  >
+                    {p.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Results Cards */}
+            <ScrollView style={{ maxHeight: 300, marginTop: 10 }}>
+              <View style={styles.calcResultCard}>
+                <Text style={styles.calcVehicleTitle}>🚗 Sedans & Hatchbacks</Text>
+                <Text
+                  style={[
+                    styles.calcPassBadge,
+                    {
+                      color: calcDepth <= 15 ? '#34C759' : '#FF3B30',
+                      backgroundColor: calcDepth <= 15 ? '#EBF9EE' : '#FFEBEA',
+                    },
+                  ]}
+                >
+                  {calcDepth <= 15 ? 'SAFE PASSAGE' : 'IMPASSABLE / HYDROSTATIC LOCK'}
+                </Text>
+              </View>
+
+              <View style={styles.calcResultCard}>
+                <Text style={styles.calcVehicleTitle}>🚙 Compact Crossovers / SUVs</Text>
+                <Text
+                  style={[
+                    styles.calcPassBadge,
+                    {
+                      color: calcDepth <= 30 ? '#34C759' : '#FF9500',
+                      backgroundColor: calcDepth <= 30 ? '#EBF9EE' : '#FFF4E5',
+                    },
+                  ]}
+                >
+                  {calcDepth <= 30 ? 'SAFE PASSAGE' : 'EXTREME CAUTION'}
+                </Text>
+              </View>
+
+              <View style={styles.calcResultCard}>
+                <Text style={styles.calcVehicleTitle}>🛻 4x4 Pickups & Heavy SUVs</Text>
+                <Text
+                  style={[
+                    styles.calcPassBadge,
+                    {
+                      color: calcDepth <= 50 ? '#34C759' : '#FF9500',
+                      backgroundColor: calcDepth <= 50 ? '#EBF9EE' : '#FFF4E5',
+                    },
+                  ]}
+                >
+                  {calcDepth <= 50 ? 'SAFE PASSAGE' : 'DEEP BASIN POOLING'}
+                </Text>
+              </View>
+
+              <View style={styles.calcResultCard}>
+                <Text style={styles.calcVehicleTitle}>🚒 Disaster Rescue Trucks</Text>
+                <Text
+                  style={[
+                    styles.calcPassBadge,
+                    {
+                      color: calcDepth <= 80 ? '#34C759' : '#FF3B30',
+                      backgroundColor: calcDepth <= 80 ? '#EBF9EE' : '#FFEBEA',
+                    },
+                  ]}
+                >
+                  {calcDepth <= 80 ? 'AUTHORIZED RESCUE PASS' : 'CRITICAL INUNDATION'}
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -332,11 +631,140 @@ const styles = StyleSheet.create({
   },
   topHudContainer: {
     position: 'absolute',
-    top: 12,
+    top: 10,
     left: 14,
     right: 14,
     zIndex: 20,
     gap: 8,
+  },
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1C1C1E',
+    paddingVertical: 0,
+  },
+  searchResultsDropdown: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    maxHeight: 220,
+    gap: 4,
+  },
+  searchResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 12,
+    gap: 10,
+    backgroundColor: '#F8F9FA',
+  },
+  resultIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E5F1FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resultTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1C1C1E',
+  },
+  resultSub: {
+    fontSize: 10,
+    color: '#8E8E93',
+    marginTop: 1,
+  },
+  utilitiesRow: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+  },
+  utilityPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    gap: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+  },
+  utilityText: {
+    color: '#007AFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  iconUtilityBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 14,
+    padding: 7,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  segmentedFilterRow: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    padding: 3.5,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    gap: 4,
+  },
+  filterPill: {
+    flex: 1,
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+  },
+  filterPillActive: {
+    backgroundColor: '#007AFF',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  filterPillText: {
+    color: '#6C6C70',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  filterPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
   fullscreenExitHud: {
     position: 'absolute',
@@ -391,77 +819,6 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontSize: 13,
     fontWeight: '800',
-  },
-  floatingHazardPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-  },
-  hazardTitle: {
-    color: '#1C1C1E',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  hazardSub: {
-    color: '#8E8E93',
-    fontSize: 11,
-    marginTop: 1,
-  },
-  fullscreenPillBtn: {
-    padding: 7,
-    borderRadius: 12,
-    backgroundColor: '#E5F1FF',
-  },
-  refreshIconBtn: {
-    padding: 7,
-    borderRadius: 12,
-    backgroundColor: '#F2F2F7',
-  },
-  segmentedFilterRow: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    padding: 4,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    gap: 4,
-  },
-  filterPill: {
-    flex: 1,
-    paddingVertical: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
-  },
-  filterPillActive: {
-    backgroundColor: '#007AFF',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-  },
-  filterPillText: {
-    color: '#6C6C70',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  filterPillTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
   bottomSheetCard: {
     position: 'absolute',
@@ -592,5 +949,141 @@ const styles = StyleSheet.create({
     color: '#3A3A3C',
     fontSize: 12,
     lineHeight: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 20,
+    paddingBottom: 36,
+    gap: 12,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2F2F7',
+    paddingBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1C1C1E',
+  },
+  sosShareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF3B30',
+    borderRadius: 16,
+    paddingVertical: 12,
+    gap: 6,
+  },
+  sosShareText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  hotlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    gap: 10,
+    marginBottom: 8,
+  },
+  hotlineAgency: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1C1C1E',
+  },
+  hotlineShortCode: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FF3B30',
+    backgroundColor: '#FFEBEA',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  hotlineDesc: {
+    fontSize: 10,
+    color: '#8E8E93',
+    marginTop: 2,
+  },
+  hotlineCallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#34C759',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    gap: 4,
+  },
+  hotlineCallText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  calcSub: {
+    fontSize: 12,
+    color: '#8E8E93',
+  },
+  calcChipsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  calcChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  calcChipActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  calcChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6C6C70',
+  },
+  calcChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  calcResultCard: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    marginBottom: 8,
+    gap: 6,
+  },
+  calcVehicleTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1C1C1E',
+  },
+  calcPassBadge: {
+    alignSelf: 'flex-start',
+    fontSize: 10,
+    fontWeight: '800',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
 });

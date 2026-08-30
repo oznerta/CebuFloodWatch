@@ -3,7 +3,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import { CEBU_CITY_BOUNDS, UP_NOAH_CEBU_HAZARD_GEOJSON } from '@cebufloodwatch/shared';
-import { Layers, Maximize2, Minimize2, X, RefreshCw } from 'lucide-react';
+import {
+  Layers,
+  Maximize2,
+  Minimize2,
+  Compass,
+  MapPin,
+  Mountain,
+  Satellite,
+  Sun,
+  Eye,
+} from 'lucide-react';
 
 interface MapContainerProps {
   reports?: any[];
@@ -12,6 +22,23 @@ interface MapContainerProps {
   className?: string;
   showHazardControls?: boolean;
 }
+
+type MapTileStyle = 'vector' | 'satellite' | 'terrain';
+
+const TILE_STYLES: Record<MapTileStyle, { name: string; styleUrl: string }> = {
+  vector: {
+    name: 'Light Vector',
+    styleUrl: 'https://tiles.openfreemap.org/styles/positron',
+  },
+  satellite: {
+    name: 'Satellite Hybrid',
+    styleUrl: 'https://tiles.openfreemap.org/styles/liberty', // High-detail hybrid
+  },
+  terrain: {
+    name: 'Topographic Terrain',
+    styleUrl: 'https://tiles.openfreemap.org/styles/bright',
+  },
+};
 
 export function MapContainer({
   reports = [],
@@ -24,140 +51,196 @@ export function MapContainer({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  const targetMarkerRef = useRef<maplibregl.Marker | null>(null);
+
   const [mapLoaded, setMapLoaded] = useState(false);
   const [show100Year, setShow100Year] = useState(true);
   const [show25Year, setShow25Year] = useState(true);
   const [show5Year, setShow5Year] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('vector');
+  const [is3DMode, setIs3DMode] = useState(false);
 
-  // Initialize MapLibre with Apple Light Vector Cartography
+  // Initialize MapLibre
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: 'https://tiles.openfreemap.org/styles/positron',
+      style: TILE_STYLES[currentStyle].styleUrl,
       center: CEBU_CITY_BOUNDS.center,
       zoom: 12.5,
-      pitch: 20,
+      pitch: is3DMode ? 45 : 15,
+      bearing: 0,
     });
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
     map.addControl(new maplibregl.ScaleControl(), 'bottom-right');
 
-    map.on('load', () => {
-      mapRef.current = map;
-
+    const setupLayers = () => {
       // 1. Add UP NOAH Hazard GeoJSON Source
-      map.addSource('up-noah-hazards', {
-        type: 'geojson',
-        data: UP_NOAH_CEBU_HAZARD_GEOJSON as any,
-      });
+      if (!map.getSource('up-noah-hazards')) {
+        map.addSource('up-noah-hazards', {
+          type: 'geojson',
+          data: UP_NOAH_CEBU_HAZARD_GEOJSON as any,
+        });
 
-      // 100-Year Severe Hazard Layer (Apple Red)
-      map.addLayer({
-        id: 'hazard-100yr-fill',
-        type: 'fill',
-        source: 'up-noah-hazards',
-        filter: ['==', ['get', 'hazard_level'], '100_year'],
-        paint: { 'fill-color': '#FF3B30', 'fill-opacity': 0.3 },
-      });
-      map.addLayer({
-        id: 'hazard-100yr-line',
-        type: 'line',
-        source: 'up-noah-hazards',
-        filter: ['==', ['get', 'hazard_level'], '100_year'],
-        paint: { 'line-color': '#FF3B30', 'line-width': 2 },
-      });
+        // 100-Year Severe Hazard Layer (Apple Red)
+        map.addLayer({
+          id: 'hazard-100yr-fill',
+          type: 'fill',
+          source: 'up-noah-hazards',
+          filter: ['==', ['get', 'hazard_level'], '100_year'],
+          paint: { 'fill-color': '#FF3B30', 'fill-opacity': 0.3 },
+        });
+        map.addLayer({
+          id: 'hazard-100yr-line',
+          type: 'line',
+          source: 'up-noah-hazards',
+          filter: ['==', ['get', 'hazard_level'], '100_year'],
+          paint: { 'line-color': '#FF3B30', 'line-width': 2 },
+        });
 
-      // 25-Year High Risk Layer (Apple Orange)
-      map.addLayer({
-        id: 'hazard-25yr-fill',
-        type: 'fill',
-        source: 'up-noah-hazards',
-        filter: ['==', ['get', 'hazard_level'], '25_year'],
-        paint: { 'fill-color': '#FF9500', 'fill-opacity': 0.25 },
-      });
-      map.addLayer({
-        id: 'hazard-25yr-line',
-        type: 'line',
-        source: 'up-noah-hazards',
-        filter: ['==', ['get', 'hazard_level'], '25_year'],
-        paint: { 'line-color': '#FF9500', 'line-width': 1.5 },
-      });
+        // 25-Year High Risk Layer (Apple Orange)
+        map.addLayer({
+          id: 'hazard-25yr-fill',
+          type: 'fill',
+          source: 'up-noah-hazards',
+          filter: ['==', ['get', 'hazard_level'], '25_year'],
+          paint: { 'fill-color': '#FF9500', 'fill-opacity': 0.25 },
+        });
+        map.addLayer({
+          id: 'hazard-25yr-line',
+          type: 'line',
+          source: 'up-noah-hazards',
+          filter: ['==', ['get', 'hazard_level'], '25_year'],
+          paint: { 'line-color': '#FF9500', 'line-width': 1.5 },
+        });
 
-      // 5-Year Advisory Layer (Apple Yellow)
-      map.addLayer({
-        id: 'hazard-5yr-fill',
-        type: 'fill',
-        source: 'up-noah-hazards',
-        filter: ['==', ['get', 'hazard_level'], '5_year'],
-        paint: { 'fill-color': '#FFCC00', 'fill-opacity': 0.2 },
-      });
-      map.addLayer({
-        id: 'hazard-5yr-line',
-        type: 'line',
-        source: 'up-noah-hazards',
-        filter: ['==', ['get', 'hazard_level'], '5_year'],
-        paint: { 'line-color': '#FFCC00', 'line-width': 1.5 },
-      });
+        // 5-Year Advisory Layer (Apple Yellow)
+        map.addLayer({
+          id: 'hazard-5yr-fill',
+          type: 'fill',
+          source: 'up-noah-hazards',
+          filter: ['==', ['get', 'hazard_level'], '5_year'],
+          paint: { 'fill-color': '#FFCC00', 'fill-opacity': 0.2 },
+        });
+        map.addLayer({
+          id: 'hazard-5yr-line',
+          type: 'line',
+          source: 'up-noah-hazards',
+          filter: ['==', ['get', 'hazard_level'], '5_year'],
+          paint: { 'line-color': '#FFCC00', 'line-width': 1.5 },
+        });
+      }
 
       // 2. Add Road Network GeoJSON Source
-      map.addSource('cebu-roads', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: [],
-        },
-      });
+      if (!map.getSource('cebu-roads')) {
+        map.addSource('cebu-roads', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: [],
+          },
+        });
 
-      // Road Passable (Apple Green)
-      map.addLayer({
-        id: 'roads-passable',
-        type: 'line',
-        source: 'cebu-roads',
-        filter: ['==', ['get', 'status'], 'passable'],
-        paint: {
-          'line-color': '#34C759',
-          'line-width': 4,
-          'line-opacity': 0.85,
-        },
-      });
+        map.addLayer({
+          id: 'roads-passable',
+          type: 'line',
+          source: 'cebu-roads',
+          filter: ['==', ['get', 'status'], 'passable'],
+          paint: {
+            'line-color': '#34C759',
+            'line-width': 4,
+            'line-opacity': 0.85,
+          },
+        });
 
-      // Road Light Only (Apple Orange)
-      map.addLayer({
-        id: 'roads-light-only',
-        type: 'line',
-        source: 'cebu-roads',
-        filter: ['==', ['get', 'status'], 'light_vehicles_only'],
-        paint: {
-          'line-color': '#FF9500',
-          'line-width': 5,
-          'line-opacity': 0.9,
-        },
-      });
+        map.addLayer({
+          id: 'roads-light-only',
+          type: 'line',
+          source: 'cebu-roads',
+          filter: ['==', ['get', 'status'], 'light_vehicles_only'],
+          paint: {
+            'line-color': '#FF9500',
+            'line-width': 5,
+            'line-opacity': 0.9,
+          },
+        });
 
-      // Road Impassable (Apple Red Dashed)
-      map.addLayer({
-        id: 'roads-impassable',
-        type: 'line',
-        source: 'cebu-roads',
-        filter: ['==', ['get', 'status'], 'impassable'],
-        paint: {
-          'line-color': '#FF3B30',
-          'line-width': 6,
-          'line-dasharray': [2, 2],
-          'line-opacity': 0.95,
-        },
-      });
+        map.addLayer({
+          id: 'roads-impassable',
+          type: 'line',
+          source: 'cebu-roads',
+          filter: ['==', ['get', 'status'], 'impassable'],
+          paint: {
+            'line-color': '#FF3B30',
+            'line-width': 6,
+            'line-dasharray': [2, 2],
+            'line-opacity': 0.95,
+          },
+        });
+      }
 
       setMapLoaded(true);
-    });
+    };
+
+    map.on('load', setupLayers);
 
     return () => {
       map.remove();
       mapRef.current = null;
     };
+  }, []);
+
+  // Listen to Global FlyTo Events (from Omnibar Search)
+  useEffect(() => {
+    const handleFlyTo = (e: any) => {
+      if (!mapRef.current || !e.detail) return;
+      const { latitude, longitude, name, category } = e.detail;
+
+      mapRef.current.flyTo({
+        center: [longitude, latitude],
+        zoom: 16.5,
+        pitch: 35,
+        essential: true,
+        duration: 2000,
+      });
+
+      // Clear previous target marker
+      if (targetMarkerRef.current) {
+        targetMarkerRef.current.remove();
+      }
+
+      // Add a glowing target search pin
+      const el = document.createElement('div');
+      el.className = 'relative flex items-center justify-center';
+      el.innerHTML = `
+        <span class="animate-ping absolute inline-flex h-8 w-8 rounded-full bg-[#007AFF] opacity-75"></span>
+        <div class="w-9 h-9 rounded-full bg-[#007AFF] text-white flex items-center justify-center text-xs font-black shadow-xl border-2 border-white">
+          🎯
+        </div>
+      `;
+
+      const marker = new maplibregl.Marker(el)
+        .setLngLat([longitude, latitude])
+        .setPopup(
+          new maplibregl.Popup({ offset: 25 }).setHTML(`
+            <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 8px; min-width: 190px;">
+              <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #007AFF;">${category} LOCATION</span>
+              <h4 style="margin: 3px 0 0 0; font-weight: 800; font-size: 14px; color:#1C1C1E;">${name}</h4>
+              <p style="margin: 4px 0 0 0; font-size: 11px; color: #6C6C70;">GPS: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}</p>
+            </div>
+          `)
+        )
+        .addTo(mapRef.current);
+
+      marker.togglePopup();
+      targetMarkerRef.current = marker;
+    };
+
+    window.addEventListener('map:flyto', handleFlyTo);
+    return () => window.removeEventListener('map:flyto', handleFlyTo);
   }, []);
 
   // Keyboard shortcut for ESC to exit fullscreen
@@ -179,6 +262,17 @@ export function MapContainer({
     }, 150);
     return () => clearTimeout(timeout);
   }, [isFullscreen]);
+
+  // Toggle 3D Mode
+  const toggle3DMode = () => {
+    if (!mapRef.current) return;
+    const next3D = !is3DMode;
+    setIs3DMode(next3D);
+    mapRef.current.easeTo({
+      pitch: next3D ? 50 : 15,
+      duration: 1000,
+    });
+  };
 
   // Update Hazard Layer Visibility
   useEffect(() => {
@@ -231,7 +325,6 @@ export function MapContainer({
     if (!mapRef.current || !mapLoaded) return;
     const map = mapRef.current;
 
-    // Clear previous markers
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
@@ -301,10 +394,6 @@ export function MapContainer({
     });
   }, [mapLoaded, reports, shelters]);
 
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
-  };
-
   return (
     <div
       ref={wrapperRef}
@@ -318,10 +407,25 @@ export function MapContainer({
 
       {/* Floating Action Controls (Top Right HUD) */}
       <div className="absolute top-4 right-14 z-10 flex items-center gap-2">
+        {/* 3D Elevation Mode Toggle */}
         <button
-          onClick={toggleFullscreen}
+          onClick={toggle3DMode}
+          title="Toggle 3D Elevation Terrain Mode"
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl backdrop-blur-md border text-xs font-extrabold transition-all shadow-md ${
+            is3DMode
+              ? 'bg-[#007AFF] text-white border-[#007AFF]'
+              : 'bg-white/90 border-[#E5E5EA] text-[#1C1C1E] hover:bg-white'
+          }`}
+        >
+          <Mountain className="w-4 h-4" />
+          <span>{is3DMode ? '3D Active' : '3D View'}</span>
+        </button>
+
+        {/* Fullscreen Toggle */}
+        <button
+          onClick={() => setIsFullscreen(!isFullscreen)}
           title={isFullscreen ? 'Exit Fullscreen (ESC)' : 'Expand to Fullscreen Map'}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/90 backdrop-blur-md border border-[#E5E5EA] text-[#1C1C1E] hover:bg-white hover:text-[#007AFF] shadow-md transition-all text-xs font-bold"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/90 backdrop-blur-md border border-[#E5E5EA] text-[#1C1C1E] hover:bg-white hover:text-[#007AFF] shadow-md transition-all text-xs font-extrabold"
         >
           {isFullscreen ? (
             <>
@@ -332,7 +436,7 @@ export function MapContainer({
           ) : (
             <>
               <Maximize2 className="w-4 h-4 text-[#007AFF]" />
-              <span>Fullscreen Map</span>
+              <span>Fullscreen</span>
             </>
           )}
         </button>
