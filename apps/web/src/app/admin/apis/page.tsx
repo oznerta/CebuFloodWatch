@@ -50,19 +50,19 @@ export default function APIGatewaysPage() {
   const [pagasaMsg, setPagasaMsg] = useState('');
 
   // NAMRIA Tidal Webhook State
-  const [namriaUrl, setNamriaUrl] = useState('https://api.namria.gov.ph/tides/v1/cebu-port');
+  const [namriaUrl, setNamriaUrl] = useState('');
   const [namriaStatus, setNamriaStatus] = useState<'idle' | 'checking' | 'success' | 'error'>('idle');
   const [namriaMsg, setNamriaMsg] = useState('');
 
   // IoT Sensor MQTT Gateway
-  const [mqttBroker, setMqttBroker] = useState('mqtts://telemetry.cebucity.gov.ph:8883');
+  const [mqttBroker, setMqttBroker] = useState('');
   const [mqttStatus, setMqttStatus] = useState<'idle' | 'checking' | 'success' | 'error'>('idle');
   const [mqttMsg, setMqttMsg] = useState('');
 
   // SMS Gateway
   const [smsApiKey, setSmsApiKey] = useState('');
   const [showSmsKey, setShowSmsKey] = useState(false);
-  const [smsSenderId, setSmsSenderId] = useState('CEBU_CDRRMO');
+  const [smsSenderId, setSmsSenderId] = useState('');
   const [smsStatus, setSmsStatus] = useState<'idle' | 'checking' | 'success' | 'error'>('idle');
   const [smsMsg, setSmsMsg] = useState('');
 
@@ -103,17 +103,17 @@ export default function APIGatewaysPage() {
       }
     } catch {}
 
-    // 2. Fetch from backend API / PostgreSQL
+    // 2. Fetch from backend API / PostgreSQL (always overwrite with DB truth)
     fetchApi<any>('/admin/gateways')
       .then((res) => {
         if (res) {
           const d = res.data !== undefined ? res.data : res;
-          if (d.pagasaApiKey) setPagasaKey(d.pagasaApiKey);
-          if (d.pagasaInterval) setPagasaInterval(d.pagasaInterval);
-          if (d.namriaUrl) setNamriaUrl(d.namriaUrl);
-          if (d.mqttBroker) setMqttBroker(d.mqttBroker);
-          if (d.smsApiKey) setSmsApiKey(d.smsApiKey);
-          if (d.smsSenderId) setSmsSenderId(d.smsSenderId);
+          setPagasaKey(d.pagasaApiKey ?? '');
+          setPagasaInterval(d.pagasaInterval ?? '5');
+          setNamriaUrl(d.namriaUrl ?? '');
+          setMqttBroker(d.mqttBroker ?? '');
+          setSmsApiKey(d.smsApiKey ?? '');
+          setSmsSenderId(d.smsSenderId ?? '');
         }
       })
       .catch(() => {});

@@ -36,10 +36,10 @@ export let runtimeAIConfig = {
 export let runtimeGatewayConfig = {
   pagasaApiKey: process.env.PAGASA_API_KEY || '',
   pagasaInterval: '5',
-  namriaUrl: 'https://api.namria.gov.ph/tides/v1/cebu-port',
-  mqttBroker: 'mqtts://telemetry.cebucity.gov.ph:8883',
+  namriaUrl: '',
+  mqttBroker: '',
   smsApiKey: process.env.SMS_API_KEY || '',
-  smsSenderId: 'CEBU_CDRRMO',
+  smsSenderId: '',
 };
 
 // On server startup, load settings from PostgreSQL database
