@@ -26,10 +26,12 @@ export interface StoredUser {
 // Runtime storage for registered users
 export const runtimeUsers: StoredUser[] = [];
 
+import { config } from '../config/env.js';
+
 // Seed the Primary Master Administrator Account
 const DEFAULT_ADMIN_ID = '00000000-0000-4000-8000-000000000001';
-const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_INITIAL_EMAIL || 'admin@cebucity.gov.ph';
-const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_INITIAL_PASSWORD || process.env.INITIAL_ADMIN_PASSWORD || 'AdminPassword123!';
+const DEFAULT_ADMIN_EMAIL = config.adminInitialEmail;
+const DEFAULT_ADMIN_PASSWORD = config.adminInitialPassword;
 
 const seedMasterAdmin = async () => {
   const existing = runtimeUsers.find((u) => u.email === DEFAULT_ADMIN_EMAIL);
