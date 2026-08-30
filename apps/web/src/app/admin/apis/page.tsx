@@ -357,8 +357,8 @@ export default function APIGatewaysPage() {
                     <p className="text-xs text-gray-500 font-medium">Mactan Doppler Radar & Cebu Precipitation Ingestion</p>
                   </div>
                 </div>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  Live Feed
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${pagasaKey.trim() ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 text-gray-500 border border-gray-200'}`}>
+                  {pagasaKey.trim() ? 'Configured' : 'Not Configured'}
                 </span>
               </div>
 
@@ -442,8 +442,8 @@ export default function APIGatewaysPage() {
                     <p className="text-xs text-gray-500 font-medium">Cebu International Port High/Low Tide Sync</p>
                   </div>
                 </div>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  Active
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${namriaUrl.trim() ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 text-gray-500 border border-gray-200'}`}>
+                  {namriaUrl.trim() ? 'Configured' : 'Not Configured'}
                 </span>
               </div>
 
@@ -514,8 +514,8 @@ export default function APIGatewaysPage() {
                     <p className="text-xs text-gray-500 font-medium">Guadalupe, Mahiga & Lahug Ultrasonic Gauges</p>
                   </div>
                 </div>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">
-                  TLS 1.3
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${mqttBroker.trim() ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-gray-50 text-gray-500 border border-gray-200'}`}>
+                  {mqttBroker.trim() ? 'TLS 1.3' : 'Not Configured'}
                 </span>
               </div>
 
@@ -586,8 +586,8 @@ export default function APIGatewaysPage() {
                     <p className="text-xs text-gray-500 font-medium">Semaphore / Twilio Emergency Alert Dispatch</p>
                   </div>
                 </div>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  Ready
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${smsApiKey.trim() ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 text-gray-500 border border-gray-200'}`}>
+                  {smsApiKey.trim() ? 'Ready' : 'Not Configured'}
                 </span>
               </div>
 

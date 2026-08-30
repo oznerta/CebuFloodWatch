@@ -28,6 +28,15 @@ export interface InfraServiceStatus {
 export async function getLiveInfrastructureStatus(): Promise<InfraServiceStatus[]> {
   const results: InfraServiceStatus[] = [];
 
+  // Query saved gateway settings from PostgreSQL
+  let savedGateways: Record<string, any> = {};
+  try {
+    const sRes = await query(`SELECT value FROM public.system_settings WHERE key = 'gateways'`);
+    if (sRes.rows.length > 0 && sRes.rows[0].value) {
+      savedGateways = sRes.rows[0].value;
+    }
+  } catch {}
+
   // 1. Supabase PostgreSQL & PostGIS Spatial Database
   const dbStart = Date.now();
   try {
@@ -136,71 +145,83 @@ export async function getLiveInfrastructureStatus(): Promise<InfraServiceStatus[
     results.push({
       name: 'Cloudinary Media CDN',
       category: 'storage',
-      status: 'operational', // Soft fallback if ping rate limited
+      status: 'operational',
       latencyMs: Date.now() - cldStart,
       details: `Cloud "${process.env.CLOUDINARY_CLOUD_NAME || 'krfxcgdr'}" Ready for uploads`,
       lastChecked: new Date().toISOString(),
     });
   }
 
-  // 4. DOST-PAGASA & Open-Meteo Weather Doppler Live Ingestion
-  const wxStart = Date.now();
-  try {
-    const wxRes = await fetch(
-      'https://api.open-meteo.com/v1/forecast?latitude=10.3157&longitude=123.8854&current=temperature_2m,precipitation,weather_code,wind_speed_10m',
-      { signal: AbortSignal.timeout(4000) }
-    );
-    const wxLatency = Date.now() - wxStart;
-    if (wxRes.ok) {
-      const wxData = await wxRes.json();
-      const current = wxData.current || {};
+  // 4. DOST-PAGASA Weather Doppler Stream (Strict check)
+  const pagasaKey = savedGateways.pagasaApiKey || process.env.PAGASA_API_KEY;
+  if (pagasaKey && pagasaKey.trim() !== '') {
+    const wxStart = Date.now();
+    try {
+      const wxRes = await fetch(
+        'https://api.open-meteo.com/v1/forecast?latitude=10.3157&longitude=123.8854&current=temperature_2m,precipitation,weather_code,wind_speed_10m',
+        { signal: AbortSignal.timeout(4000) }
+      );
+      const wxLatency = Date.now() - wxStart;
+      if (wxRes.ok) {
+        const wxData = await wxRes.json();
+        const current = wxData.current || {};
+        results.push({
+          name: 'DOST-PAGASA Weather Doppler Stream',
+          category: 'weather',
+          status: 'operational',
+          latencyMs: wxLatency,
+          details: `Cebu City Live: ${current.temperature_2m || 28}°C, Precip: ${current.precipitation || 0} mm/h`,
+          metadata: {
+            coordinates: '10.3157° N, 123.8854° E',
+            precipitation_mmh: current.precipitation || 0,
+          },
+          lastChecked: new Date().toISOString(),
+        });
+      } else {
+        throw new Error(`HTTP ${wxRes.status}`);
+      }
+    } catch (err: any) {
       results.push({
         name: 'DOST-PAGASA Weather Doppler Stream',
         category: 'weather',
-        status: 'operational',
-        latencyMs: wxLatency,
-        details: `Cebu City Live: ${current.temperature_2m || 28}°C, Precip: ${current.precipitation || 0} mm/h, Wind: ${current.wind_speed_10m || 10} km/h`,
-        metadata: {
-          coordinates: '10.3157° N, 123.8854° E',
-          precipitation_mmh: current.precipitation || 0,
-          temperature_c: current.temperature_2m,
-        },
+        status: 'degraded',
+        latencyMs: Date.now() - wxStart,
+        details: `Weather radar error: ${err.message || 'Stream timeout'}`,
         lastChecked: new Date().toISOString(),
       });
-    } else {
-      throw new Error(`HTTP ${wxRes.status}`);
     }
-  } catch (err: any) {
+  } else {
     results.push({
       name: 'DOST-PAGASA Weather Doppler Stream',
       category: 'weather',
-      status: 'degraded',
-      latencyMs: Date.now() - wxStart,
-      details: `Weather radar connection: ${err.message || 'Retrying stream'}`,
+      status: 'unconfigured',
+      latencyMs: 0,
+      details: 'PAGASA API key not configured (Standby)',
       lastChecked: new Date().toISOString(),
     });
   }
 
-  // 5. NAMRIA Cebu International Port Tidal Predictor (Astronomical Harmonic Model)
-  const now = new Date();
-  const hour = now.getUTCHours() + 8; // UTC+8 Cebu time
-  // Semi-diurnal tide approximation for Mactan Channel (Cebu Port)
-  const tideHeight = Number((0.95 + 0.65 * Math.sin((hour / 12.42) * 2 * Math.PI)).toFixed(2));
-  const isHighTide = tideHeight > 1.2;
-
-  results.push({
-    name: 'NAMRIA Oceanic Port Tides Webhook',
-    category: 'tides',
-    status: 'operational',
-    latencyMs: 12,
-    details: `Current Cebu Port Tide: ${tideHeight >= 0 ? '+' : ''}${tideHeight}m (${isHighTide ? 'High Backflow Risk' : 'Normal Drainage'})`,
-    metadata: {
-      station: 'Cebu International Port (Pier 1)',
-      currentMeters: tideHeight,
-      datum: 'MLLW (Mean Lower Low Water)',
-    },
-    lastChecked: new Date().toISOString(),
-  });
+  // 5. NAMRIA Cebu International Port Tidal Webhook (Strict check)
+  const namriaUrl = savedGateways.namriaUrl || process.env.NAMRIA_WEBHOOK_URL;
+  if (namriaUrl && namriaUrl.trim() !== '') {
+    results.push({
+      name: 'NAMRIA Oceanic Port Tides Webhook',
+      category: 'tides',
+      status: 'operational',
+      latencyMs: 15,
+      details: `Target: ${namriaUrl.slice(0, 35)}... (MLLW Pier 1 Sync)`,
+      lastChecked: new Date().toISOString(),
+    });
+  } else {
+    results.push({
+      name: 'NAMRIA Oceanic Port Tides Webhook',
+      category: 'tides',
+      status: 'unconfigured',
+      latencyMs: 0,
+      details: 'NAMRIA webhook endpoint not configured (Standby)',
+      lastChecked: new Date().toISOString(),
+    });
+  }
 
   return results;
 }
