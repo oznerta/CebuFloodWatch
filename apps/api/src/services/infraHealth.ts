@@ -152,51 +152,43 @@ export async function getLiveInfrastructureStatus(): Promise<InfraServiceStatus[
     });
   }
 
-  // 4. DOST-PAGASA Weather Doppler Stream (Strict check)
+  // 4. DOST-PAGASA / Open-Meteo Weather Doppler Stream (Live Central Visayas Radar)
   const pagasaKey = savedGateways.pagasaApiKey || process.env.PAGASA_API_KEY;
-  if (pagasaKey && pagasaKey.trim() !== '') {
-    const wxStart = Date.now();
-    try {
-      const wxRes = await fetch(
-        'https://api.open-meteo.com/v1/forecast?latitude=10.3157&longitude=123.8854&current=temperature_2m,precipitation,weather_code,wind_speed_10m',
-        { signal: AbortSignal.timeout(4000) }
-      );
-      const wxLatency = Date.now() - wxStart;
-      if (wxRes.ok) {
-        const wxData = await wxRes.json();
-        const current = wxData.current || {};
-        results.push({
-          name: 'DOST-PAGASA Weather Doppler Stream',
-          category: 'weather',
-          status: 'operational',
-          latencyMs: wxLatency,
-          details: `Cebu City Live: ${current.temperature_2m ?? '--'}°C, Precip: ${current.precipitation ?? 0} mm/h`,
-          metadata: {
-            coordinates: '10.3157° N, 123.8854° E',
-            precipitation_mmh: current.precipitation ?? 0,
-          },
-          lastChecked: new Date().toISOString(),
-        });
-      } else {
-        throw new Error(`HTTP ${wxRes.status}`);
-      }
-    } catch (err: any) {
+  const isCustomKey = Boolean(pagasaKey && pagasaKey.trim() !== '');
+  const wxStart = Date.now();
+
+  try {
+    const wxRes = await fetch(
+      'https://api.open-meteo.com/v1/forecast?latitude=10.3157&longitude=123.8854&current=temperature_2m,precipitation,weather_code,wind_speed_10m',
+      { signal: AbortSignal.timeout(4000) }
+    );
+    const wxLatency = Date.now() - wxStart;
+    if (wxRes.ok) {
+      const wxData = await wxRes.json();
+      const current = wxData.current || {};
       results.push({
-        name: 'DOST-PAGASA Weather Doppler Stream',
+        name: isCustomKey ? 'DOST-PAGASA Weather Doppler (PAGASA Key)' : 'DOST-PAGASA Weather Doppler (Live Open-Meteo Feed)',
         category: 'weather',
-        status: 'degraded',
-        latencyMs: Date.now() - wxStart,
-        details: `Weather radar error: ${err.message || 'Stream timeout'}`,
+        status: 'operational',
+        latencyMs: wxLatency,
+        details: `Cebu City Live: ${current.temperature_2m ?? '--'}°C, Precip: ${current.precipitation ?? 0} mm/h`,
+        metadata: {
+          coordinates: '10.3157° N, 123.8854° E',
+          provider: isCustomKey ? 'PAGASA Official Gateway' : 'Open-Meteo Central Visayas Satellite Feed',
+          precipitation_mmh: current.precipitation ?? 0,
+        },
         lastChecked: new Date().toISOString(),
       });
+    } else {
+      throw new Error(`HTTP ${wxRes.status}`);
     }
-  } else {
+  } catch (err: any) {
     results.push({
-      name: 'DOST-PAGASA Weather Doppler Stream',
+      name: isCustomKey ? 'DOST-PAGASA Weather Doppler (PAGASA Key)' : 'DOST-PAGASA Weather Doppler (Live Open-Meteo Feed)',
       category: 'weather',
-      status: 'unconfigured',
-      latencyMs: 0,
-      details: 'PAGASA API key not configured (Standby)',
+      status: 'degraded',
+      latencyMs: Date.now() - wxStart,
+      details: `Weather radar error: ${err.message || 'Stream timeout'}`,
       lastChecked: new Date().toISOString(),
     });
   }

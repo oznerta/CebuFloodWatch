@@ -357,22 +357,22 @@ export default function APIGatewaysPage() {
                     <p className="text-xs text-gray-500 font-medium">Mactan Doppler Radar & Cebu Precipitation Ingestion</p>
                   </div>
                 </div>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${pagasaKey.trim() ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 text-gray-500 border border-gray-200'}`}>
-                  {pagasaKey.trim() ? 'Configured' : 'Not Configured'}
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${pagasaKey.trim() ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+                  {pagasaKey.trim() ? 'PAGASA Key' : 'Live (Open-Meteo)'}
                 </span>
               </div>
 
               <div className="space-y-3">
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-bold text-gray-700">PAGASA Radar API Key</label>
+                    <label className="text-xs font-bold text-gray-700">PAGASA Radar API Key (Optional)</label>
                     <span className="text-[10px] font-mono text-gray-400">pgsa_live_cebu_...</span>
                   </div>
                   <div className="relative">
                     <input
                       type={showKey ? 'text' : 'password'}
                       value={pagasaKey}
-                      placeholder="Enter PAGASA API Key"
+                      placeholder="Leave blank for live Open-Meteo Doppler feed"
                       onChange={(e) => setPagasaKey(e.target.value)}
                       className="w-full h-11 px-3.5 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-xs font-mono text-gray-900 pr-10 transition-all outline-none"
                     />

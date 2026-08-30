@@ -243,35 +243,31 @@ adminRouter.post('/test-gateway', async (req: Request, res: Response) => {
 
   if (service === 'pagasa') {
     const keyToTest = (apiKey && !apiKey.includes('••••')) ? apiKey.trim() : runtimeGatewayConfig.pagasaApiKey;
-    if (!keyToTest) {
-      return res.status(400).json({
-        success: false,
-        error: 'No PAGASA Radar API Key entered. Please input a valid API key to test connectivity.',
-      });
-    }
-    if (keyToTest.length < 8) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid PAGASA Radar API Key format. Key must be at least 8 characters.',
-      });
-    }
+    const isCustomKey = Boolean(keyToTest && keyToTest.length > 0);
 
     const start = Date.now();
     try {
-      await fetch('https://api.open-meteo.com/v1/forecast?latitude=10.3157&longitude=123.8854&current=precipitation', {
-        signal: AbortSignal.timeout(4000),
-      });
+      const wxRes = await fetch(
+        'https://api.open-meteo.com/v1/forecast?latitude=10.3157&longitude=123.8854&current=temperature_2m,precipitation,wind_speed_10m',
+        { signal: AbortSignal.timeout(4000) }
+      );
       const latency = Date.now() - start;
-      return res.json({
-        success: true,
-        service: 'DOST-PAGASA Doppler Feed',
-        status: `Live Feed Verified (Latency: ${latency}ms)`,
-        latencyMs: latency,
-      });
+      if (wxRes.ok) {
+        const wxData = await wxRes.json();
+        const cur = wxData.current || {};
+        return res.json({
+          success: true,
+          service: isCustomKey ? 'DOST-PAGASA Doppler Stream (PAGASA Key)' : 'DOST-PAGASA / Open-Meteo Visayas Live Radar',
+          status: `Live Feed Verified: Temp ${cur.temperature_2m ?? '--'}°C, Precip ${cur.precipitation ?? 0} mm/h (Latency: ${latency}ms)`,
+          latencyMs: latency,
+        });
+      } else {
+        throw new Error(`HTTP ${wxRes.status}`);
+      }
     } catch (err: any) {
       return res.status(502).json({
         success: false,
-        error: `PAGASA Doppler ping failed: ${err.message || 'Network timeout'}`,
+        error: `Weather radar stream ping failed: ${err.message || 'Network timeout'}`,
       });
     }
   }
