@@ -23,32 +23,26 @@ interface MapContainerProps {
   showHazardControls?: boolean;
 }
 
-export type MapTileStyle = 'clean' | 'dark' | 'hybrid' | 'streets';
+export type MapTileStyle = 'streets' | 'hybrid' | 'clean' | 'dark';
 export type FloodScenario = '5yr' | '25yr' | '100yr' | 'none';
 
-// 100% Free, Public, Keyless & Watermark-Free Multi-Engine Basemap Catalog
+// Ultra-Reliable High-Resolution Multi-Engine Basemap Catalog
 const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
-    // 1. ESRI World Light Gray Canvas (Minimalist, Apple-grade, Ultra-clean)
-    'esri-clean-src': {
+    // 1. Google Clean Streets (Default - High Resolution Crisp Road Network at all zoom levels)
+    'google-streets-src': {
       type: 'raster',
       tiles: [
-        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+        'https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+        'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+        'https://mt2.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+        'https://mt3.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
       ],
       tileSize: 256,
       maxzoom: 20,
     },
-    // 2. ESRI World Dark Gray Canvas (Tactical Night Ops Command Mode)
-    'esri-dark-src': {
-      type: 'raster',
-      tiles: [
-        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-      ],
-      tileSize: 256,
-      maxzoom: 20,
-    },
-    // 3. Google Hybrid Satellite (High-Res Aerial + Street Overlay)
+    // 2. Google Hybrid Satellite (High-Res Aerial + Street Overlay)
     'google-hybrid-src': {
       type: 'raster',
       tiles: [
@@ -60,7 +54,7 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       tileSize: 256,
       maxzoom: 20,
     },
-    // 4. OpenStreetMap Humanitarian (Disaster-Ready Detailed Street Network)
+    // 3. OpenStreetMap Humanitarian (Disaster-Ready Detailed Street Network)
     'osm-streets-src': {
       type: 'raster',
       tiles: [
@@ -70,23 +64,24 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       tileSize: 256,
       maxzoom: 20,
     },
+    // 4. ESRI World Dark Gray Canvas (Tactical Night Ops Command Mode)
+    'esri-dark-src': {
+      type: 'raster',
+      tiles: [
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      ],
+      tileSize: 256,
+      maxzoom: 20,
+    },
   },
   layers: [
     {
-      id: 'base-layer-clean',
+      id: 'base-layer-streets',
       type: 'raster',
-      source: 'esri-clean-src',
+      source: 'google-streets-src',
       minzoom: 0,
       maxzoom: 22,
       layout: { visibility: 'visible' },
-    },
-    {
-      id: 'base-layer-dark',
-      type: 'raster',
-      source: 'esri-dark-src',
-      minzoom: 0,
-      maxzoom: 22,
-      layout: { visibility: 'none' },
     },
     {
       id: 'base-layer-hybrid',
@@ -97,9 +92,17 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       layout: { visibility: 'none' },
     },
     {
-      id: 'base-layer-streets',
+      id: 'base-layer-clean',
       type: 'raster',
       source: 'osm-streets-src',
+      minzoom: 0,
+      maxzoom: 22,
+      layout: { visibility: 'none' },
+    },
+    {
+      id: 'base-layer-dark',
+      type: 'raster',
+      source: 'esri-dark-src',
       minzoom: 0,
       maxzoom: 22,
       layout: { visibility: 'none' },
@@ -108,10 +111,10 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
 };
 
 const TILE_STYLES_INFO: Record<MapTileStyle, { name: string; icon: any; desc: string; previewColor: string }> = {
-  clean: { name: 'Clean Light (ESRI Minimal)', icon: Sun, desc: 'Ultra-crisp, neutral disaster base', previewColor: '#F5F5F3' },
-  dark: { name: 'Dark Ops (Tactical Night)', icon: Moon, desc: 'High-contrast nocturnal command map', previewColor: '#242424' },
-  hybrid: { name: 'Satellite Hybrid (Aerial)', icon: Satellite, desc: 'High-resolution photography & labels', previewColor: '#2C442A' },
-  streets: { name: 'OSM Humanitarian (Roads)', icon: MapIcon, desc: 'Detailed urban street & transit lines', previewColor: '#E8ECE9' },
+  streets: { name: 'Apple Clean Streets', icon: MapIcon, desc: 'Crisp, high-contrast urban road network', previewColor: '#F8F9FA' },
+  hybrid: { name: 'Satellite Aerial', icon: Satellite, desc: 'High-resolution photography & labels', previewColor: '#2C442A' },
+  clean: { name: 'OSM Humanitarian', icon: Sun, desc: 'Open disaster-ready transit mapping', previewColor: '#E8ECE9' },
+  dark: { name: 'Dark Tactical', icon: Moon, desc: 'Nocturnal command situational awareness', previewColor: '#1A1D20' },
 };
 
 export function MapContainer({
@@ -133,7 +136,7 @@ export function MapContainer({
   const [selectedScenario, setSelectedScenario] = useState<FloodScenario>('25yr');
   const [showBarangays, setShowBarangays] = useState(true);
   const [showBoundary, setShowBoundary] = useState(true);
-  const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('clean');
+  const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('streets');
   const [is3DMode, setIs3DMode] = useState(false);
   const [showLayersMenu, setShowLayersMenu] = useState(false);
   const [showStyleMenu, setShowStyleMenu] = useState(false);
@@ -200,7 +203,7 @@ export function MapContainer({
         type: 'line',
         source: 'cebu-city-barangays',
         paint: {
-          'line-color': currentStyle === 'dark' ? '#4A5568' : '#718096',
+          'line-color': currentStyle === 'dark' ? '#4A5568' : '#94A3B8',
           'line-width': 1.0,
           'line-dasharray': [3, 2],
           'line-opacity': 0.65,
@@ -208,23 +211,24 @@ export function MapContainer({
       });
     }
 
-    // 3. UP NOAH Hydrodynamic Inundation Channels (Official DOST-UP NOAH Standard Color Coding)
+    // 3. UP NOAH Hydrodynamic Inundation Channels (Soft Translucent Apple Maps Palette)
+    // Low: #FACC15 (Yellow), Medium: #FB923C (Orange), High: #EF4444 (Red)
     const NOAH_FILL_COLOR_EXPRESSION: any = [
       'match',
       ['get', 'hazard_level'],
-      1, '#FFE600', // Low Hazard (0.1m - 0.5m) -> Official UP NOAH Yellow
-      2, '#FF9900', // Medium Hazard (0.5m - 1.5m) -> Official UP NOAH Orange
-      3, '#E53935', // High Hazard (> 1.5m) -> Official UP NOAH Red
-      ['coalesce', ['get', 'color'], '#FFE600'],
+      1, '#FACC15', // Low Hazard (0.1m - 0.5m) -> Official UP NOAH Yellow
+      2, '#FB923C', // Medium Hazard (0.5m - 1.5m) -> Official UP NOAH Orange
+      3, '#EF4444', // High Hazard (> 1.5m) -> Official UP NOAH Red
+      ['coalesce', ['get', 'color'], '#FACC15'],
     ];
 
     const NOAH_LINE_COLOR_EXPRESSION: any = [
       'match',
       ['get', 'hazard_level'],
-      1, '#D4B106', // Yellow border
-      2, '#D46B08', // Orange border
-      3, '#A8071A', // Red border
-      ['coalesce', ['get', 'color'], '#D4B106'],
+      1, '#EAB308',
+      2, '#EA580C',
+      3, '#DC2626',
+      ['coalesce', ['get', 'color'], '#EAB308'],
     ];
 
     // 5-Year (Low Recurrence / 5-Year Flood Inundation Simulation)
@@ -239,7 +243,7 @@ export function MapContainer({
         source: 'cebu-flood-5yr',
         paint: {
           'fill-color': NOAH_FILL_COLOR_EXPRESSION,
-          'fill-opacity': 0.55,
+          'fill-opacity': 0.35,
         },
       });
       map.addLayer({
@@ -266,7 +270,7 @@ export function MapContainer({
         source: 'cebu-flood-25yr',
         paint: {
           'fill-color': NOAH_FILL_COLOR_EXPRESSION,
-          'fill-opacity': 0.60,
+          'fill-opacity': 0.40,
         },
       });
       map.addLayer({
@@ -275,7 +279,7 @@ export function MapContainer({
         source: 'cebu-flood-25yr',
         paint: {
           'line-color': NOAH_LINE_COLOR_EXPRESSION,
-          'line-width': 1.5,
+          'line-width': 1.4,
           'line-opacity': 0.90,
         },
       });
@@ -293,7 +297,7 @@ export function MapContainer({
         source: 'cebu-flood-100yr',
         paint: {
           'fill-color': NOAH_FILL_COLOR_EXPRESSION,
-          'fill-opacity': 0.65,
+          'fill-opacity': 0.46,
         },
       });
       map.addLayer({
@@ -302,7 +306,7 @@ export function MapContainer({
         source: 'cebu-flood-100yr',
         paint: {
           'line-color': NOAH_LINE_COLOR_EXPRESSION,
-          'line-width': 2.0,
+          'line-width': 1.8,
           'line-opacity': 0.95,
         },
       });
@@ -342,69 +346,61 @@ export function MapContainer({
       }
 
       if (layerId.startsWith('hazard-')) {
-        // Flood Hazard Click
+        // Flood Hazard Click (Sleek Apple Maps Card)
         const level = Number(props.hazard_level || props.var || 1);
         const returnPeriod = props.return_period || 'UP NOAH Model';
         const depth = props.depth_range || (level === 3 ? '> 1.5m' : level === 2 ? '0.5m - 1.5m' : '0.1m - 0.5m');
         const hazardName = props.hazard_name || (level === 3 ? 'High Hazard (> 1.5m)' : level === 2 ? 'Medium Hazard (0.5m - 1.5m)' : 'Low Hazard (0.1m - 0.5m)');
-        const levelColor = level === 3 ? '#E53935' : level === 2 ? '#FF9900' : '#D4B106';
-        const levelBg = level === 3 ? '#FFEBEE' : level === 2 ? '#FFF3E0' : '#FEFDE8';
+        const levelColor = level === 3 ? '#EF4444' : level === 2 ? '#F97316' : '#EAB308';
+        const levelBg = level === 3 ? '#FEF2F2' : level === 2 ? '#FFF7ED' : '#FEFCE8';
         const advisory = level === 3
           ? 'Emergency: Severe torrential flood depth (>1.5m). Deep submersion risk. Immediate evacuation to multi-story shelters.'
           : level === 2
-          ? 'Warning: Medium flood depth (0.5m-1.5m). Alluvial plain overflow. Compact vehicles & sedans impassable.'
-          : 'Caution: Low flood depth (0.1m-0.5m). Road gutter backflow & localized street ponding.';
+          ? 'Warning: Medium flood depth (0.5m–1.5m). Alluvial plain overflow. Compact vehicles & sedans impassable.'
+          : 'Caution: Low flood depth (0.1m–0.5m). Localized street ponding & gutter backflow.';
 
         popupRef.current = new maplibregl.Popup({ closeButton: true, className: 'cebu-clean-popup' })
           .setLngLat(e.lngLat)
           .setHTML(`
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 250px;">
-              <div style="background: ${level === 3 ? 'linear-gradient(135deg, #E53935 0%, #B71C1C 100%)' : level === 2 ? 'linear-gradient(135deg, #FF9900 0%, #E65100 100%)' : 'linear-gradient(135deg, #FFE600 0%, #D4B106 100%)'}; color: ${level === 1 ? '#1C1C1E' : '#FFFFFF'}; padding: 12px 14px; border-top-left-radius: 24px; border-top-right-radius: 24px;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                  <span style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9;">DOST-UP NOAH OFFICIAL</span>
-                  <span style="font-size: 9px; font-weight: 900; background: ${level === 1 ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.25)'}; padding: 2px 7px; border-radius: 9999px;">LEVEL ${level}</span>
-                </div>
-                <div style="font-size: 15px; font-weight: 900; margin-top: 3px;">${hazardName}</div>
+              <div style="display: flex; align-items: center; gap: 6px; padding-right: 24px;">
+                <span style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #64748B; letter-spacing: 0.5px;">DOST-UP NOAH</span>
+                <span style="font-size: 9px; font-weight: 800; background: ${levelBg}; color: ${levelColor}; padding: 2px 7px; border-radius: 9999px; border: 1px solid ${levelColor}30;">LEVEL ${level}</span>
               </div>
-              <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
-                <div style="background: #F2F2F7; padding: 8px 10px; border-radius: 12px; font-size: 11px; display: flex; align-items: center; justify-content: space-between;">
-                  <span style="font-weight: 700; color: #6C6C70;">Inundation Depth:</span>
-                  <strong style="color: ${levelColor}; font-size: 12px;">${depth}</strong>
-                </div>
-                <div style="font-size: 10.5px; color: #3A3A3C; line-height: 1.4; background: ${levelBg}; padding: 8px 10px; border-radius: 12px; border: 1px solid ${levelColor}30;">
-                  ${advisory}
-                </div>
-                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #8E8E93; padding-top: 2px;">
-                  <span>Simulation: ${returnPeriod}</span>
-                  <span style="font-weight: 800; color: #007AFF;">LGU CDRRMO</span>
-                </div>
+              <div style="font-size: 15px; font-weight: 800; color: #111827; margin-top: 4px; line-height: 1.25;">
+                ${hazardName}
+              </div>
+              <div style="font-size: 11px; color: #6B7280; margin-top: 2px;">
+                Simulation: ${returnPeriod}
+              </div>
+
+              <div style="margin-top: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 10px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 11px; font-weight: 600; color: #64748B;">Inundation Depth:</span>
+                <strong style="font-size: 13px; font-weight: 900; color: ${levelColor};">${depth}</strong>
+              </div>
+
+              <div style="margin-top: 8px; font-size: 11px; color: #334155; line-height: 1.4; background: ${levelBg}; padding: 8px 10px; border-radius: 10px; border: 1px solid ${levelColor}25;">
+                ${advisory}
               </div>
             </div>
           `)
           .addTo(map);
       } else if (layerId === 'cebu-barangay-fills') {
-        // Barangay Click
+        // Barangay Click (Sleek Apple Maps Card)
         const bgyName = props.adm4_name || props.adm4_en || 'Barangay';
         popupRef.current = new maplibregl.Popup({ closeButton: true, className: 'cebu-clean-popup' })
           .setLngLat(e.lngLat)
           .setHTML(`
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 230px;">
-              <div style="background: linear-gradient(135deg, #007AFF 0%, #0051A8 100%); color: #FFFFFF; padding: 12px 14px; border-top-left-radius: 24px; border-top-right-radius: 24px;">
-                <div style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.85;">CEBU CITY OPERATIONAL SECTOR</div>
-                <div style="font-size: 16px; font-weight: 900; margin-top: 2px; letter-spacing: -0.2px;">Brgy. ${bgyName}</div>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 220px;">
+              <div style="display: flex; align-items: center; gap: 6px; padding-right: 24px;">
+                <span style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #0284C7; letter-spacing: 0.5px;">Cebu City Sector</span>
+                <span style="font-size: 9px; font-weight: 800; background: #ECFDF5; color: #059669; padding: 2px 7px; border-radius: 9999px;">MONITORED</span>
               </div>
-              <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
-                  <span style="color: #8E8E93; font-weight: 600;">CDRRMO Sector:</span>
-                  <span style="font-weight: 800; color: #1C1C1E;">CEB-${bgyName.slice(0, 3).toUpperCase()}</span>
-                </div>
-                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
-                  <span style="color: #8E8E93; font-weight: 600;">Flood Monitoring:</span>
-                  <span style="font-weight: 900; color: #34C759; background: #E8F8EE; padding: 2px 8px; border-radius: 6px;">NOMINAL</span>
-                </div>
-                <div style="border-top: 1px solid #E5E5EA; margin-top: 4px; padding-top: 8px; font-size: 10px; color: #8E8E93; text-align: center;">
-                  Official LGU Cebu City Administrative Boundary
-                </div>
+              <div style="font-size: 15px; font-weight: 800; color: #111827; margin-top: 4px;">
+                Brgy. ${bgyName}
+              </div>
+              <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
+                CDRRMO Operational Grid: CEB-${bgyName.slice(0, 3).toUpperCase()}
               </div>
             </div>
           `)
@@ -468,7 +464,7 @@ export function MapContainer({
     if (!mapRef.current) return;
     const map = mapRef.current;
 
-    const styles: MapTileStyle[] = ['clean', 'dark', 'hybrid', 'streets'];
+    const styles: MapTileStyle[] = ['streets', 'hybrid', 'clean', 'dark'];
     styles.forEach((key) => {
       const layerId = `base-layer-${key}`;
       if (map.getLayer(layerId)) {
@@ -481,7 +477,7 @@ export function MapContainer({
       map.setPaintProperty(
         'cebu-barangay-lines',
         'line-color',
-        styleKey === 'dark' ? '#718096' : styleKey === 'hybrid' ? '#FFFFFF' : '#A0AEC0'
+        styleKey === 'dark' ? '#718096' : styleKey === 'hybrid' ? '#FFFFFF' : '#94A3B8'
       );
     }
   };
@@ -535,7 +531,9 @@ export function MapContainer({
       if (!shelter.latitude || !shelter.longitude) return;
 
       const isOpen = shelter.status === 'open';
-      const color = isOpen ? '#34C759' : '#8E8E93';
+      const color = isOpen ? '#10B981' : '#6B7280';
+      const statusBg = isOpen ? '#ECFDF5' : '#F3F4F6';
+      const statusColor = isOpen ? '#059669' : '#4B5563';
 
       const el = document.createElement('div');
       el.className = 'cursor-pointer group';
@@ -555,21 +553,20 @@ export function MapContainer({
         .setPopup(
           new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 230px;">
-              <div style="background: ${isOpen ? 'linear-gradient(135deg, #34C759 0%, #248A3D 100%)' : 'linear-gradient(135deg, #8E8E93 0%, #636366 100%)'}; color: #FFFFFF; padding: 12px 14px; border-top-left-radius: 24px; border-top-right-radius: 24px;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                  <span style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9;">EVACUATION REFUGE</span>
-                  <span style="font-size: 9px; font-weight: 900; background: rgba(255,255,255,0.25); padding: 2px 7px; border-radius: 9999px;">${isOpen ? 'OPEN' : 'CLOSED'}</span>
-                </div>
-                <div style="font-size: 15px; font-weight: 900; margin-top: 3px;">${shelter.name}</div>
+              <div style="display: flex; align-items: center; gap: 6px; padding-right: 24px;">
+                <span style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #10B981; letter-spacing: 0.5px;">Evacuation Center</span>
+                <span style="font-size: 9px; font-weight: 800; background: ${statusBg}; color: ${statusColor}; padding: 2px 7px; border-radius: 9999px;">${isOpen ? 'OPEN' : 'CLOSED'}</span>
               </div>
-              <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
-                <div style="font-size: 11px; color: #3A3A3C;">
-                  <strong>Location:</strong> Brgy. ${shelter.barangay_name || 'Cebu City'}
-                </div>
-                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; background: #F2F2F7; padding: 6px 10px; border-radius: 10px;">
-                  <span style="color: #8E8E93; font-weight: 600;">Refuge Capacity:</span>
-                  <span style="font-weight: 900; color: #1C1C1E;">${shelter.capacity_people || 500} evacuees</span>
-                </div>
+              <div style="font-size: 15px; font-weight: 800; color: #111827; margin-top: 4px;">
+                ${shelter.name}
+              </div>
+              <div style="font-size: 11px; color: #6B7280; margin-top: 2px;">
+                Location: Brgy. ${shelter.barangay_name || 'Cebu City'}
+              </div>
+
+              <div style="margin-top: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 10px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 11px; font-weight: 600; color: #64748B;">Refuge Capacity:</span>
+                <strong style="font-size: 12px; font-weight: 800; color: #0F172A;">${shelter.capacity_people || 500} evacuees</strong>
               </div>
             </div>
           `)
@@ -584,7 +581,9 @@ export function MapContainer({
       if (!report.latitude || !report.longitude) return;
 
       const isSevere = report.flood_depth_level === 'waist' || report.flood_depth_level === 'chest' || report.flood_depth_level === 'above_head';
-      const color = isSevere ? '#FF3B30' : '#FF9500';
+      const color = isSevere ? '#EF4444' : '#F97316';
+      const badgeBg = isSevere ? '#FEF2F2' : '#FFF7ED';
+      const badgeColor = isSevere ? '#DC2626' : '#C2410C';
 
       const el = document.createElement('div');
       el.className = 'cursor-pointer group';
@@ -604,21 +603,19 @@ export function MapContainer({
         .setPopup(
           new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 240px;">
-              <div style="background: ${isSevere ? 'linear-gradient(135deg, #FF3B30 0%, #C62828 100%)' : 'linear-gradient(135deg, #FF9500 0%, #E65100 100%)'}; color: #FFFFFF; padding: 12px 14px; border-top-left-radius: 24px; border-top-right-radius: 24px;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                  <span style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9;">CITIZEN INCIDENT REPORT</span>
-                  <span style="font-size: 9px; font-weight: 900; background: rgba(255,255,255,0.25); padding: 2px 7px; border-radius: 9999px;">${report.flood_depth_level?.toUpperCase() || 'FLOOD'}</span>
-                </div>
-                <div style="font-size: 15px; font-weight: 900; margin-top: 3px;">Brgy. ${report.barangay_name || 'Area'}</div>
+              <div style="display: flex; align-items: center; gap: 6px; padding-right: 24px;">
+                <span style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #64748B; letter-spacing: 0.5px;">Incident Report</span>
+                <span style="font-size: 9px; font-weight: 800; background: ${badgeBg}; color: ${badgeColor}; padding: 2px 7px; border-radius: 9999px;">${report.flood_depth_level?.toUpperCase() || 'FLOOD'}</span>
               </div>
-              <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
-                <div style="font-size: 11.5px; color: #1C1C1E; line-height: 1.4;">
-                  ${report.description || 'Verified flood incident pin.'}
-                </div>
-                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #8E8E93; border-top: 1px solid #E5E5EA; padding-top: 6px;">
-                  <span>Reported: ${new Date(report.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  <span style="font-weight: 800; color: #007AFF;">Status: ${report.status?.toUpperCase() || 'VERIFIED'}</span>
-                </div>
+              <div style="font-size: 15px; font-weight: 800; color: #111827; margin-top: 4px;">
+                Brgy. ${report.barangay_name || 'Area'}
+              </div>
+              <div style="font-size: 11.5px; color: #334155; line-height: 1.4; margin-top: 6px; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 10px; border-radius: 10px;">
+                ${report.description || 'Verified flood incident.'}
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 8px; padding-top: 6px; border-top: 1px solid #F1F5F9;">
+                <span>Reported: ${new Date(report.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <span style="font-weight: 700; color: #0284C7;">${report.status?.toUpperCase() || 'VERIFIED'}</span>
               </div>
             </div>
           `)
@@ -634,8 +631,10 @@ export function MapContainer({
 
       const isBreach = st.status === 'critical_breach';
       const isWatch = st.status === 'watch';
-      const color = isBreach ? '#FF3B30' : isWatch ? '#FF9500' : '#007AFF';
+      const color = isBreach ? '#EF4444' : isWatch ? '#F97316' : '#0284C7';
       const statusLabel = isBreach ? 'CRITICAL BREACH' : isWatch ? 'WATCH LEVEL' : 'NORMAL FLOW';
+      const statusBg = isBreach ? '#FEF2F2' : isWatch ? '#FFF7ED' : '#F0F9FF';
+      const statusColor = isBreach ? '#DC2626' : isWatch ? '#C2410C' : '#0369A1';
 
       const el = document.createElement('div');
       el.className = 'cursor-pointer group';
@@ -655,29 +654,31 @@ export function MapContainer({
         .setPopup(
           new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 250px;">
-              <div style="background: ${isBreach ? 'linear-gradient(135deg, #FF3B30 0%, #D32F2F 100%)' : isWatch ? 'linear-gradient(135deg, #FF9500 0%, #E65100 100%)' : 'linear-gradient(135deg, #007AFF 0%, #0051A8 100%)'}; color: #FFFFFF; padding: 12px 14px; border-top-left-radius: 24px; border-top-right-radius: 24px;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                  <span style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9;">RIVER TELEMETRY NODE</span>
-                  <span style="font-size: 9px; font-weight: 900; background: rgba(255,255,255,0.25); padding: 2px 7px; border-radius: 9999px;">${statusLabel}</span>
-                </div>
-                <div style="font-size: 15px; font-weight: 900; margin-top: 3px;">${st.station_name}</div>
-                <div style="font-size: 10px; opacity: 0.85; margin-top: 1px;">${st.river_basin} &bull; Brgy. ${st.barangay_name}</div>
+              <div style="display: flex; align-items: center; gap: 6px; padding-right: 24px;">
+                <span style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #0284C7; letter-spacing: 0.5px;">River Telemetry</span>
+                <span style="font-size: 9px; font-weight: 800; background: ${statusBg}; color: ${statusColor}; padding: 2px 7px; border-radius: 9999px;">${statusLabel}</span>
               </div>
-              <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-                  <div style="background: #F2F2F7; padding: 8px; border-radius: 12px; text-align: center;">
-                    <div style="font-size: 9px; font-weight: 700; color: #8E8E93; text-transform: uppercase;">Water Level</div>
-                    <div style="font-size: 14px; font-weight: 900; color: ${color}; margin-top: 1px;">${st.water_level_meters}m</div>
-                  </div>
-                  <div style="background: #F2F2F7; padding: 8px; border-radius: 12px; text-align: center;">
-                    <div style="font-size: 9px; font-weight: 700; color: #8E8E93; text-transform: uppercase;">Rainfall</div>
-                    <div style="font-size: 14px; font-weight: 900; color: #007AFF; margin-top: 1px;">${st.rainfall_rate_mmh || 0} mm/h</div>
-                  </div>
+              <div style="font-size: 15px; font-weight: 800; color: #111827; margin-top: 4px; line-height: 1.25;">
+                ${st.station_name}
+              </div>
+              <div style="font-size: 11px; color: #6B7280; margin-top: 2px;">
+                ${st.river_basin} &bull; Brgy. ${st.barangay_name}
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px;">
+                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 10px; border-radius: 12px;">
+                  <div style="font-size: 9px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px;">Water Level</div>
+                  <div style="font-size: 16px; font-weight: 900; color: ${color}; margin-top: 2px;">${st.water_level_meters}m</div>
                 </div>
-                <div style="font-size: 10px; color: #8E8E93; display: flex; justify-content: space-between; border-top: 1px solid #E5E5EA; padding-top: 6px;">
-                  <span>Alert 1: <strong>${st.alert_level_1_meters}m</strong></span>
-                  <span>Critical: <strong style="color: #FF3B30;">${st.critical_overflow_meters}m</strong></span>
+                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 10px; border-radius: 12px;">
+                  <div style="font-size: 9px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px;">Rainfall</div>
+                  <div style="font-size: 16px; font-weight: 900; color: #0284C7; margin-top: 2px;">${st.rainfall_rate_mmh || 0} mm/h</div>
                 </div>
+              </div>
+
+              <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #F1F5F9; display: flex; justify-content: space-between; font-size: 10.5px; color: #64748B;">
+                <span>Alert 1: <strong style="color: #0F172A;">${st.alert_level_1_meters}m</strong></span>
+                <span>Critical: <strong style="color: #EF4444;">${st.critical_overflow_meters}m</strong></span>
               </div>
             </div>
           `)
@@ -862,7 +863,7 @@ export function MapContainer({
                   selectedScenario === '100yr'
                     ? 'bg-rose-500 shadow-sm shadow-rose-500/50'
                     : selectedScenario === '25yr'
-                    ? 'bg-amber-500 shadow-sm shadow-amber-500/50'
+                    ? 'bg-orange-500 shadow-sm shadow-orange-500/50'
                     : selectedScenario === '5yr'
                     ? 'bg-yellow-400 shadow-sm shadow-yellow-400/50'
                     : 'bg-gray-400'
@@ -940,13 +941,13 @@ export function MapContainer({
                   <div className="text-[10px] font-black uppercase text-gray-400">UP NOAH Official Hazard Scale</div>
                   <div className="flex items-center justify-between text-[9px] font-bold text-gray-700">
                     <span className="flex items-center gap-1">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#FFE600] border border-[#D4B106] shadow-xs" /> Low (0.1–0.5m)
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#FACC15] border border-[#EAB308] shadow-xs" /> Low (0.1–0.5m)
                     </span>
                     <span className="flex items-center gap-1">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#FF9900] border border-[#D46B08] shadow-xs" /> Med (0.5–1.5m)
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#FB923C] border border-[#EA580C] shadow-xs" /> Med (0.5–1.5m)
                     </span>
                     <span className="flex items-center gap-1">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#E53935] border border-[#A8071A] shadow-xs" /> High (&gt;1.5m)
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#EF4444] border border-[#DC2626] shadow-xs" /> High (&gt;1.5m)
                     </span>
                   </div>
                 </div>
