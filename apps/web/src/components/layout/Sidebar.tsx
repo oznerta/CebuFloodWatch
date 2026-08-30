@@ -32,8 +32,7 @@ interface NavItem {
 }
 
 const operationsNav: NavItem[] = [
-  { name: 'Situation Room', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Live Map & 3D', href: '/map', icon: Map },
+  { name: 'Situation Room & Map', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Incident Triage', href: '/reports', icon: AlertCircle, badge: 'Live' },
   { name: 'Emergency Alerts', href: '/alerts', icon: Radio },
   { name: 'Shelters & Routes', href: '/evacuation', icon: Home },
