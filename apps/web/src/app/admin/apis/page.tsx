@@ -43,7 +43,7 @@ export default function APIGatewaysPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
-  const [testFeedback, setTestFeedback] = useState<{ service: string; message: string } | null>(null);
+  const [testFeedback, setTestFeedback] = useState<{ type: 'success' | 'error'; service: string; message: string } | null>(null);
 
   // Load saved gateway configuration on mount
   useEffect(() => {
@@ -95,10 +95,24 @@ export default function APIGatewaysPage() {
       });
 
       if (res && res.success) {
-        setTestFeedback({ service, message: `✅ ${res.service}: ${res.status} (${res.latencyMs}ms latency)` });
+        setTestFeedback({
+          type: 'success',
+          service,
+          message: `${res.service}: ${res.status} (${res.latencyMs}ms latency)`,
+        });
+      } else {
+        setTestFeedback({
+          type: 'error',
+          service,
+          message: res?.error || 'Validation failed for gateway.',
+        });
       }
     } catch (err: any) {
-      setTestFeedback({ service, message: `⚠️ Connection test completed with status nominal.` });
+      setTestFeedback({
+        type: 'error',
+        service,
+        message: err.message || 'Connection test failed: Missing or invalid credentials.',
+      });
     } finally {
       if (service === 'pagasa') setPagasaStatus('healthy');
       if (service === 'namria') setNamriaStatus('healthy');
@@ -189,11 +203,24 @@ export default function APIGatewaysPage() {
 
       {/* Test Feedback Banner */}
       {testFeedback && (
-        <div className="bg-[#E5F1FF] border border-[#CCE3FF] rounded-2xl p-4 flex items-center justify-between text-xs font-bold text-[#007AFF] animate-in fade-in">
-          <span>{testFeedback.message}</span>
+        <div
+          className={`rounded-2xl p-4 flex items-center justify-between text-xs font-bold border animate-in fade-in ${
+            testFeedback.type === 'error'
+              ? 'bg-[#FFEBEA] border-[#FFD0CE] text-[#FF3B30]'
+              : 'bg-[#EBF9EE] border-[#C3F0CD] text-[#34C759]'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {testFeedback.type === 'error' ? (
+              <AlertCircle className="w-4 h-4 text-[#FF3B30] shrink-0" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 text-[#34C759] shrink-0" />
+            )}
+            <span>{testFeedback.message}</span>
+          </div>
           <button
             onClick={() => setTestFeedback(null)}
-            className="text-[11px] underline cursor-pointer text-[#007AFF]"
+            className="text-[11px] underline cursor-pointer hover:opacity-80 transition-opacity ml-4"
           >
             Dismiss
           </button>
