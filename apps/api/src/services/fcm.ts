@@ -57,19 +57,19 @@ export async function sendTargetedAlertFCM(payload: FCMBroadcastPayload): Promis
       };
     } catch (err: any) {
       console.warn(`⚠️ FCM Dispatch failed for topic '${topic}':`, err.message);
+      return {
+        success: false,
+        messageId: '',
+        recipientTopic: topic,
+      };
     }
   }
 
-  // Fallback / simulation logging
-  console.log(`📡 [FCM Simulated Push] Dispatched to topic '${topic}':`, {
-    severity: payload.severity.toUpperCase(),
-    title: payload.title,
-    body: payload.body,
-  });
-
+  // Firebase not configured
+  console.log(`📡 [FCM Unconfigured] FCM credentials not set. Push notification skipped for topic '${topic}'.`);
   return {
-    success: true,
-    messageId: `fcm_sim_${Date.now()}`,
+    success: false,
+    messageId: '',
     recipientTopic: topic,
   };
 }

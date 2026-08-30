@@ -48,7 +48,7 @@ export async function recomputeIncidentClusters(): Promise<IncidentClusterSummar
     const reportsRes = await query(sql);
     const reports = reportsRes.rows;
 
-    if (reports.length === 0) return getFallbackClusters();
+    if (reports.length === 0) return [];
 
     // Group reports by spatial proximity (< 150m) using simple greedy clustering
     const clusters: IncidentClusterSummary[] = [];
@@ -119,12 +119,8 @@ export async function recomputeIncidentClusters(): Promise<IncidentClusterSummar
 
     return clusters;
   } catch (error) {
-    return getFallbackClusters();
+    return [];
   }
-}
-
-export function getFallbackClusters(): IncidentClusterSummary[] {
-  return [];
 }
 
 function calculateDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {

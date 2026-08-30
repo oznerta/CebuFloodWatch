@@ -1,13 +1,13 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
-import { recomputeIncidentClusters, getFallbackClusters } from '../services/clustering.js';
+import { recomputeIncidentClusters, IncidentClusterSummary } from '../services/clustering.js';
 import { getIO } from '../services/socket.js';
 
 export const clustersRouter = Router();
 
 // In-memory cluster store for fast retrieval & status management
-let activeClustersStore = getFallbackClusters();
+let activeClustersStore: IncidentClusterSummary[] = [];
 
 // GET /api/v1/clusters/active - List all active deduplicated incident clusters
 clustersRouter.get('/active', async (_req: Request, res: Response, next: NextFunction) => {
