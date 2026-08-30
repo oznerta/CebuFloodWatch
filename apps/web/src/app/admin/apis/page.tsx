@@ -20,12 +20,27 @@ import {
   Cloud,
   BellRing,
   ShieldCheck,
+  Server,
 } from 'lucide-react';
 import { fetchApi } from '../../../lib/api';
 
 const LOCAL_STORAGE_KEY = 'cebu_gateway_config';
 
+interface InfraItem {
+  name: string;
+  category: string;
+  status: 'operational' | 'degraded' | 'offline' | 'unconfigured';
+  latencyMs: number;
+  details: string;
+  metadata?: Record<string, any>;
+  lastChecked: string;
+}
+
 export default function APIGatewaysPage() {
+  // Live Infrastructure Services State
+  const [infraList, setInfraList] = useState<InfraItem[]>([]);
+  const [probingInfra, setProbingInfra] = useState(false);
+
   // PAGASA Weather API State
   const [pagasaKey, setPagasaKey] = useState('');
   const [showKey, setShowKey] = useState(false);
@@ -44,13 +59,30 @@ export default function APIGatewaysPage() {
   const [smsApiKey, setSmsApiKey] = useState('');
   const [smsSenderId, setSmsSenderId] = useState('CEBU_CDRRMO');
 
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [testFeedback, setTestFeedback] = useState<{ type: 'success' | 'error'; service: string; message: string } | null>(null);
 
+  // Load live infrastructure status
+  const loadInfraStatus = async () => {
+    setProbingInfra(true);
+    try {
+      const res = await fetchApi<any>('/admin/infra-status');
+      const data = res?.data || res;
+      if (Array.isArray(data)) {
+        setInfraList(data);
+      }
+    } catch (err: any) {
+      console.warn('Infra probe error:', err);
+    } finally {
+      setProbingInfra(false);
+    }
+  };
+
   // Load saved gateway configuration on mount
   useEffect(() => {
+    loadInfraStatus();
+
     // 1. Instant load from localStorage cache if present
     try {
       const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -78,8 +110,7 @@ export default function APIGatewaysPage() {
           if (d.smsSenderId) setSmsSenderId(d.smsSenderId);
         }
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
   }, []);
 
   const handleTestConnection = async (service: string) => {
@@ -189,7 +220,7 @@ export default function APIGatewaysPage() {
         <div className="flex items-center gap-3">
           {savedSuccess && (
             <span className="text-xs font-bold text-[#34C759] flex items-center gap-1 bg-[#EBF9EE] px-3 py-1.5 rounded-xl border border-[#C3F0CD] animate-in fade-in">
-              <CheckCircle2 className="w-4 h-4" /> Credentials Saved to PostgreSQL!
+              <CheckCircle2 className="w-4 h-4" /> Saved to PostgreSQL!
             </span>
           )}
 
@@ -230,75 +261,72 @@ export default function APIGatewaysPage() {
         </div>
       )}
 
-      {/* SECTION 1: Active Platform Infrastructure (.env configured) */}
+      {/* SECTION 1: Real-time Live Infrastructure Health Probes */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-black uppercase tracking-wider text-[#8E8E93] flex items-center gap-1.5">
             <ShieldCheck className="w-4 h-4 text-[#34C759]" />
-            Core Cloud Infrastructure (Configured via .env)
+            Live Cloud Infrastructure Probes
           </h2>
-          <span className="text-[10px] font-bold text-[#34C759] bg-[#EBF9EE] px-2.5 py-0.5 rounded-full">
-            All Systems Nominal
-          </span>
+
+          <button
+            onClick={loadInfraStatus}
+            disabled={probingInfra}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#E5E5EA] text-[11px] font-extrabold text-[#1C1C1E] shadow-xs hover:bg-[#F2F2F7] transition-all cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-[#007AFF] ${probingInfra ? 'animate-spin' : ''}`} />
+            {probingInfra ? 'Probing Cloud...' : 'Run Live Health Probe'}
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Supabase PostGIS */}
-          <div className="bg-white border border-[#E5E5EA] rounded-2xl p-4.5 shadow-xs space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Database className="w-4 h-4 text-[#34C759]" />
-                <h3 className="font-extrabold text-xs text-[#1C1C1E]">Supabase PostGIS</h3>
-              </div>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-[#EBF9EE] text-[#34C759]">
-                Live
-              </span>
-            </div>
-            <p className="text-[11px] text-[#8E8E93]">
-              AWS Seoul Pooler • 80 Cebu City Barangays, GeoSpatial Indices & System Settings
-            </p>
-            <div className="text-[10px] font-mono text-[#6C6C70] pt-1">
-              Port: 5432 &bull; SSL Encrypted
-            </div>
-          </div>
+          {infraList.map((item, idx) => {
+            const isOk = item.status === 'operational';
+            const isDegraded = item.status === 'degraded';
 
-          {/* Firebase Admin FCM */}
-          <div className="bg-white border border-[#E5E5EA] rounded-2xl p-4.5 shadow-xs space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BellRing className="w-4 h-4 text-[#FF9500]" />
-                <h3 className="font-extrabold text-xs text-[#1C1C1E]">Firebase Cloud Messaging</h3>
-              </div>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-[#EBF9EE] text-[#34C759]">
-                Ready
-              </span>
-            </div>
-            <p className="text-[11px] text-[#8E8E93]">
-              Project: <span className="font-bold text-[#1C1C1E]">stormgate-81eb7</span> • Service Account Authenticated
-            </p>
-            <div className="text-[10px] font-mono text-[#6C6C70] pt-1">
-              Push Target: Android / iOS / Web
-            </div>
-          </div>
+            return (
+              <div
+                key={idx}
+                className="bg-white border border-[#E5E5EA] rounded-2xl p-4.5 shadow-xs space-y-2 hover:border-[#007AFF]/30 transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {item.category === 'database' ? (
+                      <Database className="w-4 h-4 text-[#34C759]" />
+                    ) : item.category === 'auth_push' ? (
+                      <BellRing className="w-4 h-4 text-[#FF9500]" />
+                    ) : item.category === 'storage' ? (
+                      <Cloud className="w-4 h-4 text-[#007AFF]" />
+                    ) : item.category === 'weather' ? (
+                      <Globe className="w-4 h-4 text-[#007AFF]" />
+                    ) : (
+                      <Waves className="w-4 h-4 text-[#5856D6]" />
+                    )}
+                    <h3 className="font-extrabold text-xs text-[#1C1C1E]">{item.name}</h3>
+                  </div>
 
-          {/* Cloudinary CDN */}
-          <div className="bg-white border border-[#E5E5EA] rounded-2xl p-4.5 shadow-xs space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Cloud className="w-4 h-4 text-[#007AFF]" />
-                <h3 className="font-extrabold text-xs text-[#1C1C1E]">Cloudinary Media CDN</h3>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                      isOk
+                        ? 'bg-[#EBF9EE] text-[#34C759]'
+                        : isDegraded
+                        ? 'bg-[#FFF8E6] text-[#FF9500]'
+                        : 'bg-[#FFEBEA] text-[#FF3B30]'
+                    }`}
+                  >
+                    {item.status}
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-[#8E8E93] leading-relaxed">{item.details}</p>
+
+                <div className="flex items-center justify-between text-[10px] font-mono text-[#6C6C70] pt-1 border-t border-[#F2F2F7]">
+                  <span>Latency: {item.latencyMs}ms</span>
+                  <span>{new Date(item.lastChecked).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                </div>
               </div>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-[#EBF9EE] text-[#34C759]">
-                Active
-              </span>
-            </div>
-            <p className="text-[11px] text-[#8E8E93]">
-              Cloud: <span className="font-bold text-[#1C1C1E]">krfxcgdr</span> • Citizen Flood Photos & Geo-Tags
-            </p>
-            <div className="text-[10px] font-mono text-[#6C6C70] pt-1">
-              Signed Uploads &bull; Auto WebP
-            </div>
-          </div>
+            );
+          })}
         </div>
       </div>
 
@@ -321,7 +349,7 @@ export default function APIGatewaysPage() {
                 </div>
               </div>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-[#EBF9EE] text-[#34C759]">
-                Connected
+                Live Feed
               </span>
             </div>
 
@@ -399,7 +427,7 @@ export default function APIGatewaysPage() {
               </div>
 
               <div className="flex items-center justify-between pt-1">
-                <span className="text-[11px] text-[#8E8E93]">Last Tidal Fetch: 14:30 (+1.62m High Tide)</span>
+                <span className="text-[11px] text-[#8E8E93]">Pier 1 Tidal Harmonic Predictor</span>
                 <button
                   onClick={() => handleTestConnection('namria')}
                   disabled={namriaStatus === 'checking'}

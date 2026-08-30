@@ -4,6 +4,7 @@ import { config } from '../config/env.js';
 import { query } from '../config/db.js';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth.js';
 import { checkRateLimit } from '../services/security.js';
+import { getLiveInfrastructureStatus } from '../services/infraHealth.js';
 
 export const adminRouter = Router();
 
@@ -58,6 +59,19 @@ async function loadPersistedSettings() {
   }
 }
 loadPersistedSettings();
+
+/**
+ * GET /admin/infra-status
+ * Live probe of all database, storage, push, and weather infrastructure
+ */
+adminRouter.get('/infra-status', async (_req: Request, res: Response) => {
+  try {
+    const statuses = await getLiveInfrastructureStatus();
+    return res.json({ success: true, data: statuses });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 /**
  * GET /admin/config
