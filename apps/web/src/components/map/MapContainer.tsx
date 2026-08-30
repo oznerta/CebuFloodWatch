@@ -13,6 +13,7 @@ import {
   Sun,
   Eye,
   ShieldAlert,
+  Info,
 } from 'lucide-react';
 
 interface MapContainerProps {
@@ -24,6 +25,7 @@ interface MapContainerProps {
 }
 
 type MapTileStyle = 'vector' | 'satellite' | 'terrain';
+type FloodScenario = '5yr' | '25yr' | '100yr' | 'none';
 
 const TILE_STYLES: Record<MapTileStyle, { name: string; styleUrl: string }> = {
   vector: {
@@ -61,11 +63,9 @@ export function MapContainer({
   const popupRef = useRef<maplibregl.Popup | null>(null);
 
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [show100Year, setShow100Year] = useState(true);
-  const [show25Year, setShow25Year] = useState(true);
-  const [show5Year, setShow5Year] = useState(true);
+  const [selectedScenario, setSelectedScenario] = useState<FloodScenario>('25yr');
   const [showBarangays, setShowBarangays] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showBoundary, setShowBoundary] = useState(true);
   const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('vector');
   const [is3DMode, setIs3DMode] = useState(false);
 
@@ -77,7 +77,7 @@ export function MapContainer({
       container: mapContainerRef.current,
       style: TILE_STYLES[currentStyle].styleUrl,
       center: [123.8950, 10.3160], // Downtown / Cebu City Urban Basin
-      zoom: 13.5,
+      zoom: 13.2,
       minZoom: 11.5, // Restrict zooming out to neighboring islands/sea
       maxZoom: 18.5,
       maxBounds: CEBU_CITY_RESTRICTED_BOUNDS, // Confine camera strictly to Cebu City
@@ -102,7 +102,7 @@ export function MapContainer({
           source: 'cebu-city-boundary',
           paint: {
             'line-color': '#007AFF',
-            'line-width': 4,
+            'line-width': 3.5,
             'line-opacity': 0.85,
           },
         });
@@ -113,7 +113,7 @@ export function MapContainer({
           source: 'cebu-city-boundary',
           paint: {
             'fill-color': '#007AFF',
-            'fill-opacity': 0.03,
+            'fill-opacity': 0.02,
           },
         });
       }
@@ -143,7 +143,7 @@ export function MapContainer({
             'line-color': '#8E8E93',
             'line-width': 1,
             'line-dasharray': [3, 2],
-            'line-opacity': 0.6,
+            'line-opacity': 0.5,
           },
         });
 
@@ -196,8 +196,8 @@ export function MapContainer({
           source: 'cebu-flood-5yr',
           paint: {
             'line-color': ['coalesce', ['get', 'color'], '#FFCC00'],
-            'line-width': 1.5,
-            'line-opacity': 0.75,
+            'line-width': 1.2,
+            'line-opacity': 0.7,
           },
         });
       }
@@ -213,7 +213,7 @@ export function MapContainer({
           source: 'cebu-flood-25yr',
           paint: {
             'fill-color': ['coalesce', ['get', 'color'], '#FF9500'],
-            'fill-opacity': 0.45,
+            'fill-opacity': 0.48,
           },
         });
         map.addLayer({
@@ -222,8 +222,8 @@ export function MapContainer({
           source: 'cebu-flood-25yr',
           paint: {
             'line-color': ['coalesce', ['get', 'color'], '#FF9500'],
-            'line-width': 1.5,
-            'line-opacity': 0.8,
+            'line-width': 1.2,
+            'line-opacity': 0.75,
           },
         });
       }
@@ -239,7 +239,7 @@ export function MapContainer({
           source: 'cebu-flood-100yr',
           paint: {
             'fill-color': ['coalesce', ['get', 'color'], '#FF3B30'],
-            'fill-opacity': 0.5,
+            'fill-opacity': 0.52,
           },
         });
         map.addLayer({
@@ -248,8 +248,8 @@ export function MapContainer({
           source: 'cebu-flood-100yr',
           paint: {
             'line-color': ['coalesce', ['get', 'color'], '#FF3B30'],
-            'line-width': 2,
-            'line-opacity': 0.9,
+            'line-width': 1.5,
+            'line-opacity': 0.85,
           },
         });
       }
@@ -260,8 +260,8 @@ export function MapContainer({
         map.on('click', layerId, (e: any) => {
           if (!e.features || e.features.length === 0) return;
           const props = e.features[0].properties || {};
-          const hazardName = props.hazard_name || 'Flood Hazard Zone';
-          const returnPeriod = props.return_period || 'UP NOAH Scenario';
+          const hazardName = props.hazard_name || 'Flood Hazard Channel';
+          const returnPeriod = props.return_period || 'UP NOAH Simulation';
           const depth = props.depth_range || 'Inundation Zone';
 
           if (popupRef.current) popupRef.current.remove();
@@ -269,9 +269,9 @@ export function MapContainer({
             .setLngLat(e.lngLat)
             .setHTML(`
               <div style="font-family: sans-serif; padding: 4px;">
-                <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #FF3B30;">UP NOAH Simulation</div>
+                <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #FF3B30;">UP NOAH River Model</div>
                 <div style="font-size: 13px; font-weight: 900; color: #1C1C1E; margin-top: 2px;">${hazardName}</div>
-                <div style="font-size: 11px; color: #6C6C70; margin-top: 2px;">Depth: ${depth} &bull; ${returnPeriod}</div>
+                <div style="font-size: 11px; color: #6C6C70; margin-top: 2px;">Water Depth: ${depth} &bull; ${returnPeriod}</div>
               </div>
             `)
             .addTo(map);
@@ -290,25 +290,26 @@ export function MapContainer({
     };
   }, []);
 
-  // Sync Flood Hazard Layer Visibility Toggles
+  // Sync Scenario Visibility
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
     const map = mapRef.current;
 
-    if (map.getLayer('hazard-5yr-fill')) {
-      map.setLayoutProperty('hazard-5yr-fill', 'visibility', show5Year ? 'visible' : 'none');
-    }
-    if (map.getLayer('hazard-25yr-fill')) {
-      map.setLayoutProperty('hazard-25yr-fill', 'visibility', show25Year ? 'visible' : 'none');
-    }
-    if (map.getLayer('hazard-100yr-fill')) {
-      map.setLayoutProperty('hazard-100yr-fill', 'visibility', show100Year ? 'visible' : 'none');
-    }
-    if (map.getLayer('cebu-barangay-lines')) {
-      map.setLayoutProperty('cebu-barangay-lines', 'visibility', showBarangays ? 'visible' : 'none');
-      map.setLayoutProperty('cebu-barangay-fills', 'visibility', showBarangays ? 'visible' : 'none');
-    }
-  }, [mapLoaded, show5Year, show25Year, show100Year, showBarangays]);
+    const setVisibility = (layers: string[], isVisible: boolean) => {
+      layers.forEach((id) => {
+        if (map.getLayer(id)) {
+          map.setLayoutProperty(id, 'visibility', isVisible ? 'visible' : 'none');
+        }
+      });
+    };
+
+    setVisibility(['hazard-5yr-fill', 'hazard-5yr-line'], selectedScenario === '5yr');
+    setVisibility(['hazard-25yr-fill', 'hazard-25yr-line'], selectedScenario === '25yr');
+    setVisibility(['hazard-100yr-fill', 'hazard-100yr-line'], selectedScenario === '100yr');
+
+    setVisibility(['cebu-barangay-lines', 'cebu-barangay-fills'], showBarangays);
+    setVisibility(['cebu-city-border-glow', 'cebu-city-fill'], showBoundary);
+  }, [mapLoaded, selectedScenario, showBarangays, showBoundary]);
 
   // Sync Markers for Live Incident Reports & Shelters
   useEffect(() => {
@@ -443,8 +444,8 @@ export function MapContainer({
   const handleResetToCebuCenter = () => {
     if (!mapRef.current) return;
     mapRef.current.flyTo({
-      center: [123.8854, 10.3157],
-      zoom: 13,
+      center: [123.8950, 10.3160],
+      zoom: 13.2,
       pitch: 0,
       bearing: 0,
       duration: 1200,
@@ -483,64 +484,106 @@ export function MapContainer({
 
       {/* NOAH Hazard Return-Period Layer Switcher */}
       {showHazardControls && (
-        <div className="absolute bottom-6 left-6 z-10 bg-white/95 backdrop-blur-2xl border border-[#E5E5EA] rounded-3xl p-3.5 shadow-xl space-y-2.5 text-xs pointer-events-auto min-w-[220px]">
+        <div className="absolute bottom-6 left-6 z-10 bg-white/95 backdrop-blur-2xl border border-[#E5E5EA] rounded-3xl p-4 shadow-xl space-y-3 text-xs pointer-events-auto min-w-[260px] max-w-xs">
           <div className="flex items-center justify-between border-b border-[#F2F2F7] pb-2">
             <span className="font-black text-[11px] uppercase tracking-wider text-[#1C1C1E] flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-[#007AFF]" />
-              Cebu City NOAH Layers
+              UP NOAH Flood Scenario
             </span>
+            <span className="text-[10px] font-bold text-[#8E8E93]">Return Period</span>
           </div>
 
-          <div className="space-y-1.5 text-[11px] font-bold">
-            <label className="flex items-center justify-between gap-3 cursor-pointer select-none">
-              <span className="flex items-center gap-2 text-[#FF3B30]">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#FF3B30]" />
-                100-Yr Severe Flood
-              </span>
-              <input
-                type="checkbox"
-                checked={show100Year}
-                onChange={(e) => setShow100Year(e.target.checked)}
-                className="rounded text-[#FF3B30] focus:ring-0 cursor-pointer"
-              />
-            </label>
+          {/* Scenario Selector Pills */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => setSelectedScenario('5yr')}
+              className={`py-1.5 px-2.5 rounded-xl font-extrabold text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                selectedScenario === '5yr'
+                  ? 'bg-[#FFCC00] text-[#1C1C1E] shadow-xs'
+                  : 'bg-[#F8F9FA] text-[#8E8E93] hover:bg-[#F2F2F7]'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-[#FFCC00]" />
+              5-Year (Low)
+            </button>
 
-            <label className="flex items-center justify-between gap-3 cursor-pointer select-none">
-              <span className="flex items-center gap-2 text-[#FF9500]">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#FF9500]" />
-                25-Yr High Risk
-              </span>
-              <input
-                type="checkbox"
-                checked={show25Year}
-                onChange={(e) => setShow25Year(e.target.checked)}
-                className="rounded text-[#FF9500] focus:ring-0 cursor-pointer"
-              />
-            </label>
+            <button
+              onClick={() => setSelectedScenario('25yr')}
+              className={`py-1.5 px-2.5 rounded-xl font-extrabold text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                selectedScenario === '25yr'
+                  ? 'bg-[#FF9500] text-white shadow-xs'
+                  : 'bg-[#F8F9FA] text-[#8E8E93] hover:bg-[#F2F2F7]'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-[#FF9500]" />
+              25-Yr (Medium)
+            </button>
 
-            <label className="flex items-center justify-between gap-3 cursor-pointer select-none">
-              <span className="flex items-center gap-2 text-[#FFCC00]">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#FFCC00]" />
-                5-Yr Moderate Hazard
-              </span>
-              <input
-                type="checkbox"
-                checked={show5Year}
-                onChange={(e) => setShow5Year(e.target.checked)}
-                className="rounded text-[#FFCC00] focus:ring-0 cursor-pointer"
-              />
-            </label>
+            <button
+              onClick={() => setSelectedScenario('100yr')}
+              className={`py-1.5 px-2.5 rounded-xl font-extrabold text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                selectedScenario === '100yr'
+                  ? 'bg-[#FF3B30] text-white shadow-xs'
+                  : 'bg-[#F8F9FA] text-[#8E8E93] hover:bg-[#F2F2F7]'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-[#FF3B30]" />
+              100-Yr (Severe)
+            </button>
 
-            <label className="flex items-center justify-between gap-3 cursor-pointer select-none border-t border-[#F2F2F7] pt-1.5">
-              <span className="flex items-center gap-2 text-[#5856D6]">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#5856D6]" />
-                80 Barangay Outlines
+            <button
+              onClick={() => setSelectedScenario('none')}
+              className={`py-1.5 px-2.5 rounded-xl font-extrabold text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                selectedScenario === 'none'
+                  ? 'bg-[#1C1C1E] text-white shadow-xs'
+                  : 'bg-[#F8F9FA] text-[#8E8E93] hover:bg-[#F2F2F7]'
+              }`}
+            >
+              Hide Flood
+            </button>
+          </div>
+
+          {/* Depth Scale Legend */}
+          {selectedScenario !== 'none' && (
+            <div className="pt-2 border-t border-[#F2F2F7] space-y-1">
+              <div className="text-[10px] font-extrabold uppercase text-[#8E8E93]">Inundation Depth Legend</div>
+              <div className="flex items-center justify-between text-[9px] font-bold text-[#6C6C70]">
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-[#FFCC00]" /> 0.1m - 0.5m (Low)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-[#FF9500]" /> 0.5m - 1.5m (Med)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-[#FF3B30]" /> &gt;1.5m (High)
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Boundary Toggles */}
+          <div className="pt-2 border-t border-[#F2F2F7] space-y-1 text-[11px] font-bold text-[#6C6C70]">
+            <label className="flex items-center justify-between cursor-pointer select-none">
+              <span className="flex items-center gap-1.5 text-[#5856D6]">
+                <span className="w-2 h-2 rounded-full bg-[#5856D6]" /> 80 Barangay Outlines
               </span>
               <input
                 type="checkbox"
                 checked={showBarangays}
                 onChange={(e) => setShowBarangays(e.target.checked)}
                 className="rounded text-[#5856D6] focus:ring-0 cursor-pointer"
+              />
+            </label>
+
+            <label className="flex items-center justify-between cursor-pointer select-none">
+              <span className="flex items-center gap-1.5 text-[#007AFF]">
+                <span className="w-2 h-2 rounded-full bg-[#007AFF]" /> Cebu City Perimeter
+              </span>
+              <input
+                type="checkbox"
+                checked={showBoundary}
+                onChange={(e) => setShowBoundary(e.target.checked)}
+                className="rounded text-[#007AFF] focus:ring-0 cursor-pointer"
               />
             </label>
           </div>
