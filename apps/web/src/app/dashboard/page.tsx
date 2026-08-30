@@ -439,7 +439,7 @@ export default function DashboardPage() {
                         <div
                           key={st.id}
                           onClick={() => handleFlyToStation(st)}
-                          className="p-3.5 rounded-2xl bg-white border border-gray-200/90 space-y-2.5 hover:border-blue-400 hover:shadow-md hover:scale-[1.01] transition-all cursor-pointer group"
+                          className="p-3.5 rounded-2xl bg-white border border-gray-200 hover:border-blue-400 hover:bg-slate-50/60 hover:shadow-xs transition-colors duration-150 space-y-2.5 cursor-pointer group"
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div>
@@ -516,7 +516,7 @@ export default function DashboardPage() {
                     <div
                       key={report.id}
                       onClick={() => handleFlyToReport(report)}
-                      className="p-3.5 rounded-2xl border border-gray-200 bg-white hover:border-blue-400 hover:shadow-md transition-all space-y-2.5 cursor-pointer group"
+                      className="p-3.5 rounded-2xl border border-gray-200 bg-white hover:border-blue-400 hover:bg-slate-50/60 hover:shadow-xs transition-colors duration-150 space-y-2.5 cursor-pointer group"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
