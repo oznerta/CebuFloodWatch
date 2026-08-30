@@ -23,7 +23,11 @@ import {
   Navigation,
   CheckCircle,
   Share2,
-  Filter,
+  Home,
+  AlertTriangle,
+  Zap,
+  Droplets,
+  HeartPulse,
 } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { COLORS } from '../constants/theme';
@@ -39,11 +43,12 @@ import {
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 type SheetSnap = 'peek' | 'half' | 'full';
+type SheetCategory = 'incidents' | 'shelters';
 
 const SNAP_HEIGHTS = {
-  peek: 210,
-  half: SCREEN_HEIGHT * 0.54,
-  full: SCREEN_HEIGHT * 0.86,
+  peek: 220,
+  half: SCREEN_HEIGHT * 0.55,
+  full: SCREEN_HEIGHT * 0.88,
 };
 
 export function LiveMapScreen() {
@@ -51,10 +56,9 @@ export function LiveMapScreen() {
   const [shelters, setShelters] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Sheet Snap state
+  // Sheet State
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>('peek');
-
-  // Filter state
+  const [sheetCategory, setSheetCategory] = useState<SheetCategory>('incidents');
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
 
   // Search State
@@ -297,7 +301,7 @@ export function LiveMapScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 4. Incident Discovery & Search Bottom Sheet */}
+      {/* 4. Unified Discovery & Shelter Sheet */}
       <View style={[styles.appleSheetContainer, { height: SNAP_HEIGHTS[sheetSnap] }]}>
         {/* Grabber & Search Input */}
         <TouchableOpacity
@@ -311,7 +315,7 @@ export function LiveMapScreen() {
         >
           <View style={styles.sheetHandleBar} />
 
-          {/* Search Bar Row */}
+          {/* Search Bar */}
           <View style={styles.searchBarRow}>
             <Search color="#8E8E93" size={16} />
             <TextInput
@@ -337,7 +341,7 @@ export function LiveMapScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* Autocomplete Search Results (if searching) */}
+        {/* Autocomplete Search Results */}
         {searchActive && searchResults.length > 0 ? (
           <ScrollView style={styles.searchScroll}>
             {searchResults.map((item) => (
@@ -360,66 +364,187 @@ export function LiveMapScreen() {
           </ScrollView>
         ) : (
           <>
-            {/* Filter Pills */}
-            <View style={styles.filterPillsRow}>
-              {[
-                { id: 'all', label: 'All Incidents' },
-                { id: 'knee', label: 'Knee+ (30cm)' },
-                { id: 'waist', label: 'Waist+ (1.0m)' },
-                { id: 'chest', label: 'Chest+ (1.4m)' },
-              ].map((f) => {
-                const isSelected = selectedFilter === f.id;
-                return (
-                  <TouchableOpacity
-                    key={f.id}
-                    style={[styles.filterPill, isSelected && styles.filterPillActive]}
-                    onPress={() => setSelectedFilter(f.id)}
-                  >
-                    <Text style={[styles.filterPillText, isSelected && styles.filterPillTextActive]}>
-                      {f.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+            {/* Apple 2-Way Segmented Switcher */}
+            <View style={styles.segmentedToggleRow}>
+              <TouchableOpacity
+                style={[
+                  styles.segmentedToggleBtn,
+                  sheetCategory === 'incidents' && styles.segmentedToggleBtnActive,
+                ]}
+                onPress={() => setSheetCategory('incidents')}
+              >
+                <AlertTriangle
+                  color={sheetCategory === 'incidents' ? '#FFFFFF' : '#6C6C70'}
+                  size={14}
+                />
+                <Text
+                  style={[
+                    styles.segmentedToggleText,
+                    sheetCategory === 'incidents' && styles.segmentedToggleTextActive,
+                  ]}
+                >
+                  Flood Incidents ({filteredReports.length})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.segmentedToggleBtn,
+                  sheetCategory === 'shelters' && styles.segmentedToggleBtnActive,
+                ]}
+                onPress={() => setSheetCategory('shelters')}
+              >
+                <Home
+                  color={sheetCategory === 'shelters' ? '#FFFFFF' : '#6C6C70'}
+                  size={14}
+                />
+                <Text
+                  style={[
+                    styles.segmentedToggleText,
+                    sheetCategory === 'shelters' && styles.segmentedToggleTextActive,
+                  ]}
+                >
+                  Open Shelters ({shelters.length})
+                </Text>
+              </TouchableOpacity>
             </View>
 
-            {/* Live Incident Feed */}
-            <FlatList
-              data={filteredReports}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.listContent}
-              renderItem={({ item }) => {
-                const depthColor = getDepthColor(item.flood_depth_level);
-                return (
-                  <View style={styles.cardItem}>
-                    <View style={styles.cardTopRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.barangayTag}>BARANGAY {item.barangay_name?.toUpperCase() || 'CEBU'}</Text>
-                        <Text style={styles.incidentDesc}>{item.description}</Text>
-                      </View>
-                      <View style={[styles.depthPill, { backgroundColor: `${depthColor}18`, borderColor: `${depthColor}40` }]}>
-                        <View style={[styles.depthDot, { backgroundColor: depthColor }]} />
-                        <Text style={[styles.depthPillText, { color: depthColor }]}>
-                          {item.flood_depth_level?.toUpperCase()}
+            {/* Content Body */}
+            {sheetCategory === 'incidents' ? (
+              <>
+                {/* Depth Filter Pills */}
+                <View style={styles.filterPillsRow}>
+                  {[
+                    { id: 'all', label: 'All' },
+                    { id: 'knee', label: 'Knee+' },
+                    { id: 'waist', label: 'Waist+' },
+                    { id: 'chest', label: 'Chest+' },
+                  ].map((f) => {
+                    const isSelected = selectedFilter === f.id;
+                    return (
+                      <TouchableOpacity
+                        key={f.id}
+                        style={[styles.filterPill, isSelected && styles.filterPillActive]}
+                        onPress={() => setSelectedFilter(f.id)}
+                      >
+                        <Text style={[styles.filterPillText, isSelected && styles.filterPillTextActive]}>
+                          {f.label}
                         </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Incident Cards */}
+                <FlatList
+                  data={filteredReports}
+                  keyExtractor={(item) => item.id}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.listContent}
+                  renderItem={({ item }) => {
+                    const depthColor = getDepthColor(item.flood_depth_level);
+                    return (
+                      <View style={styles.cardItem}>
+                        <View style={styles.cardTopRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.barangayTag}>BARANGAY {item.barangay_name?.toUpperCase() || 'CEBU'}</Text>
+                            <Text style={styles.incidentDesc}>{item.description}</Text>
+                          </View>
+                          <View style={[styles.depthPill, { backgroundColor: `${depthColor}18`, borderColor: `${depthColor}40` }]}>
+                            <View style={[styles.depthDot, { backgroundColor: depthColor }]} />
+                            <Text style={[styles.depthPillText, { color: depthColor }]}>
+                              {item.flood_depth_level?.toUpperCase()}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.cardMetaRow}>
+                          <Text style={styles.cardTime}>
+                            Logged at {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} &bull; GPS Tagged
+                          </Text>
+                          {item.verified && (
+                            <View style={styles.verifiedBadge}>
+                              <CheckCircle color="#34C759" size={11} />
+                              <Text style={styles.verifiedText}>Verified</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    );
+                  }}
+                />
+              </>
+            ) : (
+              /* Evacuation Shelters List */
+              <FlatList
+                data={shelters}
+                keyExtractor={(item) => item.id}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.listContent}
+                renderItem={({ item }) => {
+                  const occPct = Math.round(
+                    ((item.current_occupancy || 0) / item.max_capacity) * 100
+                  );
+                  return (
+                    <View style={styles.shelterCard}>
+                      <View style={styles.cardTopRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.barangayTag}>BARANGAY {item.barangay_name?.toUpperCase()}</Text>
+                          <Text style={styles.shelterName}>{item.name}</Text>
+                          <Text style={styles.shelterAddress}>
+                            📍 {item.distance_meters}m away &bull; {item.status?.toUpperCase()}
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity
+                          style={styles.callButton}
+                          onPress={() => handleCall(item.contact_number)}
+                        >
+                          <PhoneCall color="#FFFFFF" size={12} />
+                          <Text style={styles.callButtonText}>Call</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Capacity Bar */}
+                      <View style={styles.occupancyBox}>
+                        <View style={styles.occupancyLabels}>
+                          <Text style={styles.occupancyLabel}>Capacity Occupancy</Text>
+                          <Text style={styles.occupancyValue}>
+                            {item.current_occupancy || 0} / {item.max_capacity} ({occPct}%)
+                          </Text>
+                        </View>
+                        <View style={styles.barBackground}>
+                          <View
+                            style={[
+                              styles.barFill,
+                              {
+                                width: `${Math.min(100, occPct)}%`,
+                                backgroundColor: occPct >= 90 ? '#FF3B30' : '#34C759',
+                              },
+                            ]}
+                          />
+                        </View>
+                      </View>
+
+                      {/* Facilities Row */}
+                      <View style={styles.facilitiesRow}>
+                        <View style={styles.facilityPill}>
+                          <Zap color="#FF9500" size={10} />
+                          <Text style={styles.facilityText}>Generator</Text>
+                        </View>
+                        <View style={styles.facilityPill}>
+                          <Droplets color="#007AFF" size={10} />
+                          <Text style={styles.facilityText}>Clean Water</Text>
+                        </View>
+                        <View style={styles.facilityPill}>
+                          <HeartPulse color="#FF3B30" size={10} />
+                          <Text style={styles.facilityText}>First Aid</Text>
+                        </View>
                       </View>
                     </View>
-                    <View style={styles.cardMetaRow}>
-                      <Text style={styles.cardTime}>
-                        Logged at {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} &bull; GPS Tagged
-                      </Text>
-                      {item.verified && (
-                        <View style={styles.verifiedBadge}>
-                          <CheckCircle color="#34C759" size={11} />
-                          <Text style={styles.verifiedText}>Verified</Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                );
-              }}
-            />
+                  );
+                }}
+              />
+            )}
           </>
         )}
       </View>
@@ -732,22 +857,58 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#8E8E93',
   },
+  segmentedToggleRow: {
+    flexDirection: 'row',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 16,
+    padding: 3.5,
+    marginHorizontal: 16,
+    marginBottom: 6,
+    gap: 4,
+  },
+  segmentedToggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7,
+    borderRadius: 13,
+    gap: 6,
+  },
+  segmentedToggleBtnActive: {
+    backgroundColor: '#007AFF',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  segmentedToggleText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6C6C70',
+  },
+  segmentedToggleTextActive: {
+    color: '#FFFFFF',
+  },
   filterPillsRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingVertical: 4,
     gap: 6,
   },
   filterPill: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F2F2F7',
-    paddingVertical: 6.5,
-    borderRadius: 12,
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    paddingVertical: 5.5,
+    borderRadius: 10,
   },
   filterPillActive: {
     backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
   },
   filterPillText: {
     fontSize: 10.5,
@@ -770,6 +931,14 @@ const styles = StyleSheet.create({
     borderColor: '#E5E5EA',
     gap: 6,
   },
+  shelterCard: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    gap: 8,
+  },
   cardTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -786,6 +955,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#1C1C1E',
+    marginTop: 2,
+  },
+  shelterName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    marginTop: 2,
+  },
+  shelterAddress: {
+    fontSize: 11,
+    color: '#8E8E93',
     marginTop: 2,
   },
   depthPill: {
@@ -825,6 +1005,67 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: '#34C759',
+  },
+  occupancyBox: {
+    gap: 3,
+  },
+  occupancyLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  occupancyLabel: {
+    fontSize: 10,
+    color: '#8E8E93',
+    fontWeight: '600',
+  },
+  occupancyValue: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#1C1C1E',
+  },
+  barBackground: {
+    height: 5,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 2.5,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 2.5,
+  },
+  facilitiesRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  facilityPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  facilityText: {
+    fontSize: 9.5,
+    color: '#6C6C70',
+    fontWeight: '600',
+  },
+  callButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#34C759',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 4,
+  },
+  callButtonText: {
+    color: '#FFFFFF',
+    fontSize: 10.5,
+    fontWeight: '800',
   },
   modalOverlay: {
     flex: 1,

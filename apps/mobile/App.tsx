@@ -3,11 +3,10 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Map, PlusCircle, Compass, ShieldCheck, User } from 'lucide-react-native';
+import { Map, PlusCircle, ShieldCheck, User } from 'lucide-react-native';
 
 import { LiveMapScreen } from './src/screens/LiveMapScreen';
 import { ReportFloodScreen } from './src/screens/ReportFloodScreen';
-import { SafeEvacuationScreen } from './src/screens/SafeEvacuationScreen';
 import { SafetyNetworkScreen } from './src/screens/SafetyNetworkScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 
@@ -57,16 +56,19 @@ export default function App() {
             },
           }}
         >
+          {/* 1. Spatial Nervous Center (Map + Incidents + Shelters) */}
           <Tab.Screen
             name="LiveMap"
             component={LiveMapScreen}
             options={{
-              headerShown: false, // Edge-to-edge Apple Maps living canvas
+              headerShown: false,
               title: 'Cebu Flood Map',
               tabBarLabel: 'Map',
               tabBarIcon: ({ color }) => <Map color={color} size={22} />,
             }}
           />
+
+          {/* 2. Rapid Incident Reporting Wizard */}
           <Tab.Screen
             name="ReportFlood"
             component={ReportFloodScreen}
@@ -76,24 +78,19 @@ export default function App() {
               tabBarIcon: ({ color }) => <PlusCircle color={color} size={22} />,
             }}
           />
-          <Tab.Screen
-            name="Evacuation"
-            component={SafeEvacuationScreen}
-            options={{
-              title: 'Safe Evacuation',
-              tabBarLabel: 'Evacuate',
-              tabBarIcon: ({ color }) => <Compass color={color} size={22} />,
-            }}
-          />
+
+          {/* 3. Safety Network & 1-Tap SOS */}
           <Tab.Screen
             name="Safety"
             component={SafetyNetworkScreen}
             options={{
               title: 'Safety Network',
-              tabBarLabel: 'Safe',
+              tabBarLabel: 'Safety',
               tabBarIcon: ({ color }) => <ShieldCheck color={color} size={22} />,
             }}
           />
+
+          {/* 4. Settings & Geofence Alerts */}
           <Tab.Screen
             name="Profile"
             component={ProfileScreen}
