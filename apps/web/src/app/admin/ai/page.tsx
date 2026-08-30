@@ -17,6 +17,7 @@ import {
   Zap,
   Key,
   ShieldCheck,
+  Lock,
 } from 'lucide-react';
 import { fetchApi } from '../../../lib/api';
 
@@ -114,8 +115,8 @@ export default function AIAdminPage() {
       setSavedSuccess(true);
       setHasStoredKey(true);
       setTimeout(() => setSavedSuccess(false), 3000);
-    } catch {
-      alert('Error saving configuration to backend.');
+    } catch (err: any) {
+      alert(err.message || 'Error saving configuration to backend.');
     } finally {
       setSaving(false);
     }
@@ -131,10 +132,10 @@ export default function AIAdminPage() {
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight text-[#1C1C1E]">
-              AI Model Provider & API Key Console
+              AI Foundation Model & Secret API Gateway
             </h1>
             <p className="text-xs text-[#8E8E93] font-medium mt-0.5">
-              Choose your AI foundation model, configure secret API keys, and set automated water-depth thresholds
+              Securely configure foundation models, secret API keys, and automated flood triage thresholds
             </p>
           </div>
         </div>
@@ -142,19 +143,37 @@ export default function AIAdminPage() {
         <div className="flex items-center gap-3">
           {savedSuccess && (
             <span className="text-xs font-bold text-[#34C759] flex items-center gap-1 bg-[#EBF9EE] px-3 py-1.5 rounded-xl border border-[#C3F0CD]">
-              <CheckCircle2 className="w-4 h-4" /> AI Configurations Active!
+              <CheckCircle2 className="w-4 h-4" /> AI Configuration Saved!
             </span>
           )}
 
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#007AFF] hover:bg-[#0062CC] text-white text-xs font-extrabold shadow-md shadow-blue-500/20 transition-all"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#007AFF] hover:bg-[#0062CC] text-white text-xs font-extrabold shadow-md shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {saving ? 'Saving...' : 'Save AI Credentials'}
           </button>
         </div>
+      </div>
+
+      {/* Security Architecture Badge */}
+      <div className="bg-[#F8F9FA] border border-[#E5E5EA] rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-[#E5F1FF] flex items-center justify-center text-[#007AFF]">
+            <ShieldCheck className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-[#1C1C1E]">Zero-Exposure Backend Proxy Protection</p>
+            <p className="text-[11px] text-[#8E8E93]">
+              API keys are stored exclusively in backend memory and never sent to citizens, browsers, or mobile clients.
+            </p>
+          </div>
+        </div>
+        <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-lg bg-[#EBF9EE] text-[#34C759] border border-[#C3F0CD] flex items-center gap-1">
+          <Lock className="w-3 h-3" /> RBAC Admin Gated
+        </span>
       </div>
 
       {/* Primary Card: AI Provider & API Key Provisioning */}
@@ -190,7 +209,7 @@ export default function AIAdminPage() {
                 else if (prov === 'openai') setModelName('gpt-4o-mini');
                 else setModelName('claude-3-5-sonnet');
               }}
-              className="w-full p-3 rounded-2xl bg-[#F8F9FA] border border-[#E5E5EA] text-xs font-bold text-[#1C1C1E] focus:outline-none"
+              className="w-full p-3 rounded-2xl bg-[#F8F9FA] border border-[#E5E5EA] text-xs font-bold text-[#1C1C1E] focus:outline-none cursor-pointer"
             >
               <option value="gemini">Google Gemini AI (Recommended — Gemini 1.5 Flash)</option>
               <option value="openai">OpenAI (GPT-4o / GPT-4o-mini)</option>
@@ -222,12 +241,13 @@ export default function AIAdminPage() {
                 type={showApiKey ? 'text' : 'password'}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Paste your AI API Key (e.g. AIzaSy...)"
+                placeholder="Paste secret API key (e.g. AIzaSy...)"
                 className="flex-1 p-3 rounded-2xl bg-[#F8F9FA] border border-[#E5E5EA] text-xs font-mono font-bold text-[#1C1C1E] focus:outline-none"
               />
               <button
+                type="button"
                 onClick={() => setShowApiKey(!showApiKey)}
-                className="p-3 rounded-2xl bg-[#F8F9FA] border border-[#E5E5EA] text-[#8E8E93] hover:text-[#1C1C1E]"
+                className="p-3 rounded-2xl bg-[#F8F9FA] border border-[#E5E5EA] text-[#8E8E93] hover:text-[#1C1C1E] cursor-pointer"
               >
                 {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -256,7 +276,7 @@ export default function AIAdminPage() {
           <button
             onClick={handleTestKey}
             disabled={testing || (!apiKey && !hasStoredKey)}
-            className="px-4 py-2.5 rounded-2xl bg-[#E5F1FF] text-[#007AFF] hover:bg-[#007AFF] hover:text-white text-xs font-extrabold flex items-center gap-2 transition-all"
+            className="px-4 py-2.5 rounded-2xl bg-[#E5F1FF] text-[#007AFF] hover:bg-[#007AFF] hover:text-white text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${testing ? 'animate-spin' : ''}`} />
             {testing ? 'Verifying AI API...' : 'Test AI API Key Live'}
@@ -278,87 +298,81 @@ export default function AIAdminPage() {
             </span>
           </div>
 
-          <div className="space-y-4 text-xs">
-            <div>
-              <div className="flex justify-between items-center mb-1.5">
-                <span className="text-[11px] font-extrabold uppercase text-[#8E8E93]">
-                  Minimum Confidence Level
-                </span>
-                <span className="font-mono font-bold text-[#007AFF]">{Math.round(confidenceThreshold * 100)}%</span>
-              </div>
-              <input
-                type="range"
-                min={0.5}
-                max={0.99}
-                step={0.01}
-                value={confidenceThreshold}
-                onChange={(e) => setConfidenceThreshold(Number(e.target.value))}
-                className="w-full h-2 bg-[#E5E5EA] rounded-lg appearance-none cursor-pointer accent-[#007AFF]"
-              />
+          {/* Water Depth Confidence Slider */}
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs font-bold">
+              <span className="text-[#1C1C1E]">Minimum Flood Detection Confidence</span>
+              <span className="text-[#007AFF]">{(confidenceThreshold * 100).toFixed(0)}%</span>
             </div>
+            <input
+              type="range"
+              min="0.5"
+              max="0.99"
+              step="0.01"
+              value={confidenceThreshold}
+              onChange={(e) => setConfidenceThreshold(parseFloat(e.target.value))}
+              className="w-full accent-[#007AFF] cursor-pointer"
+            />
+            <p className="text-[10px] text-[#8E8E93]">Citizen photos below this score will be flagged for manual dispatcher review.</p>
+          </div>
 
-            <div className="p-3.5 rounded-2xl bg-[#F8F9FA] border border-[#E5E5EA] space-y-2">
-              <label className="flex items-center justify-between cursor-pointer">
-                <div>
-                  <p className="font-extrabold text-xs text-[#1C1C1E]">Autonomous Triage Pass</p>
-                  <p className="text-[10px] text-[#8E8E93]">Auto-verify dispatches if confidence &ge; {Math.round(autoVerifyThreshold * 100)}%</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={autoVerify}
-                  onChange={(e) => setAutoVerify(e.target.checked)}
-                  className="rounded text-[#007AFF] focus:ring-0 cursor-pointer"
-                />
-              </label>
+          {/* Auto-Verify Checkbox */}
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-[#F8F9FA] border border-[#E5E5EA]">
+            <div>
+              <p className="text-xs font-extrabold text-[#1C1C1E]">Auto-Verify High-Confidence Reports</p>
+              <p className="text-[10px] text-[#8E8E93]">Immediately mark incidents verified if AI score is {'>'} {(autoVerifyThreshold * 100).toFixed(0)}%</p>
             </div>
+            <input
+              type="checkbox"
+              checked={autoVerify}
+              onChange={(e) => setAutoVerify(e.target.checked)}
+              className="w-5 h-5 rounded-md accent-[#007AFF] cursor-pointer"
+            />
           </div>
         </div>
 
-        {/* NLP Regional Dialect Localization */}
+        {/* NLP & Translation Settings */}
         <div className="bg-white border border-[#E5E5EA] rounded-3xl p-5 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-[#F2F2F7] pb-3">
             <div className="flex items-center gap-2">
-              <Languages className="w-4 h-4 text-[#AF52DE]" />
-              <h3 className="text-sm font-black text-[#1C1C1E]">Bilingual Disaster Dialect</h3>
+              <Languages className="w-4 h-4 text-[#007AFF]" />
+              <h3 className="text-sm font-black text-[#1C1C1E]">Bilingual Broadcast Intelligence</h3>
             </div>
-            <span className="text-[10px] font-black uppercase bg-[#F7ECFB] text-[#AF52DE] px-2 py-0.5 rounded-full">
-              Bisaya / English
+            <span className="text-[10px] font-black uppercase bg-[#E5F1FF] text-[#007AFF] px-2 py-0.5 rounded-full">
+              EN + CEB
             </span>
           </div>
 
-          <div className="space-y-4 text-xs">
-            <div>
-              <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1.5">
-                Target Regional Cebuano Dialect
-              </label>
-              <select
-                value={cebuanoDialect}
-                onChange={(e) => setCebuanoDialect(e.target.value)}
-                className="w-full p-2.5 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] text-xs font-bold text-[#1C1C1E] focus:outline-none"
-              >
-                <option>Urban Metro Cebuano (Standard CDRRMO)</option>
-                <option>Southern Cebu Colloquial</option>
-                <option>Coastal / Port Maritime Bisaya</option>
-              </select>
-            </div>
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block">
+              Regional Dialect & Tone
+            </label>
+            <select
+              value={cebuanoDialect}
+              onChange={(e) => setCebuanoDialect(e.target.value)}
+              className="w-full p-3 rounded-2xl bg-[#F8F9FA] border border-[#E5E5EA] text-xs font-bold text-[#1C1C1E] focus:outline-none cursor-pointer"
+            >
+              <option value="Urban Metro Cebuano (Bisaya)">Urban Metro Cebuano (Bisaya) — High Urgency</option>
+              <option value="Formal Cebuano (Provincial Government Standard)">Formal Cebuano (Provincial Standard)</option>
+              <option value="Colloquial Cebuano (Casual / Youth Alert)">Colloquial Cebuano (Casual / Clear)</option>
+            </select>
+          </div>
 
-            <div>
-              <div className="flex justify-between items-center mb-1.5">
-                <span className="text-[11px] font-extrabold uppercase text-[#8E8E93]">
-                  Predictive Flood Inundation Lead Time
-                </span>
-                <span className="font-mono font-bold text-[#FF9500]">{predictionLeadTime} Minutes</span>
-              </div>
-              <input
-                type="range"
-                min={15}
-                max={120}
-                step={5}
-                value={predictionLeadTime}
-                onChange={(e) => setPredictionLeadTime(Number(e.target.value))}
-                className="w-full h-2 bg-[#E5E5EA] rounded-lg appearance-none cursor-pointer accent-[#FF9500]"
-              />
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs font-bold">
+              <span className="text-[#1C1C1E]">AI Flood Inundation Lead Time</span>
+              <span className="text-[#007AFF]">{predictionLeadTime} Minutes</span>
             </div>
+            <input
+              type="range"
+              min="15"
+              max="120"
+              step="5"
+              value={predictionLeadTime}
+              onChange={(e) => setPredictionLeadTime(parseInt(e.target.value, 10))}
+              className="w-full accent-[#007AFF] cursor-pointer"
+            />
+            <p className="text-[10px] text-[#8E8E93]">Predictive time window for automated catchment surge alerts.</p>
           </div>
         </div>
       </div>
