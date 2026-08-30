@@ -1,44 +1,35 @@
 import admin from 'firebase-admin';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { config } from './env.js';
 
 let firebaseApp: admin.app.App | null = null;
 
+/**
+ * 12-Factor Compliant Firebase Admin SDK Initialization
+ * Strictly reads secrets from environment variables (process.env.FIREBASE_*)
+ */
 export function initFirebaseAdmin(): admin.app.App | null {
   if (firebaseApp) return firebaseApp;
 
   try {
-    const serviceAccountPath = path.resolve(__dirname, '../../serviceAccountKey.json');
+    const { projectId, clientEmail, privateKey } = config.firebase;
 
-    if (fs.existsSync(serviceAccountPath)) {
-      const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-      firebaseApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
-      console.log(`🔥 Firebase Admin SDK successfully initialized for project '${serviceAccount.project_id}'`);
-      return firebaseApp;
-    }
-
-    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
+    if (projectId && clientEmail && privateKey) {
       firebaseApp = admin.initializeApp({
         credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+          projectId,
+          clientEmail,
+          privateKey,
         }),
       });
-      console.log(`🔥 Firebase Admin SDK initialized from environment variables for project '${process.env.FIREBASE_PROJECT_ID}'`);
+
+      console.log(`🔥 [Firebase Admin SDK] Successfully initialized from environment variables for project '${projectId}'`);
       return firebaseApp;
     }
 
-    console.log('ℹ️ Firebase Admin SDK running in simulated mode (no service account found).');
+    console.log('ℹ️ [Firebase Admin SDK] Running in simulated mode (no environment variables configured).');
     return null;
   } catch (err: any) {
-    console.warn('⚠️ Failed to initialize Firebase Admin SDK:', err.message);
+    console.warn('⚠️ [Firebase Admin SDK] Failed to initialize from environment:', err.message);
     return null;
   }
 }
