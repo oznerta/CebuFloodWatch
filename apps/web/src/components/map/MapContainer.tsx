@@ -36,14 +36,14 @@ export type FloodScenario = '5yr' | '25yr' | '100yr' | 'none';
 const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
-    // 1. Google Clean Roads (Default - High-Res Crisp Road Network with ZERO commercial POIs/resorts/hotels)
+    // 1. Google Clean Roads (Default - NO Commercial POIs, NO Hotels, NO Resorts, NO Malls)
     'google-clean-src': {
       type: 'raster',
       tiles: [
-        'https://mt0.google.com/vt/lyrs=r&x={x}&y={y}&z={z}',
-        'https://mt1.google.com/vt/lyrs=r&x={x}&y={y}&z={z}',
-        'https://mt2.google.com/vt/lyrs=r&x={x}&y={y}&z={z}',
-        'https://mt3.google.com/vt/lyrs=r&x={x}&y={y}&z={z}',
+        'https://mt0.google.com/vt/lyrs=m&apistyle=s.t:49|p.v:off|s.t:6|p.v:off|s.t:3|p.v:off|s.t:1|p.v:off&x={x}&y={y}&z={z}',
+        'https://mt1.google.com/vt/lyrs=m&apistyle=s.t:49|p.v:off|s.t:6|p.v:off|s.t:3|p.v:off|s.t:1|p.v:off&x={x}&y={y}&z={z}',
+        'https://mt2.google.com/vt/lyrs=m&apistyle=s.t:49|p.v:off|s.t:6|p.v:off|s.t:3|p.v:off|s.t:1|p.v:off&x={x}&y={y}&z={z}',
+        'https://mt3.google.com/vt/lyrs=m&apistyle=s.t:49|p.v:off|s.t:6|p.v:off|s.t:3|p.v:off|s.t:1|p.v:off&x={x}&y={y}&z={z}',
       ],
       tileSize: 256,
       maxzoom: 20,
@@ -511,6 +511,24 @@ export function MapContainer({
         styleKey === 'dark' ? '#718096' : styleKey === 'hybrid' ? '#FFFFFF' : '#94A3B8'
       );
     }
+  };
+
+  // Instant Toggle for Commercial POIs (Hotels, Resorts, Malls)
+  const handleTogglePOIs = (enabled: boolean) => {
+    setShowCommercialPOIs(enabled);
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+
+    const targetStyle: MapTileStyle = enabled ? 'poi' : 'clean';
+    setCurrentStyle(targetStyle);
+
+    const styles: MapTileStyle[] = ['clean', 'poi', 'hybrid', 'carto', 'dark'];
+    styles.forEach((key) => {
+      const layerId = `base-layer-${key}`;
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, 'visibility', key === targetStyle ? 'visible' : 'none');
+      }
+    });
   };
 
   // Sync Commercial POIs toggle with basemap layer
@@ -1022,7 +1040,7 @@ export function MapContainer({
                   <input
                     type="checkbox"
                     checked={showCommercialPOIs}
-                    onChange={(e) => setShowCommercialPOIs(e.target.checked)}
+                    onChange={(e) => handleTogglePOIs(e.target.checked)}
                     className="rounded text-blue-600 focus:ring-0 cursor-pointer w-4 h-4"
                   />
                 </label>
