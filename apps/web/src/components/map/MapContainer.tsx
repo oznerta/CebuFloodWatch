@@ -539,8 +539,6 @@ export function MapContainer({
 
       const el = document.createElement('div');
       el.className = 'cursor-pointer group';
-      el.addEventListener('click', (ev) => ev.stopPropagation());
-      el.addEventListener('pointerdown', (ev) => ev.stopPropagation());
       el.innerHTML = `
         <div class="relative flex items-center justify-center">
           ${isOpen ? '<span class="animate-ping absolute inline-flex h-7 w-7 rounded-full bg-emerald-400 opacity-60"></span>' : ''}
@@ -590,8 +588,6 @@ export function MapContainer({
 
       const el = document.createElement('div');
       el.className = 'cursor-pointer group';
-      el.addEventListener('click', (ev) => ev.stopPropagation());
-      el.addEventListener('pointerdown', (ev) => ev.stopPropagation());
       el.innerHTML = `
         <div class="relative flex items-center justify-center">
           <span class="animate-ping absolute inline-flex h-8 w-8 rounded-full opacity-75" style="background-color: ${color}"></span>
@@ -643,8 +639,6 @@ export function MapContainer({
 
       const el = document.createElement('div');
       el.className = 'cursor-pointer group';
-      el.addEventListener('click', (ev) => ev.stopPropagation());
-      el.addEventListener('pointerdown', (ev) => ev.stopPropagation());
       el.innerHTML = `
         <div class="relative flex items-center justify-center">
           <span class="animate-ping absolute inline-flex h-9 w-9 rounded-full opacity-75" style="background-color: ${color}"></span>
