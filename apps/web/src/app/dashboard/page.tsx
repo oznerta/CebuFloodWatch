@@ -14,7 +14,6 @@ import {
   XCircle,
   FileCheck,
   ChevronRight,
-  CloudRain,
   Waves,
   MapPin,
   Sparkles,
@@ -27,8 +26,12 @@ import {
   Layers,
   Sliders,
   Compass,
+  CloudRain,
   Wind,
   Thermometer,
+  Activity,
+  Gauge,
+  Navigation,
 } from 'lucide-react';
 import { MapContainer } from '../../components/map/MapContainer';
 import { fetchApi } from '../../lib/api';
@@ -71,6 +74,20 @@ export default function DashboardPage() {
   useEffect(() => {
     loadData();
 
+    // Auto-refresh live weather and stream gauges every 30 seconds
+    const interval = setInterval(() => {
+      fetchApi<any>('/telemetry/weather')
+        .then((res) => {
+          if (res && res.data) setWeatherData(res.data);
+        })
+        .catch(() => {});
+      fetchApi<any[]>('/telemetry/stations')
+        .then((st) => {
+          if (st && Array.isArray(st)) setStations(st);
+        })
+        .catch(() => {});
+    }, 30000);
+
     const socket = getSocket();
     if (socket) {
       socket.on('report:created', (newReport: any) => {
@@ -105,6 +122,7 @@ export default function DashboardPage() {
     }
 
     return () => {
+      clearInterval(interval);
       if (socket) {
         socket.off('report:created');
         socket.off('report:status_changed');
@@ -126,8 +144,8 @@ export default function DashboardPage() {
         prev.map((r) => (r.id === reportId ? { ...r, status: nextStatus } : r))
       );
     } catch (err: any) {
-      console.error('Failed to update report status:', err);
-      alert(`Failed to update report status: ${err?.message || 'Server error'}`);
+      console.error('Failed to update incident status:', err);
+      alert(`Failed to update status: ${err?.message || 'Server error'}`);
     } finally {
       setActionLoading(null);
     }
@@ -139,8 +157,19 @@ export default function DashboardPage() {
         detail: {
           latitude: report.latitude,
           longitude: report.longitude,
-          name: `Flood Report: ${report.barangay_name}`,
-          category: 'report',
+          name: report.barangay_name || 'Incident Pin',
+        },
+      })
+    );
+  };
+
+  const handleFlyToStation = (station: any) => {
+    window.dispatchEvent(
+      new CustomEvent('map:flyto', {
+        detail: {
+          latitude: station.latitude,
+          longitude: station.longitude,
+          name: station.station_name,
         },
       })
     );
@@ -183,30 +212,40 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* 2. Top Executive Command Ribbon (Single Sleek Bar) */}
+      {/* 2. Top Executive Command Ribbon (Apple Glassmorphism Bar) */}
       <div className="absolute top-4 left-6 right-6 z-20 pointer-events-none flex items-center justify-between gap-4">
-        {/* Left Status Bar with Live Metrics */}
-        <div className="pointer-events-auto flex items-center gap-3 bg-white/95 backdrop-blur-2xl border border-gray-200/90 px-4 py-2 rounded-2xl shadow-xl">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs font-black text-gray-900 uppercase tracking-wider">
-            Metro Cebu Situation Room
-          </span>
+        {/* Left Status Ribbon with Live Environmental Telemetry */}
+        <div className="pointer-events-auto flex items-center gap-3 bg-white/95 backdrop-blur-2xl border border-gray-200/90 px-4 py-2.5 rounded-2xl shadow-xl">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-black text-gray-900 uppercase tracking-wider">
+              Situation Room
+            </span>
+          </div>
+
           <span className="text-xs text-gray-300">&bull;</span>
-          <span className="text-xs font-bold text-rose-600 flex items-center gap-1">
+
+          <span className="text-xs font-bold text-rose-600 flex items-center gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
             {reports.length} Incidents
           </span>
+
           <span className="text-xs text-gray-300">&bull;</span>
-          <span className="text-xs font-bold text-blue-600 flex items-center gap-1">
-            <Home className="w-3.5 h-3.5 text-blue-500" />
+
+          <span className="text-xs font-bold text-emerald-600 flex items-center gap-1.5">
+            <Home className="w-3.5 h-3.5 text-emerald-500" />
             {openSheltersCount} Open Shelters
           </span>
+
           <span className="text-xs text-gray-300">&bull;</span>
-          <span className="text-xs font-bold text-indigo-600 flex items-center gap-1" title="Astronomical harmonic tide model for Cebu Port Pier 1 (MLLW)">
+
+          <span className="text-xs font-bold text-indigo-600 flex items-center gap-1.5" title="Astronomical harmonic tide model for Cebu Port Pier 1 (MLLW)">
             <Waves className="w-3.5 h-3.5 text-indigo-500" />
-            Harmonic Tide {tide >= 0 ? '+' : ''}{tide}m
+            Tide {tide >= 0 ? '+' : ''}{tide}m
           </span>
+
           <span className="text-xs text-gray-300">&bull;</span>
+
           <span className="text-xs font-bold text-sky-600 flex items-center gap-1.5" title="DOST-PAGASA Mactan Doppler Radar & Precipitation Stream">
             <CloudRain className="w-3.5 h-3.5 text-sky-500" />
             PAGASA Doppler {weatherData?.precipitation_mmh ?? 0} mm/h &bull; {weatherData?.temperature_c ?? 28.5}&deg;C
@@ -218,22 +257,25 @@ export default function DashboardPage() {
           {/* Toggle Telemetry */}
           <button
             onClick={() => setActivePanel(activePanel === 'telemetry' ? null : 'telemetry')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activePanel === 'telemetry'
-                ? 'bg-blue-600 text-white shadow-sm'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
                 : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
             <Radio className="w-3.5 h-3.5" />
             <span>Telemetry &amp; Tides</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${activePanel === 'telemetry' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'}`}>
+              {stations.length}
+            </span>
           </button>
 
           {/* Toggle Incident Triage */}
           <button
             onClick={() => setActivePanel(activePanel === 'triage' ? null : 'triage')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activePanel === 'triage'
-                ? 'bg-blue-600 text-white shadow-sm'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
                 : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
@@ -252,7 +294,7 @@ export default function DashboardPage() {
           <button
             onClick={() => setActivePanel(activePanel ? null : 'telemetry')}
             title="Toggle full screen clean map view"
-            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold transition-all cursor-pointer"
           >
             {activePanel ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
             <span>{activePanel ? 'Clean Map' : 'Open Panel'}</span>
@@ -297,7 +339,7 @@ export default function DashboardPage() {
             {activePanel === 'telemetry' && (
               <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-13rem)] pr-1">
                 {/* 1. DOST-PAGASA Weather Doppler Stream Card */}
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-blue-50/70 border border-sky-100 space-y-3">
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-blue-50/70 border border-sky-100 space-y-3 shadow-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-sky-950 flex items-center gap-1.5">
                       <CloudRain className="w-4 h-4 text-sky-600" />
@@ -316,34 +358,40 @@ export default function DashboardPage() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 text-xs">
-                    <div className="p-2.5 rounded-xl bg-white border border-sky-100 text-center">
-                      <p className="text-[10px] font-bold text-gray-500">Rainfall</p>
-                      <p className="text-sm font-black text-sky-700 mt-0.5">
-                        {weatherData?.precipitation_mmh ?? 0} <span className="text-[10px]">mm/h</span>
+                  <div className="grid grid-cols-4 gap-1.5 text-xs">
+                    <div className="p-2 rounded-xl bg-white border border-sky-100 text-center">
+                      <p className="text-[9px] font-bold text-gray-500">Rain</p>
+                      <p className="text-xs font-black text-sky-700 mt-0.5">
+                        {weatherData?.precipitation_mmh ?? 0} <span className="text-[8px]">mm/h</span>
                       </p>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-white border border-sky-100 text-center">
-                      <p className="text-[10px] font-bold text-gray-500">Temperature</p>
-                      <p className="text-sm font-black text-gray-800 mt-0.5">
+                    <div className="p-2 rounded-xl bg-white border border-sky-100 text-center">
+                      <p className="text-[9px] font-bold text-gray-500">Temp</p>
+                      <p className="text-xs font-black text-gray-800 mt-0.5">
                         {weatherData?.temperature_c ?? 28.5}&deg;C
                       </p>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-white border border-sky-100 text-center">
-                      <p className="text-[10px] font-bold text-gray-500">Wind</p>
-                      <p className="text-sm font-black text-gray-800 mt-0.5">
-                        {weatherData?.wind_speed_kmh ?? 10} <span className="text-[10px]">km/h</span>
+                    <div className="p-2 rounded-xl bg-white border border-sky-100 text-center">
+                      <p className="text-[9px] font-bold text-gray-500">Wind</p>
+                      <p className="text-xs font-black text-gray-800 mt-0.5">
+                        {weatherData?.wind_speed_kmh ?? 10} <span className="text-[8px]">km/h</span>
+                      </p>
+                    </div>
+                    <div className="p-2 rounded-xl bg-white border border-sky-100 text-center">
+                      <p className="text-[9px] font-bold text-gray-500">Humidity</p>
+                      <p className="text-xs font-black text-gray-800 mt-0.5">
+                        {weatherData?.humidity_pct ?? 78}%
                       </p>
                     </div>
                   </div>
 
                   <div className="text-[11px] font-medium text-gray-600 bg-white/90 p-2.5 rounded-xl border border-sky-100 leading-snug">
-                    <span className="font-bold text-sky-900">Mactan Synoptic Radar:</span> {weatherData?.advisory || 'Normal atmospheric telemetry across Metro Cebu.'}
+                    <span className="font-bold text-sky-900">Mactan Radar:</span> {weatherData?.advisory || 'Normal atmospheric telemetry across Metro Cebu.'}
                   </div>
                 </div>
 
                 {/* 2. Oceanic Tidal Card */}
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50/50 border border-blue-100/80 space-y-3">
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50/50 border border-blue-100/80 space-y-3 shadow-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-blue-900 flex items-center gap-1.5">
                       <Waves className="w-4 h-4 text-blue-600" />
@@ -370,64 +418,88 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Hydrological River Gauges */}
-                <div className="space-y-2">
+                {/* 3. Hydrological River Gauges (Catchment Network) */}
+                <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-black uppercase tracking-wider text-gray-500">
                       Catchment Stream Gauges
                     </span>
-                    <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      {stations.length} Active
+                    <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                      {stations.length} Online
                     </span>
                   </div>
 
                   {stations.length > 0 ? (
-                    stations.map((st) => (
-                      <div
-                        key={st.id}
-                        className="p-3 rounded-2xl bg-gray-50 border border-gray-200/80 space-y-2 hover:border-blue-300 transition-all"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-extrabold text-xs text-gray-900">{st.station_name}</span>
-                          <span
-                            className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                              st.status === 'critical_breach'
-                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                                : st.status === 'watch'
-                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            }`}
-                          >
-                            {st.status?.replace('_', ' ')}
-                          </span>
-                        </div>
+                    stations.map((st) => {
+                      const isBreach = st.status === 'critical_breach';
+                      const isWatch = st.status === 'watch';
+                      const pct = Math.min(100, Math.round((st.water_level_meters / (st.critical_overflow_meters || 2.5)) * 100));
 
-                        {/* Progress Bar */}
-                        <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${
-                              st.water_level_meters >= st.critical_overflow_meters
-                                ? 'bg-rose-500'
-                                : 'bg-blue-600'
-                            }`}
-                            style={{
-                              width: `${Math.min(100, (st.water_level_meters / (st.critical_overflow_meters || 3)) * 100)}%`,
-                            }}
-                          />
-                        </div>
+                      return (
+                        <div
+                          key={st.id}
+                          className="p-3.5 rounded-2xl bg-white border border-gray-200/90 space-y-2.5 hover:border-blue-400 hover:shadow-sm transition-all"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h4 className="font-extrabold text-xs text-gray-900 leading-tight">
+                                {st.station_name}
+                              </h4>
+                              <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                                {st.river_basin} &bull; Brgy. {st.barangay_name}
+                              </p>
+                            </div>
+                            <span
+                              className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full shrink-0 ${
+                                isBreach
+                                  ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                  : isWatch
+                                  ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              }`}
+                            >
+                              {isBreach ? 'CRITICAL' : isWatch ? 'WATCH' : 'NORMAL'}
+                            </span>
+                          </div>
 
-                        <div className="flex items-center justify-between text-[11px] font-bold text-gray-700 pt-0.5">
-                          <span className="flex items-center gap-1 text-blue-600">
-                            <Droplet className="w-3.5 h-3.5" />
-                            {st.water_level_meters}m / {st.critical_overflow_meters}m
-                          </span>
-                          <span className="flex items-center gap-1 text-gray-500 font-normal">
-                            <CloudRain className="w-3 h-3 text-blue-500" />
-                            {st.rainfall_rate_mmh || 0} mm/h
-                          </span>
+                          {/* Gauge Fill Bar with Threshold Marks */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-[10px] font-bold text-gray-500">
+                              <span>Level: <strong className="text-gray-900">{st.water_level_meters}m</strong></span>
+                              <span>Crit: <strong className="text-rose-600">{st.critical_overflow_meters}m</strong></span>
+                            </div>
+
+                            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden relative">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  isBreach
+                                    ? 'bg-rose-500'
+                                    : isWatch
+                                    ? 'bg-amber-500'
+                                    : 'bg-blue-600'
+                                }`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[10px] font-semibold text-gray-600 pt-1 border-t border-gray-100">
+                            <span className="flex items-center gap-1 text-sky-600">
+                              <CloudRain className="w-3 h-3" />
+                              {st.rainfall_rate_mmh || 0} mm/h
+                            </span>
+
+                            <button
+                              onClick={() => handleFlyToStation(st)}
+                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-bold cursor-pointer hover:underline"
+                            >
+                              <Navigation className="w-3 h-3" />
+                              <span>Locate</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="py-8 text-center text-xs text-gray-400 space-y-1.5 bg-gray-50 rounded-2xl border border-gray-200">
                       <Radio className="w-6 h-6 mx-auto text-gray-300" />
@@ -447,7 +519,7 @@ export default function DashboardPage() {
                     <div
                       key={report.id}
                       onClick={() => handleFlyToReport(report)}
-                      className="p-3.5 rounded-2xl border border-gray-200 bg-gray-50 hover:bg-white hover:shadow-md transition-all space-y-2 cursor-pointer group"
+                      className="p-3.5 rounded-2xl border border-gray-200 bg-white hover:border-blue-400 hover:shadow-md transition-all space-y-2.5 cursor-pointer group"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
@@ -468,51 +540,22 @@ export default function DashboardPage() {
                       </div>
 
                       <p className="text-xs text-gray-700 font-normal leading-relaxed line-clamp-2">
-                        {report.description || 'No additional field notes.'}
+                        {report.description || 'Verified flood incident pin.'}
                       </p>
 
-                      <div className="flex items-center justify-between text-[10px] text-gray-400 border-t border-gray-100 pt-1.5">
-                        <span className="font-mono">GPS: {report.latitude?.toFixed(4)}, {report.longitude?.toFixed(4)}</span>
-                        <span className="text-blue-600 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                          Fly to Pin &rarr;
+                      <div className="flex items-center justify-between pt-1 border-t border-gray-100 text-[10px] text-gray-400">
+                        <span>{new Date(report.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className="font-bold text-blue-600 group-hover:underline flex items-center gap-0.5">
+                          Focus on Map &rarr;
                         </span>
-                      </div>
-
-                      {/* Quick Triage Buttons */}
-                      <div
-                        className="flex items-center justify-end gap-1.5 pt-1"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {report.status !== 'verified' && (
-                          <button
-                            onClick={() => handleUpdateStatus(report.id, 'verified')}
-                            disabled={actionLoading === report.id}
-                            className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white text-[10px] font-extrabold flex items-center gap-1 transition-all cursor-pointer"
-                          >
-                            <CheckCircle2 className="w-3 h-3" />
-                            Verify
-                          </button>
-                        )}
-                        {report.status !== 'rejected' && (
-                          <button
-                            onClick={() => handleUpdateStatus(report.id, 'rejected')}
-                            disabled={actionLoading === report.id}
-                            className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white text-[10px] font-extrabold flex items-center gap-1 transition-all cursor-pointer"
-                          >
-                            <XCircle className="w-3 h-3" />
-                            Reject
-                          </button>
-                        )}
                       </div>
                     </div>
                   ))
                 ) : (
                   <div className="py-12 text-center text-xs text-gray-400 space-y-2 bg-gray-50 rounded-2xl border border-gray-200">
                     <Inbox className="w-8 h-8 mx-auto text-gray-300" />
-                    <p className="font-bold text-gray-800">No Active Flood Incidents</p>
-                    <p className="text-[11px] leading-relaxed max-w-[200px] mx-auto">
-                      Incoming citizen reports and verified field photos will appear here in real time.
-                    </p>
+                    <p className="font-bold text-gray-700">No active incidents</p>
+                    <p className="text-[11px] text-gray-400">All Metro Cebu flood basins clear</p>
                   </div>
                 )}
               </div>

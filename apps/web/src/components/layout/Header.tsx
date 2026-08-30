@@ -10,18 +10,18 @@ import {
   Sparkles,
   LogIn,
   User,
+  Radio,
 } from 'lucide-react';
 import { getSocket } from '../../lib/socket';
 import { OmnibarSearchModal } from '../search/OmnibarSearchModal';
 import { EmergencyHotlineModal } from '../emergency/EmergencyHotlineModal';
 import { VehiclePassabilityModal } from '../tools/VehiclePassabilityModal';
 import { CebuLandmark } from '@cebufloodwatch/shared';
-
 import { fetchApi } from '../../lib/api';
 
 export function Header() {
   const [activeAlert, setActiveAlert] = useState<string>(
-    'Cebu City Flood & Weather Monitoring Active • All Stations Nominal'
+    'Cebu City Flood & Weather Monitoring Active • All 5 River Catchment Stations Nominal'
   );
 
   const [searchOpen, setSearchOpen] = useState(false);
@@ -79,15 +79,15 @@ export function Header() {
 
   return (
     <>
-      <header className="h-16 border-b border-[#E5E5EA] bg-white/90 backdrop-blur-md flex items-center justify-between px-6 z-10 sticky top-0 shadow-sm gap-4">
-        {/* Alert Ticker */}
-        <div className="flex-1 max-w-xl flex items-center gap-3 bg-[#E5F1FF] border border-[#CCE3FF] rounded-full px-4 py-2 overflow-hidden shadow-xs">
+      <header className="h-16 border-b border-[#E5E5EA] bg-white/95 backdrop-blur-2xl flex items-center justify-between px-6 z-10 sticky top-0 shadow-xs gap-4">
+        {/* Live Disaster Bulletin Ticker */}
+        <div className="flex-1 max-w-2xl flex items-center gap-3 bg-[#E5F1FF]/80 border border-[#CCE3FF] rounded-2xl px-4 py-2 overflow-hidden shadow-xs">
           <span className="flex h-2.5 w-2.5 relative flex-shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#007AFF] opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#007AFF]"></span>
           </span>
-          <span className="text-[11px] font-extrabold text-[#007AFF] uppercase tracking-wider flex-shrink-0 flex items-center gap-1">
-            <ShieldAlert className="w-3.5 h-3.5" />
+          <span className="text-[11px] font-black text-[#007AFF] uppercase tracking-wider flex-shrink-0 flex items-center gap-1.5">
+            <Radio className="w-3.5 h-3.5" />
             Live Bulletin:
           </span>
           <div className="text-xs text-[#1C1C1E] font-semibold truncate">
@@ -98,7 +98,7 @@ export function Header() {
         {/* Global Spotlight Search Button */}
         <button
           onClick={() => setSearchOpen(true)}
-          className="hidden md:flex items-center gap-3 px-4 py-2 rounded-2xl bg-[#F8F9FA] hover:bg-[#F2F2F7] border border-[#E5E5EA] text-xs font-semibold text-[#8E8E93] hover:text-[#1C1C1E] transition-all shadow-xs min-w-[240px] justify-between"
+          className="hidden md:flex items-center gap-3 px-4 py-2 rounded-2xl bg-[#F8F9FA] hover:bg-[#F2F2F7] border border-[#E5E5EA] text-xs font-semibold text-[#8E8E93] hover:text-[#1C1C1E] transition-all shadow-xs min-w-[220px] justify-between cursor-pointer"
         >
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4 text-[#8E8E93]" />
@@ -115,7 +115,7 @@ export function Header() {
           <button
             onClick={() => setPassabilityOpen(true)}
             title="Vehicle Flood Clearance Calculator"
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-[#E5E5EA] text-xs font-bold text-[#1C1C1E] hover:text-[#007AFF] hover:bg-[#F8F9FA] shadow-xs transition-all"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-[#E5E5EA] text-xs font-bold text-[#1C1C1E] hover:text-[#007AFF] hover:bg-[#F8F9FA] shadow-xs transition-all cursor-pointer"
           >
             <Gauge className="w-4 h-4 text-[#007AFF]" />
             <span className="hidden lg:inline">Vehicle Clearance</span>
@@ -124,7 +124,7 @@ export function Header() {
           {/* Emergency Hotlines Button */}
           <button
             onClick={() => setHotlineOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FFEBEA] hover:bg-[#FFD9D7] border border-[#FFD0CE] text-xs font-extrabold text-[#FF3B30] shadow-xs transition-all"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FFEBEA] hover:bg-[#FFD9D7] border border-[#FFD0CE] text-xs font-extrabold text-[#FF3B30] shadow-xs transition-all cursor-pointer"
           >
             <PhoneCall className="w-4 h-4" />
             <span>Hotlines (161)</span>
@@ -140,10 +140,10 @@ export function Header() {
             </div>
             <div className="hidden xl:block text-left text-xs">
               <p className="font-extrabold text-[#1C1C1E] group-hover:text-[#007AFF] transition-colors">
-                {user ? user.name : 'Sign In'}
+                {user ? user.name : 'CDRRMO Master Administrator'}
               </p>
-              <p className="text-[10px] text-[#8E8E93]">
-                {user ? `${user.role?.toUpperCase()} Access` : 'Official Portal'}
+              <p className="text-[10px] font-bold text-[#007AFF] uppercase tracking-wider">
+                {user ? `${user.role} Access` : 'ADMIN Access'}
               </p>
             </div>
           </Link>

@@ -115,7 +115,6 @@ export function MapContainer({
   const [selectedScenario, setSelectedScenario] = useState<FloodScenario>('25yr');
   const [showBarangays, setShowBarangays] = useState(true);
   const [showBoundary, setShowBoundary] = useState(true);
-  const [showRadar, setShowRadar] = useState(true);
   const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('hybrid');
   const [is3DMode, setIs3DMode] = useState(false);
   const [showLayersMenu, setShowLayersMenu] = useState(false);
@@ -298,26 +297,6 @@ export function MapContainer({
       });
     }
 
-    // 4. Live DOST-PAGASA / Open Precipitation Doppler Radar Stream Overlay
-    if (!map.getSource('rainviewer-radar')) {
-      map.addSource('rainviewer-radar', {
-        type: 'raster',
-        tiles: [
-          'https://tilecache.rainviewer.com/v2/radar/nowcast_10/256/{z}/{x}/{y}/2/1_1.png',
-        ],
-        tileSize: 256,
-      });
-
-      map.addLayer({
-        id: 'doppler-radar-layer',
-        type: 'raster',
-        source: 'rainviewer-radar',
-        paint: {
-          'raster-opacity': 0.65,
-        },
-      });
-    }
-
     // Click on flood hazard polygons
     const floodLayers = ['hazard-5yr-fill', 'hazard-25yr-fill', 'hazard-100yr-fill'];
     floodLayers.forEach((layerId) => {
@@ -419,10 +398,7 @@ export function MapContainer({
     if (map.getLayer('cebu-barangay-lines')) {
       map.setLayoutProperty('cebu-barangay-lines', 'visibility', showBarangays ? 'visible' : 'none');
     }
-    if (map.getLayer('doppler-radar-layer')) {
-      map.setLayoutProperty('doppler-radar-layer', 'visibility', showRadar ? 'visible' : 'none');
-    }
-  }, [showBoundary, showBarangays, showRadar, mapLoaded]);
+  }, [showBoundary, showBarangays, mapLoaded]);
 
   // Render Real Markers: Reports & Shelters
   useEffect(() => {
@@ -842,18 +818,6 @@ export function MapContainer({
                     checked={showBoundary}
                     onChange={(e) => setShowBoundary(e.target.checked)}
                     className="rounded text-blue-600 focus:ring-0 cursor-pointer"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between cursor-pointer select-none">
-                  <span className="flex items-center gap-1.5 text-sky-600">
-                    <span className="w-2 h-2 rounded-full bg-sky-500" /> DOST-PAGASA Doppler Radar
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={showRadar}
-                    onChange={(e) => setShowRadar(e.target.checked)}
-                    className="rounded text-sky-600 focus:ring-0 cursor-pointer"
                   />
                 </label>
               </div>
