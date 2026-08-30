@@ -12,6 +12,12 @@ import {
   Minus,
   Sun,
   Moon,
+  Radio,
+  Home,
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  Building,
 } from 'lucide-react';
 
 interface MapContainerProps {
@@ -23,15 +29,27 @@ interface MapContainerProps {
   showHazardControls?: boolean;
 }
 
-export type MapTileStyle = 'streets' | 'hybrid' | 'clean' | 'dark';
+export type MapTileStyle = 'clean' | 'poi' | 'hybrid' | 'dark' | 'carto';
 export type FloodScenario = '5yr' | '25yr' | '100yr' | 'none';
 
 // Ultra-Reliable High-Resolution Multi-Engine Basemap Catalog
 const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
-    // 1. Google Clean Streets (Default - High Resolution Crisp Road Network at all zoom levels)
-    'google-streets-src': {
+    // 1. Google Clean Roads (Default - High-Res Crisp Road Network with ZERO commercial POIs/resorts/hotels)
+    'google-clean-src': {
+      type: 'raster',
+      tiles: [
+        'https://mt0.google.com/vt/lyrs=r&x={x}&y={y}&z={z}',
+        'https://mt1.google.com/vt/lyrs=r&x={x}&y={y}&z={z}',
+        'https://mt2.google.com/vt/lyrs=r&x={x}&y={y}&z={z}',
+        'https://mt3.google.com/vt/lyrs=r&x={x}&y={y}&z={z}',
+      ],
+      tileSize: 256,
+      maxzoom: 20,
+    },
+    // 2. Google Standard with Commercial POIs (Hotels, Resorts, Malls)
+    'google-poi-src': {
       type: 'raster',
       tiles: [
         'https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
@@ -42,7 +60,7 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       tileSize: 256,
       maxzoom: 20,
     },
-    // 2. Google Hybrid Satellite (High-Res Aerial + Street Overlay)
+    // 3. Google Hybrid Satellite (High-Res Aerial + Street Overlay)
     'google-hybrid-src': {
       type: 'raster',
       tiles: [
@@ -54,17 +72,18 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       tileSize: 256,
       maxzoom: 20,
     },
-    // 3. OpenStreetMap Humanitarian (Disaster-Ready Detailed Street Network)
-    'osm-streets-src': {
+    // 4. Carto Positron Light (Ultra-Minimalist Monochromatic Disaster Base)
+    'carto-light-src': {
       type: 'raster',
       tiles: [
-        'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
-        'https://b.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+        'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+        'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+        'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
       ],
       tileSize: 256,
       maxzoom: 20,
     },
-    // 4. ESRI World Dark Gray Canvas (Tactical Night Ops Command Mode)
+    // 5. ESRI World Dark Gray Canvas (Tactical Night Ops Command Mode)
     'esri-dark-src': {
       type: 'raster',
       tiles: [
@@ -76,12 +95,20 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
   },
   layers: [
     {
-      id: 'base-layer-streets',
+      id: 'base-layer-clean',
       type: 'raster',
-      source: 'google-streets-src',
+      source: 'google-clean-src',
       minzoom: 0,
       maxzoom: 22,
       layout: { visibility: 'visible' },
+    },
+    {
+      id: 'base-layer-poi',
+      type: 'raster',
+      source: 'google-poi-src',
+      minzoom: 0,
+      maxzoom: 22,
+      layout: { visibility: 'none' },
     },
     {
       id: 'base-layer-hybrid',
@@ -92,9 +119,9 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       layout: { visibility: 'none' },
     },
     {
-      id: 'base-layer-clean',
+      id: 'base-layer-carto',
       type: 'raster',
-      source: 'osm-streets-src',
+      source: 'carto-light-src',
       minzoom: 0,
       maxzoom: 22,
       layout: { visibility: 'none' },
@@ -111,10 +138,11 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
 };
 
 const TILE_STYLES_INFO: Record<MapTileStyle, { name: string; icon: any; desc: string; previewColor: string }> = {
-  streets: { name: 'Apple Clean Streets', icon: MapIcon, desc: 'Crisp, high-contrast urban road network', previewColor: '#F8F9FA' },
-  hybrid: { name: 'Satellite Aerial', icon: Satellite, desc: 'High-resolution photography & labels', previewColor: '#2C442A' },
-  clean: { name: 'OSM Humanitarian', icon: Sun, desc: 'Open disaster-ready transit mapping', previewColor: '#E8ECE9' },
-  dark: { name: 'Dark Tactical', icon: Moon, desc: 'Nocturnal command situational awareness', previewColor: '#1A1D20' },
+  clean: { name: 'Clean Disaster (No POIs)', icon: MapIcon, desc: 'Zero commercial clutter, pure road network', previewColor: '#F8F9FA' },
+  poi: { name: 'City Landmarks & POIs', icon: Building, desc: 'Includes commercial malls, hotels & resorts', previewColor: '#F1F5F9' },
+  hybrid: { name: 'Satellite Aerial', icon: Satellite, desc: 'High-resolution photography & terrain', previewColor: '#2C442A' },
+  carto: { name: 'Minimal Gray Canvas', icon: Sun, desc: 'Monochromatic neutral disaster baseline', previewColor: '#E2E8F0' },
+  dark: { name: 'Dark Tactical Ops', icon: Moon, desc: 'Nocturnal command situational awareness', previewColor: '#1A1D20' },
 };
 
 export function MapContainer({
@@ -133,9 +161,13 @@ export function MapContainer({
 
   const [mapLoaded, setMapLoaded] = useState(false);
   const [selectedScenario, setSelectedScenario] = useState<FloodScenario>('25yr');
+  const [showCommercialPOIs, setShowCommercialPOIs] = useState(false);
+  const [showStations, setShowStations] = useState(true);
+  const [showShelters, setShowShelters] = useState(true);
+  const [showReports, setShowReports] = useState(true);
   const [showBarangays, setShowBarangays] = useState(true);
   const [showBoundary, setShowBoundary] = useState(true);
-  const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('streets');
+  const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('clean');
   const [is3DMode, setIs3DMode] = useState(false);
   const [showLayersMenu, setShowLayersMenu] = useState(false);
   const [showStyleMenu, setShowStyleMenu] = useState(false);
@@ -463,7 +495,7 @@ export function MapContainer({
     if (!mapRef.current) return;
     const map = mapRef.current;
 
-    const styles: MapTileStyle[] = ['streets', 'hybrid', 'clean', 'dark'];
+    const styles: MapTileStyle[] = ['clean', 'poi', 'hybrid', 'carto', 'dark'];
     styles.forEach((key) => {
       const layerId = `base-layer-${key}`;
       if (map.getLayer(layerId)) {
@@ -480,6 +512,24 @@ export function MapContainer({
       );
     }
   };
+
+  // Sync Commercial POIs toggle with basemap layer
+  useEffect(() => {
+    if (!mapRef.current || !mapLoaded) return;
+    const map = mapRef.current;
+
+    if (currentStyle === 'clean' || currentStyle === 'poi') {
+      const targetStyle = showCommercialPOIs ? 'poi' : 'clean';
+      setCurrentStyle(targetStyle);
+
+      if (map.getLayer('base-layer-clean')) {
+        map.setLayoutProperty('base-layer-clean', 'visibility', !showCommercialPOIs ? 'visible' : 'none');
+      }
+      if (map.getLayer('base-layer-poi')) {
+        map.setLayoutProperty('base-layer-poi', 'visibility', showCommercialPOIs ? 'visible' : 'none');
+      }
+    }
+  }, [showCommercialPOIs, mapLoaded]);
 
   // Sync Scenario Visibility
   useEffect(() => {
@@ -518,175 +568,181 @@ export function MapContainer({
     }
   }, [showBoundary, showBarangays, mapLoaded]);
 
-  // Render Real Markers: Reports, Shelters, Sensor Stations
+  // Render Real Markers: Reports, Shelters, Sensor Stations with individual visibility toggles
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
 
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    // Render Evacuation Shelters
-    shelters.forEach((shelter) => {
-      if (!shelter.latitude || !shelter.longitude) return;
+    // 1. Render Evacuation Shelters (if enabled)
+    if (showShelters) {
+      shelters.forEach((shelter) => {
+        if (!shelter.latitude || !shelter.longitude) return;
 
-      const isOpen = shelter.status === 'open';
-      const color = isOpen ? '#10B981' : '#6B7280';
-      const statusBg = isOpen ? '#ECFDF5' : '#F3F4F6';
-      const statusColor = isOpen ? '#059669' : '#4B5563';
+        const isOpen = shelter.status === 'open';
+        const color = isOpen ? '#10B981' : '#6B7280';
+        const statusBg = isOpen ? '#ECFDF5' : '#F3F4F6';
+        const statusColor = isOpen ? '#059669' : '#4B5563';
 
-      const el = document.createElement('div');
-      el.className = 'cursor-pointer group';
-      el.innerHTML = `
-        <div class="relative flex items-center justify-center">
-          ${isOpen ? '<span class="animate-ping absolute inline-flex h-7 w-7 rounded-full bg-emerald-400 opacity-60"></span>' : ''}
-          <div class="w-7 h-7 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-white transform hover:scale-125 transition-transform" style="background-color: ${color}">
-            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
-            </svg>
-          </div>
-        </div>
-      `;
-
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([shelter.longitude, shelter.latitude])
-        .setPopup(
-          new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 230px;">
-              <div style="display: flex; align-items: center; gap: 6px; padding-right: 24px;">
-                <span style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #10B981; letter-spacing: 0.5px;">Evacuation Center</span>
-                <span style="font-size: 9px; font-weight: 800; background: ${statusBg}; color: ${statusColor}; padding: 2px 7px; border-radius: 9999px;">${isOpen ? 'OPEN' : 'CLOSED'}</span>
-              </div>
-              <div style="font-size: 15px; font-weight: 800; color: #111827; margin-top: 4px;">
-                ${shelter.name}
-              </div>
-              <div style="font-size: 11px; color: #6B7280; margin-top: 2px;">
-                Location: Brgy. ${shelter.barangay_name || 'Cebu City'}
-              </div>
-
-              <div style="margin-top: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 10px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
-                <span style="font-size: 11px; font-weight: 600; color: #64748B;">Refuge Capacity:</span>
-                <strong style="font-size: 12px; font-weight: 800; color: #0F172A;">${shelter.capacity_people || 500} evacuees</strong>
-              </div>
+        const el = document.createElement('div');
+        el.className = 'cursor-pointer group';
+        el.innerHTML = `
+          <div class="relative flex items-center justify-center">
+            ${isOpen ? '<span class="animate-ping absolute inline-flex h-7 w-7 rounded-full bg-emerald-400 opacity-60"></span>' : ''}
+            <div class="w-7 h-7 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-white transform hover:scale-125 transition-transform" style="background-color: ${color}">
+              <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+              </svg>
             </div>
-          `)
-        )
-        .addTo(mapRef.current!);
-
-      markersRef.current.push(marker);
-    });
-
-    // Render Incident Reports
-    reports.forEach((report) => {
-      if (!report.latitude || !report.longitude) return;
-
-      const isSevere = report.flood_depth_level === 'waist' || report.flood_depth_level === 'chest' || report.flood_depth_level === 'above_head';
-      const color = isSevere ? '#EF4444' : '#F97316';
-      const badgeBg = isSevere ? '#FEF2F2' : '#FFF7ED';
-      const badgeColor = isSevere ? '#DC2626' : '#C2410C';
-
-      const el = document.createElement('div');
-      el.className = 'cursor-pointer group';
-      el.innerHTML = `
-        <div class="relative flex items-center justify-center">
-          <span class="animate-ping absolute inline-flex h-8 w-8 rounded-full opacity-75" style="background-color: ${color}"></span>
-          <div class="w-8 h-8 rounded-2xl border-2 border-white shadow-xl flex items-center justify-center text-white transform hover:scale-125 transition-transform" style="background-color: ${color}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
           </div>
-        </div>
-      `;
+        `;
 
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([report.longitude, report.latitude])
-        .setPopup(
-          new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 240px;">
-              <div style="display: flex; align-items: center; gap: 6px; padding-right: 24px;">
-                <span style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #64748B; letter-spacing: 0.5px;">Incident Report</span>
-                <span style="font-size: 9px; font-weight: 800; background: ${badgeBg}; color: ${badgeColor}; padding: 2px 7px; border-radius: 9999px;">${report.flood_depth_level?.toUpperCase() || 'FLOOD'}</span>
-              </div>
-              <div style="font-size: 15px; font-weight: 800; color: #111827; margin-top: 4px;">
-                Brgy. ${report.barangay_name || 'Area'}
-              </div>
-              <div style="font-size: 11.5px; color: #334155; line-height: 1.4; margin-top: 6px; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 10px; border-radius: 10px;">
-                ${report.description || 'Verified flood incident.'}
-              </div>
-              <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 8px; padding-top: 6px; border-top: 1px solid #F1F5F9;">
-                <span>Reported: ${new Date(report.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                <span style="font-weight: 700; color: #0284C7;">${report.status?.toUpperCase() || 'VERIFIED'}</span>
-              </div>
-            </div>
-          `)
-        )
-        .addTo(mapRef.current!);
-
-      markersRef.current.push(marker);
-    });
-
-    // Render Hydrological River Sensor Stations
-    stations.forEach((st) => {
-      if (!st.latitude || !st.longitude) return;
-
-      const isBreach = st.status === 'critical_breach';
-      const isWatch = st.status === 'watch';
-      const color = isBreach ? '#EF4444' : isWatch ? '#F97316' : '#0284C7';
-      const statusLabel = isBreach ? 'CRITICAL BREACH' : isWatch ? 'WATCH LEVEL' : 'NORMAL FLOW';
-      const statusBg = isBreach ? '#FEF2F2' : isWatch ? '#FFF7ED' : '#F0F9FF';
-      const statusColor = isBreach ? '#DC2626' : isWatch ? '#C2410C' : '#0369A1';
-
-      const el = document.createElement('div');
-      el.className = 'cursor-pointer group';
-      el.innerHTML = `
-        <div class="relative flex items-center justify-center">
-          <span class="animate-ping absolute inline-flex h-9 w-9 rounded-full opacity-75" style="background-color: ${color}"></span>
-          <div class="w-8 h-8 rounded-2xl border-2 border-white shadow-xl flex items-center justify-center text-white transform hover:scale-125 transition-transform" style="background-color: ${color}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </div>
-        </div>
-      `;
-
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([st.longitude, st.latitude])
-        .setPopup(
-          new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 250px;">
-              <div style="display: flex; align-items: center; gap: 6px; padding-right: 24px;">
-                <span style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #0284C7; letter-spacing: 0.5px;">River Telemetry</span>
-                <span style="font-size: 9px; font-weight: 800; background: ${statusBg}; color: ${statusColor}; padding: 2px 7px; border-radius: 9999px;">${statusLabel}</span>
-              </div>
-              <div style="font-size: 15px; font-weight: 800; color: #111827; margin-top: 4px; line-height: 1.25;">
-                ${st.station_name}
-              </div>
-              <div style="font-size: 11px; color: #6B7280; margin-top: 2px;">
-                ${st.river_basin} &bull; Brgy. ${st.barangay_name}
-              </div>
-
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px;">
-                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 10px; border-radius: 12px;">
-                  <div style="font-size: 9px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px;">Water Level</div>
-                  <div style="font-size: 16px; font-weight: 900; color: ${color}; margin-top: 2px;">${st.water_level_meters}m</div>
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat([shelter.longitude, shelter.latitude])
+          .setPopup(
+            new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 230px;">
+                <div style="display: flex; align-items: center; gap: 6px; padding-right: 24px;">
+                  <span style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #10B981; letter-spacing: 0.5px;">Evacuation Center</span>
+                  <span style="font-size: 9px; font-weight: 800; background: ${statusBg}; color: ${statusColor}; padding: 2px 7px; border-radius: 9999px;">${isOpen ? 'OPEN' : 'CLOSED'}</span>
                 </div>
-                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 10px; border-radius: 12px;">
-                  <div style="font-size: 9px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px;">Rainfall</div>
-                  <div style="font-size: 16px; font-weight: 900; color: #0284C7; margin-top: 2px;">${st.rainfall_rate_mmh || 0} mm/h</div>
+                <div style="font-size: 15px; font-weight: 800; color: #111827; margin-top: 4px;">
+                  ${shelter.name}
+                </div>
+                <div style="font-size: 11px; color: #6B7280; margin-top: 2px;">
+                  Location: Brgy. ${shelter.barangay_name || 'Cebu City'}
+                </div>
+
+                <div style="margin-top: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 10px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+                  <span style="font-size: 11px; font-weight: 600; color: #64748B;">Refuge Capacity:</span>
+                  <strong style="font-size: 12px; font-weight: 800; color: #0F172A;">${shelter.capacity_people || 500} evacuees</strong>
                 </div>
               </div>
+            `)
+          )
+          .addTo(mapRef.current!);
 
-              <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #F1F5F9; display: flex; justify-content: space-between; font-size: 10.5px; color: #64748B;">
-                <span>Alert 1: <strong style="color: #0F172A;">${st.alert_level_1_meters}m</strong></span>
-                <span>Critical: <strong style="color: #EF4444;">${st.critical_overflow_meters}m</strong></span>
-              </div>
+        markersRef.current.push(marker);
+      });
+    }
+
+    // 2. Render Incident Reports (if enabled)
+    if (showReports) {
+      reports.forEach((report) => {
+        if (!report.latitude || !report.longitude) return;
+
+        const isSevere = report.flood_depth_level === 'waist' || report.flood_depth_level === 'chest' || report.flood_depth_level === 'above_head';
+        const color = isSevere ? '#EF4444' : '#F97316';
+        const badgeBg = isSevere ? '#FEF2F2' : '#FFF7ED';
+        const badgeColor = isSevere ? '#DC2626' : '#C2410C';
+
+        const el = document.createElement('div');
+        el.className = 'cursor-pointer group';
+        el.innerHTML = `
+          <div class="relative flex items-center justify-center">
+            <span class="animate-ping absolute inline-flex h-8 w-8 rounded-full opacity-75" style="background-color: ${color}"></span>
+            <div class="w-8 h-8 rounded-2xl border-2 border-white shadow-xl flex items-center justify-center text-white transform hover:scale-125 transition-transform" style="background-color: ${color}">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
             </div>
-          `)
-        )
-        .addTo(mapRef.current!);
+          </div>
+        `;
 
-      markersRef.current.push(marker);
-    });
-  }, [reports, shelters, stations, mapLoaded]);
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat([report.longitude, report.latitude])
+          .setPopup(
+            new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 240px;">
+                <div style="display: flex; align-items: center; gap: 6px; padding-right: 24px;">
+                  <span style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #64748B; letter-spacing: 0.5px;">Incident Report</span>
+                  <span style="font-size: 9px; font-weight: 800; background: ${badgeBg}; color: ${badgeColor}; padding: 2px 7px; border-radius: 9999px;">${report.flood_depth_level?.toUpperCase() || 'FLOOD'}</span>
+                </div>
+                <div style="font-size: 15px; font-weight: 800; color: #111827; margin-top: 4px;">
+                  Brgy. ${report.barangay_name || 'Area'}
+                </div>
+                <div style="font-size: 11.5px; color: #334155; line-height: 1.4; margin-top: 6px; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 10px; border-radius: 10px;">
+                  ${report.description || 'Verified flood incident.'}
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #94A3B8; margin-top: 8px; padding-top: 6px; border-top: 1px solid #F1F5F9;">
+                  <span>Reported: ${new Date(report.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span style="font-weight: 700; color: #0284C7;">${report.status?.toUpperCase() || 'VERIFIED'}</span>
+                </div>
+              </div>
+            `)
+          )
+          .addTo(mapRef.current!);
+
+        markersRef.current.push(marker);
+      });
+    }
+
+    // 3. Render Hydrological River Sensor Stations (if enabled)
+    if (showStations) {
+      stations.forEach((st) => {
+        if (!st.latitude || !st.longitude) return;
+
+        const isBreach = st.status === 'critical_breach';
+        const isWatch = st.status === 'watch';
+        const color = isBreach ? '#EF4444' : isWatch ? '#F97316' : '#0284C7';
+        const statusLabel = isBreach ? 'CRITICAL BREACH' : isWatch ? 'WATCH LEVEL' : 'NORMAL FLOW';
+        const statusBg = isBreach ? '#FEF2F2' : isWatch ? '#FFF7ED' : '#F0F9FF';
+        const statusColor = isBreach ? '#DC2626' : isWatch ? '#C2410C' : '#0369A1';
+
+        const el = document.createElement('div');
+        el.className = 'cursor-pointer group';
+        el.innerHTML = `
+          <div class="relative flex items-center justify-center">
+            <span class="animate-ping absolute inline-flex h-9 w-9 rounded-full opacity-75" style="background-color: ${color}"></span>
+            <div class="w-8 h-8 rounded-2xl border-2 border-white shadow-xl flex items-center justify-center text-white transform hover:scale-125 transition-transform" style="background-color: ${color}">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+          </div>
+        `;
+
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat([st.longitude, st.latitude])
+          .setPopup(
+            new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 250px;">
+                <div style="display: flex; align-items: center; gap: 6px; padding-right: 24px;">
+                  <span style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #0284C7; letter-spacing: 0.5px;">River Telemetry</span>
+                  <span style="font-size: 9px; font-weight: 800; background: ${statusBg}; color: ${statusColor}; padding: 2px 7px; border-radius: 9999px;">${statusLabel}</span>
+                </div>
+                <div style="font-size: 15px; font-weight: 800; color: #111827; margin-top: 4px; line-height: 1.25;">
+                  ${st.station_name}
+                </div>
+                <div style="font-size: 11px; color: #6B7280; margin-top: 2px;">
+                  ${st.river_basin} &bull; Brgy. ${st.barangay_name}
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px;">
+                  <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 10px; border-radius: 12px;">
+                    <div style="font-size: 9px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px;">Water Level</div>
+                    <div style="font-size: 16px; font-weight: 900; color: ${color}; margin-top: 2px;">${st.water_level_meters}m</div>
+                  </div>
+                  <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 10px; border-radius: 12px;">
+                    <div style="font-size: 9px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px;">Rainfall</div>
+                    <div style="font-size: 16px; font-weight: 900; color: #0284C7; margin-top: 2px;">${st.rainfall_rate_mmh || 0} mm/h</div>
+                  </div>
+                </div>
+
+                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #F1F5F9; display: flex; justify-content: space-between; font-size: 10.5px; color: #64748B;">
+                  <span>Alert 1: <strong style="color: #0F172A;">${st.alert_level_1_meters}m</strong></span>
+                  <span>Critical: <strong style="color: #EF4444;">${st.critical_overflow_meters}m</strong></span>
+                </div>
+              </div>
+            `)
+          )
+          .addTo(mapRef.current!);
+
+        markersRef.current.push(marker);
+      });
+    }
+  }, [reports, shelters, stations, showStations, showShelters, showReports, mapLoaded]);
 
   // Handle Fly-To Custom Events (Directly opens marker popup without duplicate circle pin)
   useEffect(() => {
@@ -845,7 +901,7 @@ export function MapContainer({
         </div>
       </div>
 
-      {/* NOAH Hazard Return-Period Layer Switcher (Bottom Left Floating Pill) */}
+      {/* NOAH Hazard Return-Period & Layer Toggles (Bottom Left Floating Widget) */}
       {showHazardControls && (
         <div className="absolute bottom-6 left-6 z-10 pointer-events-auto">
           {!showLayersMenu ? (
@@ -854,7 +910,7 @@ export function MapContainer({
               className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white/95 backdrop-blur-2xl border border-gray-200 hover:border-gray-300 text-gray-800 text-xs font-black shadow-xl hover:shadow-2xl transition-all cursor-pointer"
             >
               <Layers className="w-4 h-4 text-blue-600" />
-              <span>UP NOAH Scenarios</span>
+              <span>Map Layers &amp; Scenarios</span>
               <span
                 className={`w-2.5 h-2.5 rounded-full ${
                   selectedScenario === '100yr'
@@ -868,11 +924,11 @@ export function MapContainer({
               />
             </button>
           ) : (
-            <div className="bg-white/95 backdrop-blur-2xl border border-gray-200 rounded-3xl p-4 shadow-2xl space-y-3 text-xs min-w-[300px] animate-in fade-in zoom-in-95">
+            <div className="bg-white/95 backdrop-blur-2xl border border-gray-200 rounded-3xl p-4 shadow-2xl space-y-3.5 text-xs min-w-[320px] max-h-[80vh] overflow-y-auto scrollbar-thin animate-in fade-in zoom-in-95">
               <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                 <span className="font-black text-[11px] uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5 text-blue-600" />
-                  DOST-UP NOAH Hydro Scenarios
+                  Layers &amp; Flood Scenarios
                 </span>
                 <button
                   onClick={() => setShowLayersMenu(false)}
@@ -882,60 +938,63 @@ export function MapContainer({
                 </button>
               </div>
 
-              {/* Scenario Selector Pills */}
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  onClick={() => setSelectedScenario('5yr')}
-                  className={`py-2 px-2.5 rounded-xl font-black text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                    selectedScenario === '5yr'
-                      ? 'bg-amber-400 text-amber-950 shadow-md shadow-amber-400/30'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-yellow-300" />
-                  5-Yr (Low Risk)
-                </button>
+              {/* 1. UP NOAH Scenario Selector Pills */}
+              <div className="space-y-1.5">
+                <div className="text-[10px] font-black uppercase text-gray-400">DOST-UP NOAH Hydro Model</div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={() => setSelectedScenario('5yr')}
+                    className={`py-2 px-2.5 rounded-xl font-black text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      selectedScenario === '5yr'
+                        ? 'bg-amber-400 text-amber-950 shadow-md shadow-amber-400/30'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-yellow-300" />
+                    5-Yr (Low Risk)
+                  </button>
 
-                <button
-                  onClick={() => setSelectedScenario('25yr')}
-                  className={`py-2 px-2.5 rounded-xl font-black text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                    selectedScenario === '25yr'
-                      ? 'bg-orange-500 text-white shadow-md shadow-orange-500/30'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-orange-200" />
-                  25-Yr (Medium)
-                </button>
+                  <button
+                    onClick={() => setSelectedScenario('25yr')}
+                    className={`py-2 px-2.5 rounded-xl font-black text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      selectedScenario === '25yr'
+                        ? 'bg-orange-500 text-white shadow-md shadow-orange-500/30'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-orange-200" />
+                    25-Yr (Medium)
+                  </button>
 
-                <button
-                  onClick={() => setSelectedScenario('100yr')}
-                  className={`py-2 px-2.5 rounded-xl font-black text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                    selectedScenario === '100yr'
-                      ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-rose-200" />
-                  100-Yr (Severe)
-                </button>
+                  <button
+                    onClick={() => setSelectedScenario('100yr')}
+                    className={`py-2 px-2.5 rounded-xl font-black text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      selectedScenario === '100yr'
+                        ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-rose-200" />
+                    100-Yr (Severe)
+                  </button>
 
-                <button
-                  onClick={() => setSelectedScenario('none')}
-                  className={`py-2 px-2.5 rounded-xl font-black text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                    selectedScenario === 'none'
-                      ? 'bg-gray-900 text-white shadow-md'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  Hide Flood
-                </button>
+                  <button
+                    onClick={() => setSelectedScenario('none')}
+                    className={`py-2 px-2.5 rounded-xl font-black text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      selectedScenario === 'none'
+                        ? 'bg-gray-900 text-white shadow-md'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    Hide Flood
+                  </button>
+                </div>
               </div>
 
               {/* Official UP NOAH Inundation Depth Gradient Legend */}
               {selectedScenario !== 'none' && (
                 <div className="pt-2 border-t border-gray-100 space-y-1.5">
-                  <div className="text-[10px] font-black uppercase text-gray-400">UP NOAH Official Hazard Scale</div>
+                  <div className="text-[10px] font-black uppercase text-gray-400">Hazard Depth Scale</div>
                   <div className="flex items-center justify-between text-[9px] font-bold text-gray-700">
                     <span className="flex items-center gap-1">
                       <span className="w-2.5 h-2.5 rounded-full bg-[#FACC15] border border-[#EAB308] shadow-xs" /> Low (0.1–0.5m)
@@ -950,11 +1009,71 @@ export function MapContainer({
                 </div>
               )}
 
-              {/* Boundary Toggles */}
-              <div className="pt-2 border-t border-gray-100 space-y-1.5 text-[11px] font-bold text-gray-700">
-                <label className="flex items-center justify-between cursor-pointer select-none">
-                  <span className="flex items-center gap-1.5 text-indigo-600">
-                    <span className="w-2 h-2 rounded-full bg-indigo-600" /> 80 Barangay Outlines
+              {/* 2. Operational Markers & Features Toggles */}
+              <div className="pt-2 border-t border-gray-100 space-y-2 text-[11px] font-bold text-gray-700">
+                <div className="text-[10px] font-black uppercase text-gray-400">Operational Overlays</div>
+
+                {/* Hide Third-Party Commercial POIs Switch */}
+                <label className="flex items-center justify-between cursor-pointer select-none bg-slate-50 p-2 rounded-xl border border-gray-200/80">
+                  <span className="flex items-center gap-1.5 text-gray-800">
+                    <Building className="w-3.5 h-3.5 text-gray-500" />
+                    Commercial POIs (Hotels/Malls)
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={showCommercialPOIs}
+                    onChange={(e) => setShowCommercialPOIs(e.target.checked)}
+                    className="rounded text-blue-600 focus:ring-0 cursor-pointer w-4 h-4"
+                  />
+                </label>
+
+                {/* River Telemetry Sensor Nodes */}
+                <label className="flex items-center justify-between cursor-pointer select-none px-1">
+                  <span className="flex items-center gap-1.5 text-sky-700">
+                    <Radio className="w-3.5 h-3.5 text-sky-600" />
+                    River Telemetry Sensors ({stations.length})
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={showStations}
+                    onChange={(e) => setShowStations(e.target.checked)}
+                    className="rounded text-sky-600 focus:ring-0 cursor-pointer"
+                  />
+                </label>
+
+                {/* Evacuation Shelters */}
+                <label className="flex items-center justify-between cursor-pointer select-none px-1">
+                  <span className="flex items-center gap-1.5 text-emerald-700">
+                    <Home className="w-3.5 h-3.5 text-emerald-600" />
+                    Evacuation Shelters ({shelters.length})
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={showShelters}
+                    onChange={(e) => setShowShelters(e.target.checked)}
+                    className="rounded text-emerald-600 focus:ring-0 cursor-pointer"
+                  />
+                </label>
+
+                {/* Citizen Incident Reports */}
+                <label className="flex items-center justify-between cursor-pointer select-none px-1">
+                  <span className="flex items-center gap-1.5 text-amber-700">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                    Incident Reports ({reports.length})
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={showReports}
+                    onChange={(e) => setShowReports(e.target.checked)}
+                    className="rounded text-amber-600 focus:ring-0 cursor-pointer"
+                  />
+                </label>
+
+                {/* 80 Barangay Outlines */}
+                <label className="flex items-center justify-between cursor-pointer select-none px-1">
+                  <span className="flex items-center gap-1.5 text-indigo-700">
+                    <span className="w-2 h-2 rounded-full bg-indigo-600" />
+                    80 Barangay Outlines
                   </span>
                   <input
                     type="checkbox"
@@ -964,9 +1083,11 @@ export function MapContainer({
                   />
                 </label>
 
-                <label className="flex items-center justify-between cursor-pointer select-none">
-                  <span className="flex items-center gap-1.5 text-blue-600">
-                    <span className="w-2 h-2 rounded-full bg-blue-600" /> City Perimeter Laser Glow
+                {/* City Perimeter Laser Glow */}
+                <label className="flex items-center justify-between cursor-pointer select-none px-1">
+                  <span className="flex items-center gap-1.5 text-blue-700">
+                    <span className="w-2 h-2 rounded-full bg-blue-600" />
+                    Perimeter Laser Glow
                   </span>
                   <input
                     type="checkbox"
