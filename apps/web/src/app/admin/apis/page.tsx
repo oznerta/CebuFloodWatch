@@ -64,8 +64,8 @@ export default function APIGatewaysPage() {
     // 2. Fetch from backend API
     fetchApi<any>('/admin/gateways')
       .then((res) => {
-        if (res && res.data) {
-          const d = res.data;
+        if (res) {
+          const d = res.data !== undefined ? res.data : res;
           if (d.pagasaApiKey) setPagasaKey(d.pagasaApiKey);
           if (d.pagasaInterval) setPagasaInterval(d.pagasaInterval);
           if (d.namriaUrl) setNamriaUrl(d.namriaUrl);

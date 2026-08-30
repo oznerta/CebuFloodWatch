@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../config/env.js';
+import { query } from '../config/db.js';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth.js';
-import { requireRole } from '../middleware/rbac.js';
 import { checkRateLimit } from '../services/security.js';
 
 export const adminRouter = Router();
@@ -41,11 +41,36 @@ export let runtimeGatewayConfig = {
   smsSenderId: 'CEBU_CDRRMO',
 };
 
+// On server startup, load settings from PostgreSQL database
+async function loadPersistedSettings() {
+  try {
+    const aiRes = await query(`SELECT value FROM public.system_settings WHERE key = 'ai_config'`);
+    if (aiRes.rows.length > 0 && aiRes.rows[0].value) {
+      runtimeAIConfig = { ...runtimeAIConfig, ...aiRes.rows[0].value };
+    }
+
+    const gwRes = await query(`SELECT value FROM public.system_settings WHERE key = 'gateways'`);
+    if (gwRes.rows.length > 0 && gwRes.rows[0].value) {
+      runtimeGatewayConfig = { ...runtimeGatewayConfig, ...gwRes.rows[0].value };
+    }
+  } catch (err) {
+    console.warn('Could not load persisted system settings on startup:', err);
+  }
+}
+loadPersistedSettings();
+
 /**
  * GET /admin/config
  * Get active AI and system configuration (with securely masked API key)
  */
-adminRouter.get('/config', (_req: Request, res: Response) => {
+adminRouter.get('/config', async (_req: Request, res: Response) => {
+  try {
+    const dbRes = await query(`SELECT value FROM public.system_settings WHERE key = 'ai_config'`);
+    if (dbRes.rows.length > 0 && dbRes.rows[0].value) {
+      runtimeAIConfig = { ...runtimeAIConfig, ...dbRes.rows[0].value };
+    }
+  } catch {}
+
   const maskedKey = runtimeAIConfig.apiKey
     ? runtimeAIConfig.apiKey.length > 8
       ? `${runtimeAIConfig.apiKey.slice(0, 6)}••••••••••••••••${runtimeAIConfig.apiKey.slice(-4)}`
@@ -64,9 +89,9 @@ adminRouter.get('/config', (_req: Request, res: Response) => {
 
 /**
  * POST /admin/config
- * Securely update AI provider, API key, and computer vision thresholds
+ * Securely update AI provider, API key, and computer vision thresholds in PostgreSQL
  */
-adminRouter.post('/config', (req: Request, res: Response) => {
+adminRouter.post('/config', async (req: Request, res: Response) => {
   const {
     aiProvider,
     apiKey,
@@ -89,13 +114,28 @@ adminRouter.post('/config', (req: Request, res: Response) => {
   if (typeof predictionLeadTime === 'number') runtimeAIConfig.predictionLeadTime = predictionLeadTime;
   if (cebuanoDialect) runtimeAIConfig.cebuanoDialect = cebuanoDialect;
 
+  // Persist to PostgreSQL public.system_settings
+  try {
+    await query(
+      `
+      INSERT INTO public.system_settings (key, value, updated_at)
+      VALUES ('ai_config', $1, NOW())
+      ON CONFLICT (key) DO UPDATE
+      SET value = EXCLUDED.value, updated_at = NOW()
+    `,
+      [JSON.stringify(runtimeAIConfig)]
+    );
+  } catch (err) {
+    console.error('Failed to save ai_config to database:', err);
+  }
+
   const maskedKey = runtimeAIConfig.apiKey
     ? `${runtimeAIConfig.apiKey.slice(0, 6)}••••••••••••••••${runtimeAIConfig.apiKey.slice(-4)}`
     : '';
 
   return res.json({
     success: true,
-    message: 'AI foundation model settings securely updated in runtime memory.',
+    message: 'AI foundation model settings securely saved to PostgreSQL database.',
     data: {
       ...runtimeAIConfig,
       apiKeyMasked: maskedKey,
@@ -106,9 +146,16 @@ adminRouter.post('/config', (req: Request, res: Response) => {
 
 /**
  * GET /admin/gateways
- * Get external gateways configuration (PAGASA, NAMRIA, MQTT, SMS)
+ * Get external gateways configuration (PAGASA, NAMRIA, MQTT, SMS) from PostgreSQL
  */
-adminRouter.get('/gateways', (_req: Request, res: Response) => {
+adminRouter.get('/gateways', async (_req: Request, res: Response) => {
+  try {
+    const dbRes = await query(`SELECT value FROM public.system_settings WHERE key = 'gateways'`);
+    if (dbRes.rows.length > 0 && dbRes.rows[0].value) {
+      runtimeGatewayConfig = { ...runtimeGatewayConfig, ...dbRes.rows[0].value };
+    }
+  } catch {}
+
   const maskKey = (k: string) => (k ? (k.length > 8 ? `${k.slice(0, 4)}••••${k.slice(-4)}` : '••••••••') : '');
 
   return res.json({
@@ -128,9 +175,9 @@ adminRouter.get('/gateways', (_req: Request, res: Response) => {
 
 /**
  * POST /admin/gateways
- * Save updated external gateways configuration
+ * Save updated external gateways configuration in PostgreSQL
  */
-adminRouter.post('/gateways', (req: Request, res: Response) => {
+adminRouter.post('/gateways', async (req: Request, res: Response) => {
   const { pagasaApiKey, pagasaInterval, namriaUrl, mqttBroker, smsApiKey, smsSenderId } = req.body;
 
   if (pagasaApiKey !== undefined && !pagasaApiKey.includes('••••')) {
@@ -144,9 +191,24 @@ adminRouter.post('/gateways', (req: Request, res: Response) => {
   }
   if (smsSenderId !== undefined) runtimeGatewayConfig.smsSenderId = smsSenderId.trim();
 
+  // Persist to PostgreSQL public.system_settings
+  try {
+    await query(
+      `
+      INSERT INTO public.system_settings (key, value, updated_at)
+      VALUES ('gateways', $1, NOW())
+      ON CONFLICT (key) DO UPDATE
+      SET value = EXCLUDED.value, updated_at = NOW()
+    `,
+      [JSON.stringify(runtimeGatewayConfig)]
+    );
+  } catch (err) {
+    console.error('Failed to save gateways to database:', err);
+  }
+
   return res.json({
     success: true,
-    message: 'External gateway connections saved and updated in active memory.',
+    message: 'External gateway connections saved to PostgreSQL database.',
     data: runtimeGatewayConfig,
   });
 });
@@ -175,7 +237,6 @@ adminRouter.post('/test-gateway', async (req: Request, res: Response) => {
 
     const start = Date.now();
     try {
-      // Test precipitation radar data ingestion
       await fetch('https://api.open-meteo.com/v1/forecast?latitude=10.3157&longitude=123.8854&current=precipitation', {
         signal: AbortSignal.timeout(4000),
       });

@@ -46,16 +46,17 @@ export default function AIAdminPage() {
   useEffect(() => {
     fetchApi<any>('/admin/config')
       .then((res) => {
-        if (res && res.data) {
-          if (res.data.aiProvider) setAiProvider(res.data.aiProvider);
-          if (res.data.modelName) setModelName(res.data.modelName);
-          if (res.data.confidenceThreshold) setConfidenceThreshold(res.data.confidenceThreshold);
-          if (typeof res.data.autoVerify === 'boolean') setAutoVerify(res.data.autoVerify);
-          if (res.data.cebuanoDialect) setCebuanoDialect(res.data.cebuanoDialect);
-          if (res.data.predictionLeadTime) setPredictionLeadTime(res.data.predictionLeadTime);
-          if (res.data.hasApiKey) {
+        if (res) {
+          const d = res.data !== undefined ? res.data : res;
+          if (d.aiProvider) setAiProvider(d.aiProvider);
+          if (d.modelName) setModelName(d.modelName);
+          if (d.confidenceThreshold) setConfidenceThreshold(d.confidenceThreshold);
+          if (typeof d.autoVerify === 'boolean') setAutoVerify(d.autoVerify);
+          if (d.cebuanoDialect) setCebuanoDialect(d.cebuanoDialect);
+          if (d.predictionLeadTime) setPredictionLeadTime(d.predictionLeadTime);
+          if (d.hasApiKey) {
             setHasStoredKey(true);
-            setApiKey(res.data.apiKeyMasked || '••••••••••••••••');
+            setApiKey(d.apiKeyMasked || '••••••••••••••••');
           }
         }
       })
