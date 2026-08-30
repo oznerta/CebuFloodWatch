@@ -15,29 +15,15 @@ import {
 import {
   MapPin,
   Layers,
-  RefreshCw,
-  ChevronUp,
   ChevronDown,
   Search,
   PhoneCall,
   Gauge,
   X,
-  Compass,
-  HeartPulse,
-  Activity,
-  Home,
-  Route,
-  Building,
-  Check,
-  Share2,
   Navigation,
-  ShieldCheck,
-  AlertTriangle,
-  Send,
-  Droplets,
-  CloudRain,
-  Eye,
   CheckCircle,
+  Share2,
+  Filter,
 } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { COLORS } from '../constants/theme';
@@ -47,38 +33,29 @@ import {
   searchCebuLandmarks,
   CebuLandmark,
   METRO_CEBU_HOTLINES,
-  DisasterHotlineAgency,
   FloodDepth,
 } from '@cebufloodwatch/shared';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-type SheetMode = 'explore' | 'report' | 'evacuate' | 'vehicle';
 type SheetSnap = 'peek' | 'half' | 'full';
 
 const SNAP_HEIGHTS = {
-  peek: 165,
-  half: SCREEN_HEIGHT * 0.52,
-  full: SCREEN_HEIGHT * 0.85,
+  peek: 210,
+  half: SCREEN_HEIGHT * 0.54,
+  full: SCREEN_HEIGHT * 0.86,
 };
-
-const DEPTH_OPTIONS: { level: FloodDepth; label: string; depthDesc: string; color: string; iconBg: string }[] = [
-  { level: 'ankle', label: 'Ankle', depthDesc: '10–20 cm', color: '#34C759', iconBg: '#EBF9EE' },
-  { level: 'knee', label: 'Knee', depthDesc: '30–50 cm', color: '#FFCC00', iconBg: '#FFFBE6' },
-  { level: 'waist', label: 'Waist', depthDesc: '1.0 meter', color: '#FF9500', iconBg: '#FFF4E5' },
-  { level: 'chest', label: 'Chest', depthDesc: '1.4 meters', color: '#FF3B30', iconBg: '#FFEBEA' },
-  { level: 'above_head', label: 'Above Head', depthDesc: '> 1.8m (Critical)', color: '#AF52DE', iconBg: '#F7ECFB' },
-];
 
 export function LiveMapScreen() {
   const [reports, setReports] = useState<any[]>([]);
   const [shelters, setShelters] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
-  // Intentional Sheet Architecture
-  const [sheetMode, setSheetMode] = useState<SheetMode>('explore');
+  // Sheet Snap state
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>('peek');
+
+  // Filter state
+  const [selectedFilter, setSelectedFilter] = useState<string>('all');
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -89,15 +66,8 @@ export function LiveMapScreen() {
   // Dynamic Island Alert State
   const [alertExpanded, setAlertExpanded] = useState(false);
 
-  // Report Flood Form State
-  const [reportDepth, setReportDepth] = useState<FloodDepth>('knee');
-  const [reportNotes, setReportNotes] = useState('');
-  const [reportCoords, setReportCoords] = useState<{ lat: number; lng: number } | null>({ lat: 10.3157, lng: 123.8854 });
-  const [locatingGps, setLocatingGps] = useState(false);
-  const [submittingReport, setSubmittingReport] = useState(false);
-  const [reportSuccess, setReportSuccess] = useState(false);
-
-  // Vehicle Calculator State
+  // Vehicle Calculator Modal State
+  const [vehicleModalOpen, setVehicleModalOpen] = useState(false);
   const [calcDepth, setCalcDepth] = useState<number>(35);
 
   // Hotlines Modal State
@@ -182,7 +152,6 @@ export function LiveMapScreen() {
       }
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
@@ -206,45 +175,12 @@ export function LiveMapScreen() {
   };
 
   const handleAcquireGPS = async () => {
-    setLocatingGps(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      setReportCoords({ lat: loc.coords.latitude, lng: loc.coords.longitude });
-    } catch {
-      setReportCoords({ lat: 10.3157, lng: 123.8854 });
-    } finally {
-      setLocatingGps(false);
-    }
-  };
-
-  const handleSubmitReport = async () => {
-    if (!reportCoords) return;
-    setSubmittingReport(true);
-    try {
-      await mobileFetch('/reports', {
-        method: 'POST',
-        body: JSON.stringify({
-          latitude: reportCoords.lat,
-          longitude: reportCoords.lng,
-          flood_depth_level: reportDepth,
-          description: reportNotes || `Crowdsourced flood report: ${reportDepth} depth`,
-        }),
-      });
-      setReportSuccess(true);
-      setTimeout(() => {
-        setReportSuccess(false);
-        setReportNotes('');
-        setSheetMode('explore');
-        setSheetSnap('half');
-        fetchIncidents();
-      }, 1500);
-    } catch {
-      setSheetMode('explore');
-      setSheetSnap('peek');
-    } finally {
-      setSubmittingReport(false);
+      await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+    } catch (e) {
+      console.warn('GPS location error:', e);
     }
   };
 
@@ -256,6 +192,14 @@ export function LiveMapScreen() {
     const msg = `🚨 EMERGENCY DISASTER SOS (Metro Cebu): Need rescue assistance. GPS: https://maps.google.com/?q=10.3157,123.8854 (Tracked live on CebuFloodWatch)`;
     Linking.openURL(`sms:?body=${encodeURIComponent(msg)}`);
   };
+
+  const filteredReports = reports.filter((r) => {
+    if (selectedFilter === 'all') return true;
+    if (selectedFilter === 'knee') return r.flood_depth_level === 'knee' || r.flood_depth_level === 'waist' || r.flood_depth_level === 'chest' || r.flood_depth_level === 'above_head';
+    if (selectedFilter === 'waist') return r.flood_depth_level === 'waist' || r.flood_depth_level === 'chest' || r.flood_depth_level === 'above_head';
+    if (selectedFilter === 'chest') return r.flood_depth_level === 'chest' || r.flood_depth_level === 'above_head';
+    return true;
+  });
 
   const getDepthColor = (level: string) => {
     switch (level) {
@@ -279,7 +223,7 @@ export function LiveMapScreen() {
       {/* 1. Full-Bleed Living Vector Map Canvas */}
       <View style={StyleSheet.absoluteFillObject}>
         <MobileMap
-          reports={reports}
+          reports={filteredReports}
           shelters={shelters}
           showHazards={showHazards}
         />
@@ -307,7 +251,7 @@ export function LiveMapScreen() {
           <View style={styles.alertExpandedCard}>
             <Text style={styles.alertCardTitle}>CDRRMO Flood Advisory &bull; Metro Cebu</Text>
             <Text style={styles.alertCardBody}>
-              Continuous rainfall over Mabolo and Subangdaku catchments. Low-lying barangays along rivers are on active evacuation standby. Next tide peak at 14:30 PHT (+1.62m).
+              Continuous rainfall over Mabolo and Subangdaku catchments. Low-lying barangays along rivers are on active evacuation standby. Next high tide peak at 14:30 PHT (+1.62m).
             </Text>
           </View>
         )}
@@ -315,6 +259,7 @@ export function LiveMapScreen() {
 
       {/* 3. Right-Side Minimal Apple Action Column */}
       <View style={styles.rightActionColumn}>
+        {/* GPS Locate Me */}
         <TouchableOpacity
           style={styles.actionCircleBtn}
           onPress={handleAcquireGPS}
@@ -323,6 +268,7 @@ export function LiveMapScreen() {
           <Navigation color="#007AFF" size={19} />
         </TouchableOpacity>
 
+        {/* Layer Hazards Toggle */}
         <TouchableOpacity
           style={[styles.actionCircleBtn, showHazards && styles.actionCircleBtnActive]}
           onPress={() => setShowHazards(!showHazards)}
@@ -331,6 +277,16 @@ export function LiveMapScreen() {
           <Layers color={showHazards ? '#FFFFFF' : '#1C1C1E'} size={19} />
         </TouchableOpacity>
 
+        {/* Vehicle Clearance Tool */}
+        <TouchableOpacity
+          style={styles.actionCircleBtn}
+          onPress={() => setVehicleModalOpen(true)}
+          accessibilityLabel="Vehicle Clearance Calculator"
+        >
+          <Gauge color="#007AFF" size={19} />
+        </TouchableOpacity>
+
+        {/* 1-Tap SOS Emergency Dial */}
         <TouchableOpacity
           style={styles.sosEmergencyBtn}
           onPress={() => setHotlinesModalOpen(true)}
@@ -341,9 +297,9 @@ export function LiveMapScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 4. Unified Apple Bottom Sheet (The Primary Hero Interface) */}
+      {/* 4. Incident Discovery & Search Bottom Sheet */}
       <View style={[styles.appleSheetContainer, { height: SNAP_HEIGHTS[sheetSnap] }]}>
-        {/* Top Grabber & Search Row */}
+        {/* Grabber & Search Input */}
         <TouchableOpacity
           style={styles.sheetHandleArea}
           onPress={() => {
@@ -355,7 +311,7 @@ export function LiveMapScreen() {
         >
           <View style={styles.sheetHandleBar} />
 
-          {/* Apple Spotlight Search Pill */}
+          {/* Search Bar Row */}
           <View style={styles.searchBarRow}>
             <Search color="#8E8E93" size={16} />
             <TextInput
@@ -381,7 +337,7 @@ export function LiveMapScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* Autocomplete Search Results */}
+        {/* Autocomplete Search Results (if searching) */}
         {searchActive && searchResults.length > 0 ? (
           <ScrollView style={styles.searchScroll}>
             {searchResults.map((item) => (
@@ -404,245 +360,142 @@ export function LiveMapScreen() {
           </ScrollView>
         ) : (
           <>
-            {/* 4 Segmented Mode Chips */}
-            <View style={styles.modeChipsRow}>
+            {/* Filter Pills */}
+            <View style={styles.filterPillsRow}>
               {[
-                { id: 'explore', label: 'Explore', icon: Compass },
-                { id: 'report', label: 'Report', icon: AlertTriangle },
-                { id: 'evacuate', label: 'Evacuate', icon: Home },
-                { id: 'vehicle', label: 'Vehicles', icon: Gauge },
-              ].map((tab) => {
-                const isSelected = sheetMode === tab.id;
-                const Icon = tab.icon;
+                { id: 'all', label: 'All Incidents' },
+                { id: 'knee', label: 'Knee+ (30cm)' },
+                { id: 'waist', label: 'Waist+ (1.0m)' },
+                { id: 'chest', label: 'Chest+ (1.4m)' },
+              ].map((f) => {
+                const isSelected = selectedFilter === f.id;
                 return (
                   <TouchableOpacity
-                    key={tab.id}
-                    style={[styles.modeChip, isSelected && styles.modeChipActive]}
-                    onPress={() => {
-                      setSheetMode(tab.id as SheetMode);
-                      if (sheetSnap === 'peek') setSheetSnap('half');
-                    }}
+                    key={f.id}
+                    style={[styles.filterPill, isSelected && styles.filterPillActive]}
+                    onPress={() => setSelectedFilter(f.id)}
                   >
-                    <Icon color={isSelected ? '#FFFFFF' : '#6C6C70'} size={13} />
-                    <Text style={[styles.modeChipText, isSelected && styles.modeChipTextActive]}>
-                      {tab.label}
+                    <Text style={[styles.filterPillText, isSelected && styles.filterPillTextActive]}>
+                      {f.label}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
 
-            {/* Sheet Body by Mode */}
-            <View style={styles.sheetBody}>
-              {/* MODE 1: EXPLORE LIVE FEED */}
-              {sheetMode === 'explore' && (
-                <FlatList
-                  data={reports}
-                  keyExtractor={(item) => item.id}
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.listContent}
-                  renderItem={({ item }) => {
-                    const depthColor = getDepthColor(item.flood_depth_level);
-                    return (
-                      <View style={styles.cardItem}>
-                        <View style={styles.cardTopRow}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.barangayTag}>BARANGAY {item.barangay_name?.toUpperCase() || 'CEBU'}</Text>
-                            <Text style={styles.incidentDesc}>{item.description}</Text>
-                          </View>
-                          <View style={[styles.depthPill, { backgroundColor: `${depthColor}18`, borderColor: `${depthColor}40` }]}>
-                            <View style={[styles.depthDot, { backgroundColor: depthColor }]} />
-                            <Text style={[styles.depthPillText, { color: depthColor }]}>
-                              {item.flood_depth_level?.toUpperCase()}
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={styles.cardMetaRow}>
-                          <Text style={styles.cardTime}>
-                            Logged at {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} &bull; GPS Tagged
-                          </Text>
-                          {item.verified && (
-                            <View style={styles.verifiedBadge}>
-                              <CheckCircle color="#34C759" size={11} />
-                              <Text style={styles.verifiedText}>Verified</Text>
-                            </View>
-                          )}
-                        </View>
+            {/* Live Incident Feed */}
+            <FlatList
+              data={filteredReports}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.listContent}
+              renderItem={({ item }) => {
+                const depthColor = getDepthColor(item.flood_depth_level);
+                return (
+                  <View style={styles.cardItem}>
+                    <View style={styles.cardTopRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.barangayTag}>BARANGAY {item.barangay_name?.toUpperCase() || 'CEBU'}</Text>
+                        <Text style={styles.incidentDesc}>{item.description}</Text>
                       </View>
-                    );
-                  }}
-                />
-              )}
-
-              {/* MODE 2: CONTEXTUAL 3-STEP FLOOD REPORTING */}
-              {sheetMode === 'report' && (
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                  {reportSuccess ? (
-                    <View style={styles.successStateBox}>
-                      <CheckCircle color="#34C759" size={48} />
-                      <Text style={styles.successTitle}>Report Transmitted Successfully!</Text>
-                      <Text style={styles.successSub}>Thank you for contributing to Cebu FloodWatch emergency telemetry.</Text>
+                      <View style={[styles.depthPill, { backgroundColor: `${depthColor}18`, borderColor: `${depthColor}40` }]}>
+                        <View style={[styles.depthDot, { backgroundColor: depthColor }]} />
+                        <Text style={[styles.depthPillText, { color: depthColor }]}>
+                          {item.flood_depth_level?.toUpperCase()}
+                        </Text>
+                      </View>
                     </View>
-                  ) : (
-                    <>
-                      <Text style={styles.sectionHeaderTitle}>1. Select Water Depth Level</Text>
-                      <View style={styles.depthPillsRow}>
-                        {DEPTH_OPTIONS.map((opt) => {
-                          const isSelected = reportDepth === opt.level;
-                          return (
-                            <TouchableOpacity
-                              key={opt.level}
-                              style={[
-                                styles.depthChoiceBtn,
-                                isSelected && { borderColor: opt.color, backgroundColor: opt.iconBg },
-                              ]}
-                              onPress={() => setReportDepth(opt.level)}
-                            >
-                              <Text style={[styles.depthChoiceText, isSelected && { color: opt.color, fontWeight: '800' }]}>
-                                {opt.label}
-                              </Text>
-                              <Text style={styles.depthChoiceSub}>{opt.depthDesc}</Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-
-                      <Text style={styles.sectionHeaderTitle}>2. GPS Location Lock</Text>
-                      <View style={styles.gpsLockRow}>
-                        <MapPin color="#007AFF" size={18} />
-                        <Text style={styles.gpsLockText}>
-                          {reportCoords ? `${reportCoords.lat.toFixed(4)}, ${reportCoords.lng.toFixed(4)}` : 'Acquiring GPS...'}
-                        </Text>
-                        <TouchableOpacity style={styles.gpsUpdatePill} onPress={handleAcquireGPS}>
-                          <Text style={styles.gpsUpdateText}>Update GPS</Text>
-                        </TouchableOpacity>
-                      </View>
-
-                      <Text style={styles.sectionHeaderTitle}>3. Field Notes</Text>
-                      <TextInput
-                        style={styles.textInput}
-                        placeholder="Add landmark details (e.g. water rising near church)..."
-                        placeholderTextColor="#8E8E93"
-                        value={reportNotes}
-                        onChangeText={setReportNotes}
-                      />
-
-                      <TouchableOpacity
-                        style={[styles.primaryActionBtn, submittingReport && { opacity: 0.6 }]}
-                        onPress={handleSubmitReport}
-                        disabled={submittingReport}
-                      >
-                        {submittingReport ? (
-                          <ActivityIndicator color="#FFFFFF" size="small" />
-                        ) : (
-                          <>
-                            <Send color="#FFFFFF" size={16} />
-                            <Text style={styles.primaryActionText}>Transmit Flood Report</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    </>
-                  )}
-                </ScrollView>
-              )}
-
-              {/* MODE 3: EVACUATION SHELTERS */}
-              {sheetMode === 'evacuate' && (
-                <FlatList
-                  data={shelters}
-                  keyExtractor={(item) => item.id}
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.listContent}
-                  renderItem={({ item }) => {
-                    const occPct = Math.round(((item.current_occupancy || 0) / item.max_capacity) * 100);
-                    return (
-                      <View style={styles.cardItem}>
-                        <View style={styles.cardTopRow}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.barangayTag}>BARANGAY {item.barangay_name?.toUpperCase()}</Text>
-                            <Text style={styles.shelterTitle}>{item.name}</Text>
-                            <Text style={styles.shelterDistance}>📍 {item.distance_meters}m from your location</Text>
-                          </View>
-                          <TouchableOpacity
-                            style={styles.callShelterBtn}
-                            onPress={() => handleCall(item.contact_number)}
-                          >
-                            <PhoneCall color="#FFFFFF" size={12} />
-                            <Text style={styles.callShelterText}>Call</Text>
-                          </TouchableOpacity>
+                    <View style={styles.cardMetaRow}>
+                      <Text style={styles.cardTime}>
+                        Logged at {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} &bull; GPS Tagged
+                      </Text>
+                      {item.verified && (
+                        <View style={styles.verifiedBadge}>
+                          <CheckCircle color="#34C759" size={11} />
+                          <Text style={styles.verifiedText}>Verified</Text>
                         </View>
-
-                        <View style={styles.occBarBox}>
-                          <View style={styles.occLabels}>
-                            <Text style={styles.occLabel}>Capacity Occupancy</Text>
-                            <Text style={styles.occVal}>{item.current_occupancy} / {item.max_capacity} ({occPct}%)</Text>
-                          </View>
-                          <View style={styles.occTrack}>
-                            <View style={[styles.occFill, { width: `${occPct}%`, backgroundColor: occPct >= 90 ? '#FF3B30' : '#34C759' }]} />
-                          </View>
-                        </View>
-                      </View>
-                    );
-                  }}
-                />
-              )}
-
-              {/* MODE 4: VEHICLE PASSABILITY CALCULATOR */}
-              {sheetMode === 'vehicle' && (
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                  <Text style={styles.sectionHeaderTitle}>Simulate Floodwater Depth: {calcDepth}cm</Text>
-                  <View style={styles.calcPresetRow}>
-                    {[
-                      { label: 'Ankle (15cm)', val: 15 },
-                      { label: 'Knee (35cm)', val: 35 },
-                      { label: 'Waist (90cm)', val: 90 },
-                      { label: 'Chest (140cm)', val: 140 },
-                    ].map((p) => (
-                      <TouchableOpacity
-                        key={p.val}
-                        style={[styles.calcPresetChip, calcDepth === p.val && styles.calcPresetChipActive]}
-                        onPress={() => setCalcDepth(p.val)}
-                      >
-                        <Text style={[styles.calcPresetText, calcDepth === p.val && styles.calcPresetTextActive]}>
-                          {p.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                      )}
+                    </View>
                   </View>
-
-                  <View style={styles.vehicleCard}>
-                    <Text style={styles.vehicleName}>🚗 Sedans & Hatchbacks (Vios, Mirage)</Text>
-                    <Text style={[styles.passBadge, { color: calcDepth <= 15 ? '#34C759' : '#FF3B30' }]}>
-                      {calcDepth <= 15 ? 'SAFE PASSAGE' : 'IMPASSABLE & ENGINE HYDROSTATIC LOCK'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.vehicleCard}>
-                    <Text style={styles.vehicleName}>🚙 Compact Crossovers & SUVs (Innova, Rush)</Text>
-                    <Text style={[styles.passBadge, { color: calcDepth <= 30 ? '#34C759' : '#FF9500' }]}>
-                      {calcDepth <= 30 ? 'SAFE PASSAGE' : 'EXTREME CAUTION — CREEK RUNOFF'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.vehicleCard}>
-                    <Text style={styles.vehicleName}>🛻 4x4 Pickups & High SUVs (Hilux, Fortuner)</Text>
-                    <Text style={[styles.passBadge, { color: calcDepth <= 50 ? '#34C759' : '#FF9500' }]}>
-                      {calcDepth <= 50 ? 'SAFE PASSAGE' : 'DEEP BASIN POOLING HAZARD'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.vehicleCard}>
-                    <Text style={styles.vehicleName}>🚒 Heavy Disaster Rescue Trucks (WASAR)</Text>
-                    <Text style={[styles.passBadge, { color: calcDepth <= 80 ? '#34C759' : '#FF3B30' }]}>
-                      {calcDepth <= 80 ? 'AUTHORIZED RESCUE PASS' : 'CRITICAL INUNDATION'}
-                    </Text>
-                  </View>
-                </ScrollView>
-              )}
-            </View>
+                );
+              }}
+            />
           </>
         )}
       </View>
+
+      {/* Vehicle Passability Calculator Modal */}
+      <Modal
+        visible={vehicleModalOpen}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setVehicleModalOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalTop}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Gauge color="#007AFF" size={20} />
+                <Text style={styles.modalTitle}>Vehicle Clearance Calculator</Text>
+              </View>
+              <TouchableOpacity onPress={() => setVehicleModalOpen(false)}>
+                <X color="#8E8E93" size={20} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.calcSub}>Simulate water depth to evaluate safe crossing feasibility:</Text>
+
+            <View style={styles.calcPresetRow}>
+              {[
+                { label: 'Ankle (15cm)', val: 15 },
+                { label: 'Knee (35cm)', val: 35 },
+                { label: 'Waist (90cm)', val: 90 },
+                { label: 'Chest (140cm)', val: 140 },
+              ].map((p) => (
+                <TouchableOpacity
+                  key={p.val}
+                  style={[styles.calcPresetChip, calcDepth === p.val && styles.calcPresetChipActive]}
+                  onPress={() => setCalcDepth(p.val)}
+                >
+                  <Text style={[styles.calcPresetText, calcDepth === p.val && styles.calcPresetTextActive]}>
+                    {p.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <ScrollView style={{ maxHeight: 300, marginTop: 8 }}>
+              <View style={styles.vehicleCard}>
+                <Text style={styles.vehicleName}>🚗 Sedans & Hatchbacks (Vios, Mirage)</Text>
+                <Text style={[styles.passBadge, { color: calcDepth <= 15 ? '#34C759' : '#FF3B30' }]}>
+                  {calcDepth <= 15 ? 'SAFE PASSAGE' : 'IMPASSABLE / HYDROSTATIC LOCK HAZARD'}
+                </Text>
+              </View>
+
+              <View style={styles.vehicleCard}>
+                <Text style={styles.vehicleName}>🚙 Compact Crossovers & SUVs (Innova, Rush)</Text>
+                <Text style={[styles.passBadge, { color: calcDepth <= 30 ? '#34C759' : '#FF9500' }]}>
+                  {calcDepth <= 30 ? 'SAFE PASSAGE' : 'EXTREME CAUTION — CREEK RUNOFF'}
+                </Text>
+              </View>
+
+              <View style={styles.vehicleCard}>
+                <Text style={styles.vehicleName}>🛻 4x4 Pickups & High SUVs (Hilux, Fortuner)</Text>
+                <Text style={[styles.passBadge, { color: calcDepth <= 50 ? '#34C759' : '#FF9500' }]}>
+                  {calcDepth <= 50 ? 'SAFE PASSAGE' : 'DEEP BASIN POOLING HAZARD'}
+                </Text>
+              </View>
+
+              <View style={styles.vehicleCard}>
+                <Text style={styles.vehicleName}>🚒 Heavy Disaster Rescue Trucks (WASAR)</Text>
+                <Text style={[styles.passBadge, { color: calcDepth <= 80 ? '#34C759' : '#FF3B30' }]}>
+                  {calcDepth <= 80 ? 'AUTHORIZED RESCUE PASS' : 'CRITICAL INUNDATION'}
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Emergency Hotlines Modal */}
       <Modal
@@ -879,45 +732,35 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#8E8E93',
   },
-  modeChipsRow: {
+  filterPillsRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 6,
     gap: 6,
   },
-  modeChip: {
+  filterPill: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F2F2F7',
-    paddingVertical: 7,
-    borderRadius: 14,
-    gap: 4,
+    paddingVertical: 6.5,
+    borderRadius: 12,
   },
-  modeChipActive: {
+  filterPillActive: {
     backgroundColor: '#007AFF',
   },
-  modeChipText: {
-    fontSize: 11,
+  filterPillText: {
+    fontSize: 10.5,
     fontWeight: '700',
     color: '#6C6C70',
   },
-  modeChipTextActive: {
+  filterPillTextActive: {
     color: '#FFFFFF',
-  },
-  sheetBody: {
-    flex: 1,
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingBottom: 28,
     gap: 8,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 30,
-    gap: 10,
   },
   cardItem: {
     backgroundColor: '#F8F9FA',
@@ -983,162 +826,35 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#34C759',
   },
-  sectionHeaderTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#1C1C1E',
-    marginTop: 4,
-  },
-  depthPillsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    flexWrap: 'wrap',
-  },
-  depthChoiceBtn: {
+  modalOverlay: {
     flex: 1,
-    minWidth: '30%',
-    backgroundColor: '#F8F9FA',
-    borderWidth: 1.5,
-    borderColor: '#E5E5EA',
-    borderRadius: 14,
-    padding: 10,
-    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
-  depthChoiceText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1C1C1E',
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 20,
+    paddingBottom: 36,
+    gap: 12,
   },
-  depthChoiceSub: {
-    fontSize: 10,
-    color: '#8E8E93',
-    marginTop: 2,
-  },
-  gpsLockRow: {
+  modalTop: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2F2F7',
+    paddingBottom: 12,
   },
-  gpsLockText: {
-    flex: 1,
-    fontFamily: 'monospace',
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1C1C1E',
-  },
-  gpsUpdatePill: {
-    backgroundColor: '#E5F1FF',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-  },
-  gpsUpdateText: {
-    color: '#007AFF',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  textInput: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-    fontSize: 13,
-    color: '#1C1C1E',
-  },
-  primaryActionBtn: {
-    backgroundColor: '#007AFF',
-    borderRadius: 18,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 4,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-  },
-  primaryActionText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  successStateBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    gap: 8,
-  },
-  successTitle: {
+  modalTitle: {
     fontSize: 16,
     fontWeight: '800',
     color: '#1C1C1E',
-    marginTop: 8,
   },
-  successSub: {
+  calcSub: {
     fontSize: 12,
     color: '#8E8E93',
-    textAlign: 'center',
-  },
-  shelterTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    marginTop: 2,
-  },
-  shelterDistance: {
-    fontSize: 11,
-    color: '#8E8E93',
-    marginTop: 2,
-  },
-  callShelterBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#34C759',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
-  },
-  callShelterText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  occBarBox: {
-    marginTop: 6,
-    gap: 3,
-  },
-  occLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  occLabel: {
-    fontSize: 10,
-    color: '#8E8E93',
-    fontWeight: '600',
-  },
-  occVal: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#1C1C1E',
-  },
-  occTrack: {
-    height: 5,
-    backgroundColor: '#E5E5EA',
-    borderRadius: 2.5,
-    overflow: 'hidden',
-  },
-  occFill: {
-    height: '100%',
-    borderRadius: 2.5,
   },
   calcPresetRow: {
     flexDirection: 'row',
@@ -1172,6 +888,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: '#E5E5EA',
+    marginBottom: 8,
     gap: 4,
   },
   vehicleName: {
@@ -1182,32 +899,6 @@ const styles = StyleSheet.create({
   passBadge: {
     fontSize: 10,
     fontWeight: '800',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: 20,
-    paddingBottom: 36,
-    gap: 12,
-  },
-  modalTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F2F2F7',
-    paddingBottom: 12,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#1C1C1E',
   },
   sosShareBtn: {
     flexDirection: 'row',
