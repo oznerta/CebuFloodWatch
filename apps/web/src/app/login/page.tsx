@@ -43,9 +43,14 @@ export default function LoginPage() {
     setErrorMessage(null);
     setLoading(true);
 
-    const result = await login(loginEmail, loginPassword);
-    if (!result.success) {
-      setErrorMessage(result.error || 'Invalid email or password. Please check your credentials or create an account.');
+    try {
+      const result = await login(loginEmail, loginPassword);
+      if (!result.success) {
+        setErrorMessage(result.error || 'Invalid email or password. Please check your credentials or create an account.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Authentication error. Please check your network connection.');
+    } finally {
       setLoading(false);
     }
   };
@@ -61,17 +66,22 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    const result = await register({
-      fullName: regFullName,
-      email: regEmail,
-      password: regPassword,
-      role: regRole,
-      barangay: regBarangay,
-      phone: regPhone,
-    });
+    try {
+      const result = await register({
+        fullName: regFullName,
+        email: regEmail,
+        password: regPassword,
+        role: regRole,
+        barangay: regBarangay,
+        phone: regPhone,
+      });
 
-    if (!result.success) {
-      setErrorMessage(result.error || 'Registration failed. Please try again.');
+      if (!result.success) {
+        setErrorMessage(result.error || 'Registration failed. Please try again.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Registration network error. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
@@ -103,9 +113,10 @@ export default function LoginPage() {
             type="button"
             onClick={() => {
               setTab('login');
+              setLoading(false);
               setErrorMessage(null);
             }}
-            className={`flex-1 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${
+            className={`flex-1 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               tab === 'login'
                 ? 'bg-white text-[#1C1C1E] shadow-sm'
                 : 'text-[#6C6C70] hover:text-[#1C1C1E]'
@@ -119,9 +130,10 @@ export default function LoginPage() {
             type="button"
             onClick={() => {
               setTab('register');
+              setLoading(false);
               setErrorMessage(null);
             }}
-            className={`flex-1 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${
+            className={`flex-1 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               tab === 'register'
                 ? 'bg-white text-[#1C1C1E] shadow-sm'
                 : 'text-[#6C6C70] hover:text-[#1C1C1E]'
@@ -177,7 +189,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="text-[#8E8E93] hover:text-[#1C1C1E]"
+                  className="text-[#8E8E93] hover:text-[#1C1C1E] cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -187,7 +199,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 rounded-2xl bg-[#007AFF] hover:bg-[#0062CC] text-white font-extrabold text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+              className="w-full py-3.5 rounded-2xl bg-[#007AFF] hover:bg-[#0062CC] text-white font-extrabold text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
             >
               <span>{loading ? 'Authenticating Clearance...' : 'Sign In to Command Center'}</span>
               <ArrowRight className="w-4 h-4" />
@@ -197,9 +209,10 @@ export default function LoginPage() {
               type="button"
               onClick={() => {
                 setTab('register');
+                setLoading(false);
                 setErrorMessage(null);
               }}
-              className="w-full text-center text-xs font-bold text-[#007AFF] hover:underline pt-1"
+              className="w-full text-center text-xs font-bold text-[#007AFF] hover:underline pt-1 cursor-pointer"
             >
               Don't have an account? Tap here to Create One
             </button>
@@ -258,7 +271,7 @@ export default function LoginPage() {
                 <select
                   value={regRole}
                   onChange={(e) => setRegRole(e.target.value as any)}
-                  className="w-full p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-bold text-[#1C1C1E] focus:outline-none"
+                  className="w-full p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-bold text-[#1C1C1E] focus:outline-none cursor-pointer"
                 >
                   <option value="admin">System Admin</option>
                   <option value="lgu_officer">LGU Dispatcher</option>
@@ -273,7 +286,7 @@ export default function LoginPage() {
                 <select
                   value={regBarangay}
                   onChange={(e) => setRegBarangay(e.target.value)}
-                  className="w-full p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-bold text-[#1C1C1E] focus:outline-none"
+                  className="w-full p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-bold text-[#1C1C1E] focus:outline-none cursor-pointer"
                 >
                   <option value="Mabolo">Mabolo</option>
                   <option value="Kasambagan">Kasambagan</option>
@@ -287,7 +300,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-2xl bg-[#007AFF] hover:bg-[#0062CC] text-white font-extrabold text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50 mt-1"
+              className="w-full py-3.5 rounded-2xl bg-[#007AFF] hover:bg-[#0062CC] text-white font-extrabold text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50 mt-1 cursor-pointer"
             >
               <span>{loading ? 'Creating Account...' : 'Register & Enter Command Center'}</span>
               <ArrowRight className="w-4 h-4" />
@@ -297,9 +310,10 @@ export default function LoginPage() {
               type="button"
               onClick={() => {
                 setTab('login');
+                setLoading(false);
                 setErrorMessage(null);
               }}
-              className="w-full text-center text-xs font-bold text-[#007AFF] hover:underline pt-1"
+              className="w-full text-center text-xs font-bold text-[#007AFF] hover:underline pt-1 cursor-pointer"
             >
               Already have an account? Tap here to Sign In
             </button>

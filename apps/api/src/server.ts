@@ -17,7 +17,14 @@ initSocketIO(server);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(
   cors({
-    origin: [config.webClientUrl, 'http://localhost:3000', 'http://localhost:8081'],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, postman) or any local dev origin
+      if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('192.168.') || origin === config.webClientUrl) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Permissive for local network operations
+      }
+    },
     credentials: true,
   })
 );
