@@ -76,8 +76,8 @@ export function MapContainer({
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
       style: TILE_STYLES[currentStyle].styleUrl,
-      center: [123.8854, 10.3157], // Downtown / Cebu City Center
-      zoom: 13,
+      center: [123.8950, 10.3160], // Downtown / Cebu City Urban Basin
+      zoom: 13.5,
       minZoom: 11.5, // Restrict zooming out to neighboring islands/sea
       maxZoom: 18.5,
       maxBounds: CEBU_CITY_RESTRICTED_BOUNDS, // Confine camera strictly to Cebu City
@@ -103,7 +103,7 @@ export function MapContainer({
           paint: {
             'line-color': '#007AFF',
             'line-width': 4,
-            'line-opacity': 0.8,
+            'line-opacity': 0.85,
           },
         });
 
@@ -113,7 +113,7 @@ export function MapContainer({
           source: 'cebu-city-boundary',
           paint: {
             'fill-color': '#007AFF',
-            'fill-opacity': 0.02,
+            'fill-opacity': 0.03,
           },
         });
       }
@@ -187,6 +187,12 @@ export function MapContainer({
           source: 'cebu-flood-5yr',
           paint: { 'fill-color': '#FFCC00', 'fill-opacity': 0.35 },
         });
+        map.addLayer({
+          id: 'hazard-5yr-line',
+          type: 'line',
+          source: 'cebu-flood-5yr',
+          paint: { 'line-color': '#FFCC00', 'line-width': 1.5, 'line-opacity': 0.7 },
+        });
       }
 
       if (!map.getSource('cebu-flood-25yr')) {
@@ -198,7 +204,13 @@ export function MapContainer({
           id: 'hazard-25yr-fill',
           type: 'fill',
           source: 'cebu-flood-25yr',
-          paint: { 'fill-color': '#FF9500', 'fill-opacity': 0.38 },
+          paint: { 'fill-color': '#FF9500', 'fill-opacity': 0.4 },
+        });
+        map.addLayer({
+          id: 'hazard-25yr-line',
+          type: 'line',
+          source: 'cebu-flood-25yr',
+          paint: { 'line-color': '#FF9500', 'line-width': 1.5, 'line-opacity': 0.8 },
         });
       }
 
@@ -211,7 +223,13 @@ export function MapContainer({
           id: 'hazard-100yr-fill',
           type: 'fill',
           source: 'cebu-flood-100yr',
-          paint: { 'fill-color': '#FF3B30', 'fill-opacity': 0.42 },
+          paint: { 'fill-color': '#FF3B30', 'fill-opacity': 0.45 },
+        });
+        map.addLayer({
+          id: 'hazard-100yr-line',
+          type: 'line',
+          source: 'cebu-flood-100yr',
+          paint: { 'line-color': '#FF3B30', 'line-width': 2, 'line-opacity': 0.9 },
         });
       }
 
