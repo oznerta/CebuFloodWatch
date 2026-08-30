@@ -438,11 +438,12 @@ export default function DashboardPage() {
                       return (
                         <div
                           key={st.id}
-                          className="p-3.5 rounded-2xl bg-white border border-gray-200/90 space-y-2.5 hover:border-blue-400 hover:shadow-sm transition-all"
+                          onClick={() => handleFlyToStation(st)}
+                          className="p-3.5 rounded-2xl bg-white border border-gray-200/90 space-y-2.5 hover:border-blue-400 hover:shadow-md hover:scale-[1.01] transition-all cursor-pointer group"
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <h4 className="font-extrabold text-xs text-gray-900 leading-tight">
+                              <h4 className="font-extrabold text-xs text-gray-900 group-hover:text-blue-600 transition-colors leading-tight">
                                 {st.station_name}
                               </h4>
                               <p className="text-[10px] text-gray-400 font-medium mt-0.5">
@@ -483,19 +484,15 @@ export default function DashboardPage() {
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between text-[10px] font-semibold text-gray-600 pt-1 border-t border-gray-100">
+                          <div className="flex items-center justify-between text-[10px] font-semibold text-gray-500 pt-1 border-t border-gray-100">
                             <span className="flex items-center gap-1 text-sky-600">
                               <CloudRain className="w-3 h-3" />
                               {st.rainfall_rate_mmh || 0} mm/h
                             </span>
 
-                            <button
-                              onClick={() => handleFlyToStation(st)}
-                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-bold cursor-pointer hover:underline"
-                            >
-                              <Navigation className="w-3 h-3" />
-                              <span>Locate</span>
-                            </button>
+                            <span className="text-blue-600 font-bold group-hover:underline flex items-center gap-0.5">
+                              Focus on Map &rarr;
+                            </span>
                           </div>
                         </div>
                       );

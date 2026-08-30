@@ -129,7 +129,6 @@ export function MapContainer({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
-  const targetMarkerRef = useRef<maplibregl.Marker | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
 
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -689,38 +688,36 @@ export function MapContainer({
     });
   }, [reports, shelters, stations, mapLoaded]);
 
-  // Handle Fly-To Custom Events
+  // Handle Fly-To Custom Events (Directly opens marker popup without duplicate circle pin)
   useEffect(() => {
     const handleFlyTo = (event: any) => {
       if (!mapRef.current) return;
-      const { latitude, longitude, name } = event.detail || {};
+      const { latitude, longitude } = event.detail || {};
       if (!latitude || !longitude) return;
 
       mapRef.current.flyTo({
         center: [longitude, latitude],
         zoom: 16.5,
-        pitch: is3DMode ? 55 : 40,
+        pitch: is3DMode ? 45 : 0,
         essential: true,
-        duration: 1800,
+        duration: 1200,
       });
 
-      if (targetMarkerRef.current) {
-        targetMarkerRef.current.remove();
-        targetMarkerRef.current = null;
+      // Find the existing marker and toggle its popup open directly
+      const targetMarker = markersRef.current.find((m) => {
+        const lngLat = m.getLngLat();
+        return (
+          Math.abs(lngLat.lat - latitude) < 0.0008 &&
+          Math.abs(lngLat.lng - longitude) < 0.0008
+        );
+      });
+
+      if (targetMarker) {
+        const popup = targetMarker.getPopup();
+        if (popup && !popup.isOpen()) {
+          targetMarker.togglePopup();
+        }
       }
-
-      const el = document.createElement('div');
-      el.className = 'w-10 h-10 -ml-5 -mt-5 pointer-events-none';
-      el.innerHTML = `
-        <div class="relative w-full h-full flex items-center justify-center">
-          <div class="absolute inset-0 rounded-full bg-blue-500/40 animate-ping"></div>
-          <div class="w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-xl"></div>
-        </div>
-      `;
-
-      targetMarkerRef.current = new maplibregl.Marker({ element: el })
-        .setLngLat([longitude, latitude])
-        .addTo(mapRef.current);
     };
 
     window.addEventListener('map:flyto', handleFlyTo);
