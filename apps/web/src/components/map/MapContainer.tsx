@@ -31,35 +31,29 @@ interface MapContainerProps {
 export type MapTileStyle = 'clean' | 'dark' | 'hybrid' | 'streets' | 'terrain';
 export type FloodScenario = '5yr' | '25yr' | '100yr' | 'none';
 
-// Ultra-reliable High-Resolution Multi-Engine Basemap Catalog
+// 100% Free, Public, Keyless & Watermark-Free Multi-Engine Basemap Catalog
 const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
-    // 1. CartoDB Positron (Ultra-Clean Light Minimal - Zero Distractions)
-    'carto-light-src': {
+    // 1. ESRI World Light Gray Canvas (Ultra-Clean Minimal - 100% Free, Zero Watermark)
+    'esri-clean-src': {
       type: 'raster',
       tiles: [
-        'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-        'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-        'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-        'https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
       ],
       tileSize: 256,
       maxzoom: 20,
     },
-    // 2. CartoDB Dark Matter (Tactical Cyber Command Night Mode)
-    'carto-dark-src': {
+    // 2. ESRI World Dark Gray Canvas (Tactical Cyber Dark - 100% Free, Zero Watermark)
+    'esri-dark-src': {
       type: 'raster',
       tiles: [
-        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
       ],
       tileSize: 256,
       maxzoom: 20,
     },
-    // 3. Google Hybrid Satellite (High-Res Aerial + Street Names)
+    // 3. Google Hybrid Satellite (High-Res Aerial + Street Names - Zero Watermark)
     'google-hybrid-src': {
       type: 'raster',
       tiles: [
@@ -71,26 +65,21 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       tileSize: 256,
       maxzoom: 20,
     },
-    // 4. Google Streets (Standard Urban Geometry)
-    'google-streets-src': {
+    // 4. OpenStreetMap Humanitarian (Clean Detailed Urban Map - 100% Free, Zero Watermark)
+    'osm-streets-src': {
       type: 'raster',
       tiles: [
-        'https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-        'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-        'https://mt2.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-        'https://mt3.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+        'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+        'https://b.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
       ],
       tileSize: 256,
       maxzoom: 20,
     },
-    // 5. Google Terrain (Topographic Mountain Relief)
-    'google-terrain-src': {
+    // 5. ESRI World Topo Map (Topographic Relief & Mountain Elevation - 100% Free, Zero Watermark)
+    'esri-topo-src': {
       type: 'raster',
       tiles: [
-        'https://mt0.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
-        'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
-        'https://mt2.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
-        'https://mt3.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
       ],
       tileSize: 256,
       maxzoom: 20,
@@ -100,7 +89,7 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
     {
       id: 'base-layer-clean',
       type: 'raster',
-      source: 'carto-light-src',
+      source: 'esri-clean-src',
       minzoom: 0,
       maxzoom: 22,
       layout: { visibility: 'visible' },
@@ -108,7 +97,7 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
     {
       id: 'base-layer-dark',
       type: 'raster',
-      source: 'carto-dark-src',
+      source: 'esri-dark-src',
       minzoom: 0,
       maxzoom: 22,
       layout: { visibility: 'none' },
@@ -124,7 +113,7 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
     {
       id: 'base-layer-streets',
       type: 'raster',
-      source: 'google-streets-src',
+      source: 'osm-streets-src',
       minzoom: 0,
       maxzoom: 22,
       layout: { visibility: 'none' },
@@ -132,7 +121,7 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
     {
       id: 'base-layer-terrain',
       type: 'raster',
-      source: 'google-terrain-src',
+      source: 'esri-topo-src',
       minzoom: 0,
       maxzoom: 22,
       layout: { visibility: 'none' },
@@ -141,11 +130,11 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
 };
 
 const TILE_STYLES_INFO: Record<MapTileStyle, { name: string; icon: any; desc: string; previewColor: string }> = {
-  clean: { name: 'Clean Light (Minimal)', icon: Sun, desc: 'Crisp, high-contrast disaster base', previewColor: '#F8F9FA' },
-  dark: { name: 'Dark Ops (Tactical)', icon: Moon, desc: 'High-contrast nocturnal command map', previewColor: '#1A1D20' },
+  clean: { name: 'Clean Light (ESRI Canvas)', icon: Sun, desc: 'Ultra-clean, zero watermark disaster map', previewColor: '#F5F5F3' },
+  dark: { name: 'Dark Ops (ESRI Dark)', icon: Moon, desc: 'High-contrast nocturnal command map', previewColor: '#242424' },
   hybrid: { name: 'Satellite Hybrid', icon: Satellite, desc: 'High-resolution aerial imagery', previewColor: '#2C442A' },
-  streets: { name: 'Google Streets', icon: MapIcon, desc: 'Standard detailed urban road network', previewColor: '#E8ECE9' },
-  terrain: { name: 'Google Terrain', icon: Mountain, desc: 'Topographic contour elevation relief', previewColor: '#E0D8C3' },
+  streets: { name: 'OSM Humanitarian', icon: MapIcon, desc: 'Open disaster-ready urban road network', previewColor: '#E8ECE9' },
+  terrain: { name: 'ESRI Topographic', icon: Mountain, desc: 'Contour elevation & mountain relief', previewColor: '#E0D8C3' },
 };
 
 export function MapContainer({
