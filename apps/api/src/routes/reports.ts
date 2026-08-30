@@ -4,6 +4,7 @@ import { query } from '../config/db.js';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/rbac.js';
 import { broadcastEvent } from '../services/socket.js';
+import { uploadCitizenReportPhoto } from '../services/storage.js';
 
 export const reportsRouter = Router();
 
@@ -58,11 +59,39 @@ reportsRouter.get('/', async (req: Request, res: Response, next: NextFunction) =
   }
 });
 
+// POST /api/v1/reports/upload - Secure Cloudinary photo upload endpoint
+reportsRouter.post('/upload', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const { imageBase64, reportId = 'temp' } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ success: false, error: 'No image data provided.' });
+    }
+
+    const uploadRes = await uploadCitizenReportPhoto(imageBase64, reportId);
+    return res.json({
+      success: uploadRes.success,
+      url: uploadRes.url,
+      publicId: uploadRes.publicId,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // POST /api/v1/reports - Submit citizen flood report (< 3 taps)
 reportsRouter.post('/', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const input = createReportSchema.parse(req.body);
     const userId = req.user?.id || null;
+
+    // If photo is base64, upload to Cloudinary directly
+    let finalPhotoUrl = input.photo_url || null;
+    if (finalPhotoUrl && finalPhotoUrl.startsWith('data:image')) {
+      const uploadRes = await uploadCitizenReportPhoto(finalPhotoUrl, `citizen_${Date.now()}`);
+      if (uploadRes.success) {
+        finalPhotoUrl = uploadRes.url;
+      }
+    }
 
     // Resolve enclosing barangay if not provided via PostGIS ST_Intersects or nearest distance
     let barangayId = input.barangay_id;
@@ -97,7 +126,7 @@ reportsRouter.post('/', authenticate, async (req: AuthenticatedRequest, res: Res
         input.latitude,
         input.flood_depth_level,
         input.description,
-        input.photo_url || null,
+        finalPhotoUrl,
       ]
     );
 
@@ -107,7 +136,7 @@ reportsRouter.post('/', authenticate, async (req: AuthenticatedRequest, res: Res
       longitude: input.longitude,
       flood_depth_level: input.flood_depth_level,
       description: input.description,
-      photo_url: input.photo_url,
+      photo_url: finalPhotoUrl,
       status: insertRes.rows[0].status,
       barangay_id: barangayId,
       created_at: insertRes.rows[0].created_at,
@@ -124,35 +153,3 @@ reportsRouter.post('/', authenticate, async (req: AuthenticatedRequest, res: Res
     next(error);
   }
 });
-
-// PATCH /api/v1/reports/:id/status - Update report status (DRRMO / Focal)
-reportsRouter.patch(
-  '/:id/status',
-  authenticate,
-  requirePermission('update_shelter_status'),
-  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try {
-      const { id } = req.params;
-      const { status } = req.body;
-
-      const result = await query(
-        `UPDATE public.citizen_reports 
-         SET status = $1, updated_at = NOW() 
-         WHERE id = $2 
-         RETURNING id, status, barangay_id, updated_at`,
-        [status, id]
-      );
-
-      if (result.rows.length === 0) {
-        res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Report not found' } });
-        return;
-      }
-
-      broadcastEvent('report:status_update', result.rows[0], result.rows[0].barangay_id);
-
-      res.json({ success: true, data: result.rows[0] });
-    } catch (error) {
-      next(error);
-    }
-  }
-);
