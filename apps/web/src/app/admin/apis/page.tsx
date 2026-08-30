@@ -89,21 +89,7 @@ export default function APIGatewaysPage() {
   useEffect(() => {
     loadInfraStatus();
 
-    // 1. Instant load from localStorage cache if present
-    try {
-      const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (parsed.pagasaKey) setPagasaKey(parsed.pagasaKey);
-        if (parsed.pagasaInterval) setPagasaInterval(parsed.pagasaInterval);
-        if (parsed.namriaUrl) setNamriaUrl(parsed.namriaUrl);
-        if (parsed.mqttBroker) setMqttBroker(parsed.mqttBroker);
-        if (parsed.smsApiKey) setSmsApiKey(parsed.smsApiKey);
-        if (parsed.smsSenderId) setSmsSenderId(parsed.smsSenderId);
-      }
-    } catch {}
-
-    // 2. Fetch from backend API / PostgreSQL (always overwrite with DB truth)
+    // Fetch from backend API / PostgreSQL — single source of truth
     fetchApi<any>('/admin/gateways')
       .then((res) => {
         if (res) {
@@ -116,7 +102,21 @@ export default function APIGatewaysPage() {
           setSmsSenderId(d.smsSenderId ?? '');
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        // Offline fallback: try localStorage cache
+        try {
+          const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
+          if (cached) {
+            const p = JSON.parse(cached);
+            setPagasaKey(p.pagasaKey ?? '');
+            setPagasaInterval(p.pagasaInterval ?? '5');
+            setNamriaUrl(p.namriaUrl ?? '');
+            setMqttBroker(p.mqttBroker ?? '');
+            setSmsApiKey(p.smsApiKey ?? '');
+            setSmsSenderId(p.smsSenderId ?? '');
+          }
+        } catch {}
+      });
   }, []);
 
   const handleTestService = async (service: 'pagasa' | 'namria' | 'mqtt' | 'sms') => {
@@ -191,9 +191,9 @@ export default function APIGatewaysPage() {
       });
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
-    } catch {
-      setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 3000);
+    } catch (err: any) {
+      console.error('Failed to save gateway credentials:', err);
+      alert(`Failed to save gateway credentials: ${err?.message || 'Unknown error'}`);
     } finally {
       setSaving(false);
     }
