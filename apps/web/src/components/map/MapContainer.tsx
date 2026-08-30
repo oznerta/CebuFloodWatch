@@ -206,7 +206,7 @@ export function MapContainer({
           source: 'cebu-flood-5yr',
           paint: {
             'fill-color': ['coalesce', ['get', 'color'], '#FFCC00'],
-            'fill-opacity': 0.45,
+            'fill-opacity': 0.25,
           },
         });
         map.addLayer({
@@ -215,8 +215,8 @@ export function MapContainer({
           source: 'cebu-flood-5yr',
           paint: {
             'line-color': ['coalesce', ['get', 'color'], '#FFCC00'],
-            'line-width': 1.2,
-            'line-opacity': 0.7,
+            'line-width': 0.8,
+            'line-opacity': 0.4,
           },
         });
       }
@@ -232,7 +232,7 @@ export function MapContainer({
           source: 'cebu-flood-25yr',
           paint: {
             'fill-color': ['coalesce', ['get', 'color'], '#FF9500'],
-            'fill-opacity': 0.48,
+            'fill-opacity': 0.28,
           },
         });
         map.addLayer({
@@ -241,8 +241,8 @@ export function MapContainer({
           source: 'cebu-flood-25yr',
           paint: {
             'line-color': ['coalesce', ['get', 'color'], '#FF9500'],
-            'line-width': 1.2,
-            'line-opacity': 0.75,
+            'line-width': 0.8,
+            'line-opacity': 0.45,
           },
         });
       }
@@ -258,7 +258,7 @@ export function MapContainer({
           source: 'cebu-flood-100yr',
           paint: {
             'fill-color': ['coalesce', ['get', 'color'], '#FF3B30'],
-            'fill-opacity': 0.52,
+            'fill-opacity': 0.32,
           },
         });
         map.addLayer({
@@ -267,8 +267,8 @@ export function MapContainer({
           source: 'cebu-flood-100yr',
           paint: {
             'line-color': ['coalesce', ['get', 'color'], '#FF3B30'],
-            'line-width': 1.5,
-            'line-opacity': 0.85,
+            'line-width': 1.0,
+            'line-opacity': 0.5,
           },
         });
       }
