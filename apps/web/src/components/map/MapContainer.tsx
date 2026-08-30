@@ -16,6 +16,8 @@ import {
   Info,
   Plus,
   Minus,
+  Globe,
+  Map as MapIcon,
 } from 'lucide-react';
 
 interface MapContainerProps {
@@ -26,28 +28,77 @@ interface MapContainerProps {
   showHazardControls?: boolean;
 }
 
-type MapTileStyle = 'vector' | 'satellite' | 'terrain';
+type MapTileStyle = 'satellite' | 'vector' | 'terrain';
 type FloodScenario = '5yr' | '25yr' | '100yr' | 'none';
 
-const TILE_STYLES: Record<MapTileStyle, { name: string; styleUrl: string }> = {
-  vector: {
-    name: 'Light Vector',
-    styleUrl: 'https://tiles.openfreemap.org/styles/positron',
-  },
+// Ultra High-Resolution Global Satellite Imagery with Google Maps Hybrid & Elevation
+const TILE_STYLES: Record<MapTileStyle, { name: string; icon: any; style: any }> = {
   satellite: {
-    name: 'Satellite Hybrid',
-    styleUrl: 'https://tiles.openfreemap.org/styles/liberty',
+    name: 'Google Satellite Hybrid',
+    icon: Satellite,
+    style: {
+      version: 8,
+      sources: {
+        'google-satellite': {
+          type: 'raster',
+          tiles: [
+            'https://mt0.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+            'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+            'https://mt2.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+            'https://mt3.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+          ],
+          tileSize: 256,
+          maxzoom: 20,
+        },
+      },
+      layers: [
+        {
+          id: 'google-satellite-base',
+          type: 'raster',
+          source: 'google-satellite',
+          minzoom: 0,
+          maxzoom: 22,
+        },
+      ],
+    },
+  },
+  vector: {
+    name: 'Clean Vector Streets',
+    icon: MapIcon,
+    style: 'https://tiles.openfreemap.org/styles/positron',
   },
   terrain: {
-    name: 'Topographic Terrain',
-    styleUrl: 'https://tiles.openfreemap.org/styles/bright',
+    name: 'Topographic Relief',
+    icon: Mountain,
+    style: {
+      version: 8,
+      sources: {
+        'esri-topo': {
+          type: 'raster',
+          tiles: [
+            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+          ],
+          tileSize: 256,
+          maxzoom: 19,
+        },
+      },
+      layers: [
+        {
+          id: 'esri-topo-base',
+          type: 'raster',
+          source: 'esri-topo',
+          minzoom: 0,
+          maxzoom: 20,
+        },
+      ],
+    },
   },
 };
 
 // Strict Cebu City Bounding Box (Southwest to Northeast)
 const CEBU_CITY_RESTRICTED_BOUNDS: [[number, number], [number, number]] = [
-  [123.70, 10.22], // Southwest boundary
-  [124.00, 10.52], // Northeast boundary
+  [123.70, 10.20], // Southwest boundary
+  [124.05, 10.55], // Northeast boundary
 ];
 
 export function MapContainer({
@@ -69,239 +120,237 @@ export function MapContainer({
   const [showBarangays, setShowBarangays] = useState(true);
   const [showBoundary, setShowBoundary] = useState(true);
   const [showMask, setShowMask] = useState(true);
-  const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('vector');
+  const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('satellite');
   const [is3DMode, setIs3DMode] = useState(false);
   const [showLayersMenu, setShowLayersMenu] = useState(false);
+  const [showStyleMenu, setShowStyleMenu] = useState(false);
+
+  // Setup layers callback for initial load & style reloads
+  const setupLayers = () => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+
+    // 0. Inverse Mask (Hides everything outside Cebu City perimeter)
+    if (!map.getSource('cebu-city-mask')) {
+      map.addSource('cebu-city-mask', {
+        type: 'geojson',
+        data: '/data/cebu_city_mask.geojson',
+      });
+
+      map.addLayer({
+        id: 'cebu-outside-mask',
+        type: 'fill',
+        source: 'cebu-city-mask',
+        paint: {
+          'fill-color': '#0F172A',
+          'fill-opacity': 0.75,
+        },
+      });
+    }
+
+    // 1. Cebu City Official Outer Boundary Glow
+    if (!map.getSource('cebu-city-boundary')) {
+      map.addSource('cebu-city-boundary', {
+        type: 'geojson',
+        data: '/data/cebu_city_boundary.geojson',
+      });
+
+      map.addLayer({
+        id: 'cebu-city-border-glow',
+        type: 'line',
+        source: 'cebu-city-boundary',
+        paint: {
+          'line-color': '#38BDF8',
+          'line-width': 3,
+          'line-opacity': 0.9,
+        },
+      });
+    }
+
+    // 2. All 80 Cebu City Barangay Boundaries
+    if (!map.getSource('cebu-city-barangays')) {
+      map.addSource('cebu-city-barangays', {
+        type: 'geojson',
+        data: '/data/cebu_city_barangays.geojson',
+      });
+
+      map.addLayer({
+        id: 'cebu-barangay-fills',
+        type: 'fill',
+        source: 'cebu-city-barangays',
+        paint: {
+          'fill-color': '#818CF8',
+          'fill-opacity': 0.05,
+        },
+      });
+
+      map.addLayer({
+        id: 'cebu-barangay-lines',
+        type: 'line',
+        source: 'cebu-city-barangays',
+        paint: {
+          'line-color': '#E2E8F0',
+          'line-width': 1,
+          'line-dasharray': [3, 2],
+          'line-opacity': 0.6,
+        },
+      });
+
+      // Hover & Click interaction for Barangays
+      map.on('click', 'cebu-barangay-fills', (e: any) => {
+        if (!e.features || e.features.length === 0) return;
+        const feat = e.features[0];
+        const props = feat.properties || {};
+        const bgyName = props.adm4_name || props.adm4_en || 'Barangay';
+
+        if (popupRef.current) popupRef.current.remove();
+        popupRef.current = new maplibregl.Popup({ closeButton: true, className: 'cebu-map-popup' })
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div style="font-family: sans-serif; padding: 4px;">
+              <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #007AFF;">Cebu City Barangay</div>
+              <div style="font-size: 14px; font-weight: 900; color: #1C1C1E; margin-top: 2px;">Brgy. ${bgyName}</div>
+              <div style="font-size: 11px; color: #6C6C70; margin-top: 4px;">Jurisdiction: CDRRMO District</div>
+            </div>
+          `)
+          .addTo(map);
+      });
+
+      map.on('mouseenter', 'cebu-barangay-fills', () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+      map.on('mouseleave', 'cebu-barangay-fills', () => {
+        map.getCanvas().style.cursor = '';
+      });
+    }
+
+    // 3. NOAH Flood Hazard Zones (5-Year, 25-Year, 100-Year)
+    if (!map.getSource('cebu-flood-5yr')) {
+      map.addSource('cebu-flood-5yr', {
+        type: 'geojson',
+        data: '/data/cebu_flood_5yr.geojson',
+      });
+      map.addLayer({
+        id: 'hazard-5yr-fill',
+        type: 'fill',
+        source: 'cebu-flood-5yr',
+        paint: {
+          'fill-color': ['coalesce', ['get', 'color'], '#FFCC00'],
+          'fill-opacity': 0.32,
+        },
+      });
+      map.addLayer({
+        id: 'hazard-5yr-line',
+        type: 'line',
+        source: 'cebu-flood-5yr',
+        paint: {
+          'line-color': ['coalesce', ['get', 'color'], '#FFCC00'],
+          'line-width': 0.8,
+          'line-opacity': 0.5,
+        },
+      });
+    }
+
+    if (!map.getSource('cebu-flood-25yr')) {
+      map.addSource('cebu-flood-25yr', {
+        type: 'geojson',
+        data: '/data/cebu_flood_25yr.geojson',
+      });
+      map.addLayer({
+        id: 'hazard-25yr-fill',
+        type: 'fill',
+        source: 'cebu-flood-25yr',
+        paint: {
+          'fill-color': ['coalesce', ['get', 'color'], '#FF9500'],
+          'fill-opacity': 0.38,
+        },
+      });
+      map.addLayer({
+        id: 'hazard-25yr-line',
+        type: 'line',
+        source: 'cebu-flood-25yr',
+        paint: {
+          'line-color': ['coalesce', ['get', 'color'], '#FF9500'],
+          'line-width': 0.8,
+          'line-opacity': 0.6,
+        },
+      });
+    }
+
+    if (!map.getSource('cebu-flood-100yr')) {
+      map.addSource('cebu-flood-100yr', {
+        type: 'geojson',
+        data: '/data/cebu_flood_100yr.geojson',
+      });
+      map.addLayer({
+        id: 'hazard-100yr-fill',
+        type: 'fill',
+        source: 'cebu-flood-100yr',
+        paint: {
+          'fill-color': ['coalesce', ['get', 'color'], '#FF3B30'],
+          'fill-opacity': 0.42,
+        },
+      });
+      map.addLayer({
+        id: 'hazard-100yr-line',
+        type: 'line',
+        source: 'cebu-flood-100yr',
+        paint: {
+          'line-color': ['coalesce', ['get', 'color'], '#FF3B30'],
+          'line-width': 1.0,
+          'line-opacity': 0.65,
+        },
+      });
+    }
+
+    // Click interaction for Flood Hazard Polygons
+    const floodLayers = ['hazard-5yr-fill', 'hazard-25yr-fill', 'hazard-100yr-fill'];
+    floodLayers.forEach((layerId) => {
+      map.on('click', layerId, (e: any) => {
+        if (!e.features || e.features.length === 0) return;
+        const props = e.features[0].properties || {};
+        const hazardName = props.hazard_name || 'Flood Hazard Channel';
+        const returnPeriod = props.return_period || 'UP NOAH Simulation';
+        const depth = props.depth_range || 'Inundation Zone';
+
+        if (popupRef.current) popupRef.current.remove();
+        popupRef.current = new maplibregl.Popup({ closeButton: true })
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div style="font-family: sans-serif; padding: 4px;">
+              <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #FF3B30;">UP NOAH River Model</div>
+              <div style="font-size: 13px; font-weight: 900; color: #1C1C1E; margin-top: 2px;">${hazardName}</div>
+              <div style="font-size: 11px; color: #6C6C70; margin-top: 2px;">Water Depth: ${depth} &bull; ${returnPeriod}</div>
+            </div>
+          `)
+          .addTo(map);
+      });
+    });
+
+    setMapLoaded(true);
+  };
 
   // Initialize MapLibre strictly restricted to Cebu City
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
+    const initialStyle = TILE_STYLES[currentStyle].style;
+
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: TILE_STYLES[currentStyle].styleUrl,
+      style: initialStyle,
       center: [123.8950, 10.3160], // Downtown / Cebu City Urban Basin
-      zoom: 13.2,
-      minZoom: 11.5, // Restrict zooming out to neighboring islands/sea
-      maxZoom: 18.5,
+      zoom: 13.5,
+      minZoom: 11.0, // Restrict zooming out to neighboring islands/sea
+      maxZoom: 20.0, // Allow zooming in close just like Google Maps
       maxBounds: CEBU_CITY_RESTRICTED_BOUNDS, // Confine camera strictly to Cebu City
-      pitch: is3DMode ? 45 : 15,
+      pitch: is3DMode ? 45 : 0,
       bearing: 0,
       attributionControl: false, // Clean map without cluttered default text
     });
 
-    const setupLayers = () => {
-      // 0. Inverse Mask (Hides everything outside Cebu City perimeter)
-      if (!map.getSource('cebu-city-mask')) {
-        map.addSource('cebu-city-mask', {
-          type: 'geojson',
-          data: '/data/cebu_city_mask.geojson',
-        });
-
-        map.addLayer({
-          id: 'cebu-outside-mask',
-          type: 'fill',
-          source: 'cebu-city-mask',
-          paint: {
-            'fill-color': '#E5E5EA',
-            'fill-opacity': 0.94,
-          },
-        });
-      }
-
-      // 1. Cebu City Official Outer Boundary
-      if (!map.getSource('cebu-city-boundary')) {
-        map.addSource('cebu-city-boundary', {
-          type: 'geojson',
-          data: '/data/cebu_city_boundary.geojson',
-        });
-
-        map.addLayer({
-          id: 'cebu-city-border-glow',
-          type: 'line',
-          source: 'cebu-city-boundary',
-          paint: {
-            'line-color': '#007AFF',
-            'line-width': 3.5,
-            'line-opacity': 0.9,
-          },
-        });
-
-        map.addLayer({
-          id: 'cebu-city-fill',
-          type: 'fill',
-          source: 'cebu-city-boundary',
-          paint: {
-            'fill-color': '#007AFF',
-            'fill-opacity': 0.02,
-          },
-        });
-      }
-
-      // 2. All 80 Cebu City Barangay Boundaries
-      if (!map.getSource('cebu-city-barangays')) {
-        map.addSource('cebu-city-barangays', {
-          type: 'geojson',
-          data: '/data/cebu_city_barangays.geojson',
-        });
-
-        map.addLayer({
-          id: 'cebu-barangay-fills',
-          type: 'fill',
-          source: 'cebu-city-barangays',
-          paint: {
-            'fill-color': '#5856D6',
-            'fill-opacity': 0.03,
-          },
-        });
-
-        map.addLayer({
-          id: 'cebu-barangay-lines',
-          type: 'line',
-          source: 'cebu-city-barangays',
-          paint: {
-            'line-color': '#8E8E93',
-            'line-width': 1,
-            'line-dasharray': [3, 2],
-            'line-opacity': 0.5,
-          },
-        });
-
-        // Hover & Click interaction for Barangays
-        map.on('click', 'cebu-barangay-fills', (e: any) => {
-          if (!e.features || e.features.length === 0) return;
-          const feat = e.features[0];
-          const props = feat.properties || {};
-          const bgyName = props.adm4_name || props.adm4_en || 'Barangay';
-
-          if (popupRef.current) popupRef.current.remove();
-          popupRef.current = new maplibregl.Popup({ closeButton: true, className: 'cebu-map-popup' })
-            .setLngLat(e.lngLat)
-            .setHTML(`
-              <div style="font-family: sans-serif; padding: 4px;">
-                <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #007AFF;">Cebu City Barangay</div>
-                <div style="font-size: 14px; font-weight: 900; color: #1C1C1E; margin-top: 2px;">Brgy. ${bgyName}</div>
-                <div style="font-size: 11px; color: #6C6C70; margin-top: 4px;">Jurisdiction: CDRRMO District</div>
-              </div>
-            `)
-            .addTo(map);
-        });
-
-        map.on('mouseenter', 'cebu-barangay-fills', () => {
-          map.getCanvas().style.cursor = 'pointer';
-        });
-        map.on('mouseleave', 'cebu-barangay-fills', () => {
-          map.getCanvas().style.cursor = '';
-        });
-      }
-
-      // 3. NOAH Flood Hazard Zones (5-Year, 25-Year, 100-Year)
-      if (!map.getSource('cebu-flood-5yr')) {
-        map.addSource('cebu-flood-5yr', {
-          type: 'geojson',
-          data: '/data/cebu_flood_5yr.geojson',
-        });
-        map.addLayer({
-          id: 'hazard-5yr-fill',
-          type: 'fill',
-          source: 'cebu-flood-5yr',
-          paint: {
-            'fill-color': ['coalesce', ['get', 'color'], '#FFCC00'],
-            'fill-opacity': 0.25,
-          },
-        });
-        map.addLayer({
-          id: 'hazard-5yr-line',
-          type: 'line',
-          source: 'cebu-flood-5yr',
-          paint: {
-            'line-color': ['coalesce', ['get', 'color'], '#FFCC00'],
-            'line-width': 0.8,
-            'line-opacity': 0.4,
-          },
-        });
-      }
-
-      if (!map.getSource('cebu-flood-25yr')) {
-        map.addSource('cebu-flood-25yr', {
-          type: 'geojson',
-          data: '/data/cebu_flood_25yr.geojson',
-        });
-        map.addLayer({
-          id: 'hazard-25yr-fill',
-          type: 'fill',
-          source: 'cebu-flood-25yr',
-          paint: {
-            'fill-color': ['coalesce', ['get', 'color'], '#FF9500'],
-            'fill-opacity': 0.28,
-          },
-        });
-        map.addLayer({
-          id: 'hazard-25yr-line',
-          type: 'line',
-          source: 'cebu-flood-25yr',
-          paint: {
-            'line-color': ['coalesce', ['get', 'color'], '#FF9500'],
-            'line-width': 0.8,
-            'line-opacity': 0.45,
-          },
-        });
-      }
-
-      if (!map.getSource('cebu-flood-100yr')) {
-        map.addSource('cebu-flood-100yr', {
-          type: 'geojson',
-          data: '/data/cebu_flood_100yr.geojson',
-        });
-        map.addLayer({
-          id: 'hazard-100yr-fill',
-          type: 'fill',
-          source: 'cebu-flood-100yr',
-          paint: {
-            'fill-color': ['coalesce', ['get', 'color'], '#FF3B30'],
-            'fill-opacity': 0.32,
-          },
-        });
-        map.addLayer({
-          id: 'hazard-100yr-line',
-          type: 'line',
-          source: 'cebu-flood-100yr',
-          paint: {
-            'line-color': ['coalesce', ['get', 'color'], '#FF3B30'],
-            'line-width': 1.0,
-            'line-opacity': 0.5,
-          },
-        });
-      }
-
-      // Click interaction for Flood Hazard Polygons
-      const floodLayers = ['hazard-5yr-fill', 'hazard-25yr-fill', 'hazard-100yr-fill'];
-      floodLayers.forEach((layerId) => {
-        map.on('click', layerId, (e: any) => {
-          if (!e.features || e.features.length === 0) return;
-          const props = e.features[0].properties || {};
-          const hazardName = props.hazard_name || 'Flood Hazard Channel';
-          const returnPeriod = props.return_period || 'UP NOAH Simulation';
-          const depth = props.depth_range || 'Inundation Zone';
-
-          if (popupRef.current) popupRef.current.remove();
-          popupRef.current = new maplibregl.Popup({ closeButton: true })
-            .setLngLat(e.lngLat)
-            .setHTML(`
-              <div style="font-family: sans-serif; padding: 4px;">
-                <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #FF3B30;">UP NOAH River Model</div>
-                <div style="font-size: 13px; font-weight: 900; color: #1C1C1E; margin-top: 2px;">${hazardName}</div>
-                <div style="font-size: 11px; color: #6C6C70; margin-top: 2px;">Water Depth: ${depth} &bull; ${returnPeriod}</div>
-              </div>
-            `)
-            .addTo(map);
-        });
-      });
-
-      setMapLoaded(true);
-    };
-
     map.on('load', setupLayers);
+    map.on('style.load', setupLayers);
     mapRef.current = map;
 
     return () => {
@@ -309,6 +358,14 @@ export function MapContainer({
       mapRef.current = null;
     };
   }, []);
+
+  // Handle Dynamic Base Style Switch
+  const handleSwitchStyle = (styleKey: MapTileStyle) => {
+    setCurrentStyle(styleKey);
+    setShowStyleMenu(false);
+    if (!mapRef.current) return;
+    mapRef.current.setStyle(TILE_STYLES[styleKey].style);
+  };
 
   // Sync Scenario Visibility
   useEffect(() => {
@@ -326,69 +383,45 @@ export function MapContainer({
     setVisibility(['hazard-5yr-fill', 'hazard-5yr-line'], selectedScenario === '5yr');
     setVisibility(['hazard-25yr-fill', 'hazard-25yr-line'], selectedScenario === '25yr');
     setVisibility(['hazard-100yr-fill', 'hazard-100yr-line'], selectedScenario === '100yr');
+  }, [selectedScenario, mapLoaded]);
 
-    setVisibility(['cebu-barangay-lines', 'cebu-barangay-fills'], showBarangays);
-    setVisibility(['cebu-city-border-glow', 'cebu-city-fill'], showBoundary);
-    setVisibility(['cebu-outside-mask'], showMask);
-  }, [mapLoaded, selectedScenario, showBarangays, showBoundary, showMask]);
-
-  // Sync Markers for Live Incident Reports & Shelters
+  // Sync Boundary Toggles
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
     const map = mapRef.current;
 
-    // Clear old markers
+    if (map.getLayer('cebu-outside-mask')) {
+      map.setLayoutProperty('cebu-outside-mask', 'visibility', showMask ? 'visible' : 'none');
+    }
+    if (map.getLayer('cebu-city-border-glow')) {
+      map.setLayoutProperty('cebu-city-border-glow', 'visibility', showBoundary ? 'visible' : 'none');
+    }
+    if (map.getLayer('cebu-barangay-fills')) {
+      map.setLayoutProperty('cebu-barangay-fills', 'visibility', showBarangays ? 'visible' : 'none');
+    }
+    if (map.getLayer('cebu-barangay-lines')) {
+      map.setLayoutProperty('cebu-barangay-lines', 'visibility', showBarangays ? 'visible' : 'none');
+    }
+  }, [showMask, showBoundary, showBarangays, mapLoaded]);
+
+  // Render Real Markers: Reports & Shelters
+  useEffect(() => {
+    if (!mapRef.current || !mapLoaded) return;
+
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    // Add Incident Report Markers
-    reports.forEach((report) => {
-      if (!report.latitude || !report.longitude) return;
-
-      const el = document.createElement('div');
-      el.className = 'cursor-pointer group';
-      const color =
-        report.flood_depth_level === 'waist' || report.flood_depth_level === 'chest' || report.flood_depth_level === 'above_head'
-          ? '#FF3B30'
-          : '#FF9500';
-
-      el.innerHTML = `
-        <div style="width: 28px; height: 28px; border-radius: 50%; background: ${color}; border: 2.5px solid #FFFFFF; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; items-center; justify-content: center; color: white; font-weight: 900; font-size: 11px;">
-          !
-        </div>
-      `;
-
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([report.longitude, report.latitude])
-        .setPopup(
-          new maplibregl.Popup({ offset: 25 }).setHTML(`
-            <div style="padding: 4px; font-family: sans-serif;">
-              <div style="font-size: 10px; font-weight: 800; color: ${color}; text-transform: uppercase;">
-                ${report.flood_depth_level?.toUpperCase()} DEPTH
-              </div>
-              <div style="font-size: 13px; font-weight: 800; color: #1C1C1E; margin-top: 2px;">
-                Brgy. ${report.barangay_name || 'Cebu City'}
-              </div>
-              <p style="font-size: 11px; color: #3A3A3C; margin-top: 4px; line-height: 1.3;">
-                ${report.description || 'Field incident report submitted.'}
-              </p>
-            </div>
-          `)
-        )
-        .addTo(map);
-
-      markersRef.current.push(marker);
-    });
-
-    // Add Shelters Markers
+    // Render Evacuation Shelters
     shelters.forEach((shelter) => {
       if (!shelter.latitude || !shelter.longitude) return;
 
       const el = document.createElement('div');
-      el.className = 'cursor-pointer';
+      el.className = 'cursor-pointer group';
       el.innerHTML = `
-        <div style="width: 28px; height: 28px; border-radius: 50%; background: #34C759; border: 2.5px solid #FFFFFF; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; items-center; justify-content: center; color: white; font-weight: 900; font-size: 11px;">
-          H
+        <div class="w-8 h-8 rounded-2xl bg-[#34C759] border-2 border-white shadow-lg flex items-center justify-center text-white transform hover:scale-110 transition-transform">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
         </div>
       `;
 
@@ -396,37 +429,73 @@ export function MapContainer({
         .setLngLat([shelter.longitude, shelter.latitude])
         .setPopup(
           new maplibregl.Popup({ offset: 25 }).setHTML(`
-            <div style="padding: 4px; font-family: sans-serif;">
-              <div style="font-size: 10px; font-weight: 800; color: #34C759; text-transform: uppercase;">
-                ${shelter.status?.toUpperCase()} EVACUATION CENTER
-              </div>
-              <div style="font-size: 13px; font-weight: 800; color: #1C1C1E; margin-top: 2px;">
-                ${shelter.name}
-              </div>
-              <div style="font-size: 11px; color: #6C6C70; margin-top: 4px;">
-                Occupancy: ${shelter.current_occupancy || 0} / ${shelter.max_capacity || 0}
+            <div style="padding: 6px; font-family: sans-serif;">
+              <div style="font-size: 10px; font-weight: 800; color: #34C759; text-transform: uppercase;">Evacuation Shelter</div>
+              <div style="font-weight: 900; font-size: 13px; color: #1C1C1E; margin-top: 2px;">${shelter.name}</div>
+              <div style="font-size: 11px; color: #6C6C70; margin-top: 2px;">Brgy. ${shelter.barangay_name || 'Cebu City'}</div>
+              <div style="margin-top: 6px; font-size: 11px; font-weight: 700; color: #1C1C1E;">
+                Occupancy: ${shelter.current_occupancy || 0} / ${shelter.max_capacity || 100}
               </div>
             </div>
           `)
         )
-        .addTo(map);
+        .addTo(mapRef.current!);
+
+      markersRef.current.push(marker);
+    });
+
+    // Render Incident Reports
+    reports.forEach((report) => {
+      if (!report.latitude || !report.longitude) return;
+
+      const isSevere = report.flood_depth_level === 'waist' || report.flood_depth_level === 'chest' || report.flood_depth_level === 'above_head';
+      const color = isSevere ? '#FF3B30' : '#FF9500';
+
+      const el = document.createElement('div');
+      el.className = 'cursor-pointer group';
+      el.innerHTML = `
+        <div class="relative flex items-center justify-center">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style="background-color: ${color}"></span>
+          <div class="w-7 h-7 rounded-2xl border-2 border-white shadow-lg flex items-center justify-center text-white transform hover:scale-110 transition-transform" style="background-color: ${color}">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+        </div>
+      `;
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([report.longitude, report.latitude])
+        .setPopup(
+          new maplibregl.Popup({ offset: 25 }).setHTML(`
+            <div style="padding: 6px; font-family: sans-serif;">
+              <div style="font-size: 10px; font-weight: 800; color: ${color}; text-transform: uppercase;">Citizen Flood Alert</div>
+              <div style="font-weight: 900; font-size: 13px; color: #1C1C1E; margin-top: 2px;">Brgy. ${report.barangay_name || 'Cebu City'}</div>
+              <div style="font-size: 11px; color: #3A3A3C; margin-top: 4px;">${report.description || 'Reported inundation level'}</div>
+              <div style="margin-top: 6px; font-size: 10px; font-weight: 800; color: ${color};">
+                Depth: ${report.flood_depth_level?.toUpperCase() || 'UNKNOWN'}
+              </div>
+            </div>
+          `)
+        )
+        .addTo(mapRef.current!);
 
       markersRef.current.push(marker);
     });
   }, [reports, shelters, mapLoaded]);
 
-  // Listen to Global FlyTo Events (from Search or Incident Triage)
+  // Handle Fly-To Custom Events
   useEffect(() => {
-    const handleFlyTo = (e: any) => {
-      if (!mapRef.current || !e.detail) return;
-      const { latitude, longitude, name } = e.detail;
+    const handleFlyTo = (event: any) => {
+      if (!mapRef.current) return;
+      const { latitude, longitude } = event.detail || {};
+      if (!latitude || !longitude) return;
 
       mapRef.current.flyTo({
         center: [longitude, latitude],
         zoom: 16.5,
-        pitch: 35,
-        essential: true,
-        duration: 1800,
+        pitch: 45,
+        duration: 1500,
       });
 
       if (targetMarkerRef.current) {
@@ -466,7 +535,7 @@ export function MapContainer({
     if (!mapRef.current) return;
     mapRef.current.flyTo({
       center: [123.8950, 10.3160],
-      zoom: 13.2,
+      zoom: 13.5,
       pitch: 0,
       bearing: 0,
       duration: 1200,
@@ -480,7 +549,46 @@ export function MapContainer({
 
       {/* Unified Map Command Capsule (Bottom-Right, Zero Overlap) */}
       <div className="absolute bottom-6 right-6 z-20 flex items-center gap-2 pointer-events-auto">
+        {/* Style Switcher Menu Popup */}
+        {showStyleMenu && (
+          <div className="absolute bottom-12 right-0 bg-white/95 backdrop-blur-2xl border border-gray-200 rounded-2xl p-2 shadow-2xl space-y-1 min-w-[170px] animate-in fade-in zoom-in-95">
+            <div className="text-[10px] font-black uppercase text-gray-400 px-2 py-1">Basemap Imagery</div>
+            {(Object.keys(TILE_STYLES) as MapTileStyle[]).map((key) => {
+              const item = TILE_STYLES[key];
+              const Icon = item.icon;
+              const isSelected = currentStyle === key;
+
+              return (
+                <button
+                  key={key}
+                  onClick={() => handleSwitchStyle(key)}
+                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                    isSelected ? 'bg-blue-50 text-blue-700 font-black' : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{item.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="flex items-center bg-white/95 backdrop-blur-2xl border border-gray-200/90 rounded-2xl shadow-xl p-1 gap-1">
+          {/* Style Switcher Toggle */}
+          <button
+            onClick={() => setShowStyleMenu(!showStyleMenu)}
+            title="Switch Map Imagery (Google Satellite, Vector Streets, Topo)"
+            className={`px-2.5 h-8 rounded-xl flex items-center gap-1.5 text-xs font-black transition-all cursor-pointer ${
+              showStyleMenu ? 'bg-blue-600 text-white' : 'hover:bg-gray-100 text-gray-800'
+            }`}
+          >
+            <Satellite className="w-3.5 h-3.5 text-blue-500" />
+            <span className="capitalize">{currentStyle}</span>
+          </button>
+
+          <div className="w-px h-4 bg-gray-200 mx-0.5" />
+
           {/* Zoom In */}
           <button
             onClick={() => mapRef.current?.zoomIn()}
