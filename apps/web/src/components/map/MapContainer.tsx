@@ -504,11 +504,11 @@ export function MapContainer({
 
       {/* NOAH Hazard Return-Period Layer Switcher */}
       {showHazardControls && (
-        <div className="absolute bottom-6 left-6 z-10 bg-white/95 backdrop-blur-2xl border border-[#E5E5EA] rounded-3xl p-4 shadow-xl space-y-3 text-xs pointer-events-auto min-w-[260px] max-w-xs">
+        <div className="absolute bottom-6 left-6 z-10 bg-white/95 backdrop-blur-2xl border border-[#E5E5EA] rounded-3xl p-4 shadow-xl space-y-3 text-xs pointer-events-auto min-w-[280px]">
           <div className="flex items-center justify-between border-b border-[#F2F2F7] pb-2">
             <span className="font-black text-[11px] uppercase tracking-wider text-[#1C1C1E] flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-[#007AFF]" />
-              UP NOAH Flood Scenario
+              UP NOAH Scenarios
             </span>
             <span className="text-[10px] font-bold text-[#8E8E93]">Return Period</span>
           </div>

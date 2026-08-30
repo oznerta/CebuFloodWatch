@@ -37,51 +37,8 @@ sheltersRouter.get('/', async (req: Request, res: Response, next: NextFunction) 
     const result = await query(sql, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    // If DB is offline in dev mode, return rich mock data
-    res.json({
-      success: true,
-      data: [
-        {
-          id: '1',
-          name: 'Mabolo Elementary School Gym',
-          barangay_name: 'Mabolo',
-          address: 'M.J. Cuenco Ave, Mabolo, Cebu City',
-          max_capacity: 350,
-          current_occupancy: 85,
-          status: 'open',
-          contact_number: '+63 32 231 1234',
-          latitude: 10.3265,
-          longitude: 123.918,
-          supplies: { water_liters: 1200, food_packs: 450, medical_kits: 30, bedding_sets: 200 },
-        },
-        {
-          id: '2',
-          name: 'Kasambagan Sports Complex',
-          barangay_name: 'Kasambagan',
-          address: 'Pres. Quirino St, Kasambagan, Cebu City',
-          max_capacity: 250,
-          current_occupancy: 240,
-          status: 'full',
-          contact_number: '+63 32 232 5678',
-          latitude: 10.334,
-          longitude: 123.914,
-          supplies: { water_liters: 400, food_packs: 110, medical_kits: 15, bedding_sets: 80 },
-        },
-        {
-          id: '3',
-          name: 'Guadalupe Barangay Gymnasium',
-          barangay_name: 'Guadalupe',
-          address: 'Guadalupe Main Rd, Cebu City',
-          max_capacity: 500,
-          current_occupancy: 120,
-          status: 'open',
-          contact_number: '+63 32 254 9876',
-          latitude: 10.328,
-          longitude: 123.882,
-          supplies: { water_liters: 2500, food_packs: 900, medical_kits: 60, bedding_sets: 400 },
-        },
-      ],
-    });
+    console.error('Error fetching shelters:', error);
+    res.json({ success: true, data: [] });
   }
 });
 
@@ -189,39 +146,66 @@ sheltersRouter.patch(
   }
 );
 
-// PATCH /api/v1/shelters/:id/status - Update shelter operational status (open / full / closed)
-sheltersRouter.patch(
-  '/:id/status',
+// POST /api/v1/shelters - Create new evacuation center
+sheltersRouter.post(
+  '/',
   authenticate,
   requireRole('admin', 'barangay_focal'),
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
-      const { status } = req.body;
+      const { name, barangay_id, address, max_capacity, contact_number, latitude, longitude, supplies } = req.body;
 
-      if (!['open', 'full', 'closed'].includes(status)) {
-        res.status(400).json({
-          success: false,
-          error: { code: 'INVALID_STATUS', message: 'status must be open, full, or closed' },
-        });
-        return;
+      if (!name) {
+        return res.status(400).json({ success: false, error: 'Shelter name is required' });
       }
 
-      const updateRes = await query(
-        `UPDATE evacuation_centers SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
-        [status, id]
-      );
+      const sql = `
+        INSERT INTO evacuation_centers (
+          name, barangay_id, address, max_capacity, current_occupancy,
+          status, contact_number, supplies, location_geom, created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, 0, 'open', $5, $6,
+          ST_SetSRID(ST_Point($7, $8), 4326),
+          NOW(), NOW()
+        ) RETURNING *, ST_Y(location_geom) as latitude, ST_X(location_geom) as longitude
+      `;
 
-      const updated = updateRes.rows[0] || { id, status };
+      const result = await query(sql, [
+        name,
+        barangay_id || null,
+        address || 'Designated Center',
+        max_capacity || 300,
+        contact_number || '',
+        JSON.stringify(supplies || { water_liters: 1000, food_packs: 300 }),
+        longitude || 123.89,
+        latitude || 10.31,
+      ]);
+
+      const newShelter = result.rows[0];
       const io = getIO();
-      if (io) io.emit('shelter:updated', updated);
+      if (io) io.emit('shelter:created', newShelter);
 
-      res.json({ success: true, data: updated });
+      res.status(201).json({ success: true, data: newShelter });
     } catch (error) {
-      const updated = { id: req.params.id, status: req.body.status };
+      next(error);
+    }
+  }
+);
+
+// DELETE /api/v1/shelters/:id - Delete an evacuation center
+sheltersRouter.delete(
+  '/:id',
+  authenticate,
+  requireRole('admin'),
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      await query(`DELETE FROM evacuation_centers WHERE id = $1`, [id]);
       const io = getIO();
-      if (io) io.emit('shelter:updated', updated);
-      res.json({ success: true, data: updated });
+      if (io) io.emit('shelter:deleted', { id });
+      res.json({ success: true, message: 'Shelter removed successfully' });
+    } catch (error) {
+      next(error);
     }
   }
 );

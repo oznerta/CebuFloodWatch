@@ -1,14 +1,39 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Route, CheckCircle, AlertTriangle, XCircle, RefreshCw, Car, ShieldAlert, Inbox } from 'lucide-react';
+import {
+  Route,
+  CheckCircle,
+  AlertTriangle,
+  XCircle,
+  RefreshCw,
+  Car,
+  ShieldAlert,
+  Inbox,
+  Plus,
+  Trash2,
+  X,
+  MapPin,
+} from 'lucide-react';
 import { fetchApi } from '../../lib/api';
 import { getSocket } from '../../lib/socket';
+import { CEBU_BARANGAY_NAMES } from '@cebufloodwatch/shared';
 
 export default function RoadsPage() {
   const [roads, setRoads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    barangay_name: 'Mabolo',
+    status: 'impassable',
+    flood_depth_level: 'waist',
+    blockage_reason: 'River overflow and debris blockage',
+  });
 
   const loadRoads = async () => {
     try {
@@ -26,16 +51,24 @@ export default function RoadsPage() {
 
     const socket = getSocket();
     if (socket) {
-      socket.on('road:updated', (updated) => {
-        setRoads((prev) =>
-          prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r))
-        );
+      socket.on('road:status_update', (updated) => {
+        setRoads((prev) => {
+          const exists = prev.some((r) => r.id === updated.id);
+          if (exists) {
+            return prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r));
+          }
+          return [updated, ...prev];
+        });
+      });
+      socket.on('road:deleted', ({ id }) => {
+        setRoads((prev) => prev.filter((r) => r.id !== id));
       });
     }
 
     return () => {
       if (socket) {
-        socket.off('road:updated');
+        socket.off('road:status_update');
+        socket.off('road:deleted');
       }
     };
   }, []);
@@ -59,6 +92,53 @@ export default function RoadsPage() {
     }
   };
 
+  const handleDeleteRoad = async (roadId: string) => {
+    if (!confirm('Remove this road status entry from active tracking?')) return;
+    try {
+      await fetchApi(`/roads/${roadId}`, { method: 'DELETE' });
+      setRoads((prev) => prev.filter((r) => r.id !== roadId));
+    } catch (err: any) {
+      alert(err.message || 'Failed to remove road advisory');
+    }
+  };
+
+  const handleCreateRoad = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        name: formData.name.trim(),
+        barangay_name: formData.barangay_name,
+        status: formData.status,
+        flood_depth_level: formData.flood_depth_level,
+        blockage_reason: formData.blockage_reason.trim() || 'Submerged road section',
+      };
+
+      const res = await fetchApi<any>('/roads', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      if (res) {
+        setRoads((prev) => [res, ...prev.filter((r) => r.id !== res.id)]);
+      }
+      setShowAddModal(false);
+      setFormData({
+        name: '',
+        barangay_name: 'Mabolo',
+        status: 'impassable',
+        flood_depth_level: 'waist',
+        blockage_reason: 'River overflow and debris blockage',
+      });
+    } catch (err: any) {
+      alert(err.message || 'Failed to register road status');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10">
       {/* Page Header */}
@@ -72,13 +152,23 @@ export default function RoadsPage() {
           </p>
         </div>
 
-        <button
-          onClick={loadRoads}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-[#E5E5EA] rounded-xl text-xs font-extrabold text-[#1C1C1E] shadow-sm hover:bg-[#F2F2F7] transition-all"
-        >
-          <RefreshCw className="w-4 h-4 text-[#8E8E93]" />
-          Sync Road Network
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={loadRoads}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-[#E5E5EA] rounded-xl text-xs font-extrabold text-[#1C1C1E] shadow-sm hover:bg-[#F2F2F7] transition-all cursor-pointer"
+          >
+            <RefreshCw className="w-4 h-4 text-[#8E8E93]" />
+            Sync Road Network
+          </button>
+
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#007AFF] text-white rounded-xl text-xs font-extrabold shadow-sm hover:bg-[#0062CC] transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            Report Road Blockage
+          </button>
+        </div>
       </div>
 
       {/* Summary Ribbon */}
@@ -116,92 +206,185 @@ export default function RoadsPage() {
 
       {/* Roads Table */}
       {roads.length > 0 ? (
-        <div className="bg-white border border-[#E5E5EA] rounded-2xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-[#F8F9FA] border-b border-[#E5E5EA] text-[#8E8E93] font-bold uppercase tracking-wider">
-                  <th className="py-3 px-4">Road / Corridor</th>
-                  <th className="py-3 px-4">Barangay</th>
-                  <th className="py-3 px-4">Current Status</th>
-                  <th className="py-3 px-4">Flood Depth</th>
-                  <th className="py-3 px-4">Reason / Notes</th>
-                  <th className="py-3 px-4 text-right">Update Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E5E5EA]">
-                {roads.map((road) => (
-                  <tr key={road.id} className="hover:bg-[#F8F9FA]/60 transition-colors">
-                    <td className="py-3.5 px-4 font-bold text-[#1C1C1E] flex items-center gap-2">
-                      <Route className="w-4 h-4 text-[#007AFF]" />
-                      {road.name}
-                    </td>
-                    <td className="py-3.5 px-4 text-[#6C6C70] font-semibold">
-                      {road.barangay_name}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
-                          road.status === 'passable'
-                            ? 'bg-[#EBF9EE] text-[#34C759]'
-                            : road.status === 'light_vehicles_only'
-                            ? 'bg-[#FFF4E5] text-[#FF9500]'
-                            : 'bg-[#FFEBEA] text-[#FF3B30]'
-                        }`}
-                      >
-                        {road.status?.replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 font-bold text-[#1C1C1E] uppercase">
-                      {road.flood_depth_level || 'Normal'}
-                    </td>
-                    <td className="py-3.5 px-4 text-[#8E8E93] max-w-xs truncate">
-                      {road.blockage_reason || 'No reported obstruction.'}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {road.status !== 'passable' && (
-                          <button
-                            onClick={() => handleUpdateStatus(road.id, 'passable')}
-                            disabled={updatingId === road.id}
-                            className="px-2.5 py-1 rounded-lg bg-[#EBF9EE] text-[#34C759] hover:bg-[#34C759] hover:text-white font-extrabold transition-all"
-                          >
-                            Passable
-                          </button>
-                        )}
-                        {road.status !== 'light_vehicles_only' && (
-                          <button
-                            onClick={() => handleUpdateStatus(road.id, 'light_vehicles_only')}
-                            disabled={updatingId === road.id}
-                            className="px-2.5 py-1 rounded-lg bg-[#FFF4E5] text-[#FF9500] hover:bg-[#FF9500] hover:text-white font-extrabold transition-all"
-                          >
-                            Light Only
-                          </button>
-                        )}
-                        {road.status !== 'impassable' && (
-                          <button
-                            onClick={() => handleUpdateStatus(road.id, 'impassable')}
-                            disabled={updatingId === road.id}
-                            className="px-2.5 py-1 rounded-lg bg-[#FFEBEA] text-[#FF3B30] hover:bg-[#FF3B30] hover:text-white font-extrabold transition-all"
-                          >
-                            Impassable
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="bg-white border border-[#E5E5EA] rounded-3xl overflow-hidden shadow-xs">
+          <div className="divide-y divide-[#F2F2F7]">
+            {roads.map((road) => (
+              <div key={road.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-[#F8F9FA] transition-colors">
+                <div className="space-y-1 max-w-xl">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                        road.status === 'passable'
+                          ? 'bg-[#EBF9EE] text-[#34C759]'
+                          : road.status === 'light_vehicles_only'
+                          ? 'bg-[#FFF8E6] text-[#FF9500]'
+                          : 'bg-[#FFEBEA] text-[#FF3B30]'
+                      }`}
+                    >
+                      {road.status === 'light_vehicles_only' ? 'Light Vehicles Only' : road.status}
+                    </span>
+                    <span className="text-xs font-bold text-[#8E8E93]">
+                      Brgy. {road.barangay_name || 'Cebu City'}
+                    </span>
+                  </div>
+                  <h3 className="font-extrabold text-base text-[#1C1C1E]">{road.name}</h3>
+                  <p className="text-xs text-[#6C6C70]">
+                    {road.blockage_reason || 'Water level monitoring underway.'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <select
+                    value={road.status}
+                    disabled={updatingId === road.id}
+                    onChange={(e) => handleUpdateStatus(road.id, e.target.value)}
+                    className="px-3 py-2 rounded-xl border border-[#E5E5EA] text-xs font-bold text-[#1C1C1E] bg-white cursor-pointer focus:outline-none focus:border-[#007AFF]"
+                  >
+                    <option value="passable">Passable (All)</option>
+                    <option value="light_vehicles_only">Light Vehicles Only</option>
+                    <option value="impassable">Impassable (Closed)</option>
+                  </select>
+
+                  <button
+                    onClick={() => handleDeleteRoad(road.id)}
+                    className="p-2 text-[#8E8E93] hover:text-[#FF3B30] transition-colors cursor-pointer"
+                    title="Remove road record"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       ) : (
-        <div className="bg-white border border-[#E5E5EA] rounded-3xl p-12 text-center space-y-3 shadow-xs">
+        <div className="bg-white border border-[#E5E5EA] rounded-3xl p-12 text-center space-y-4 shadow-xs">
           <Inbox className="w-10 h-10 text-[#C7C7CC] mx-auto" />
-          <h3 className="text-base font-extrabold text-[#1C1C1E]">No Monitored Road Corridors</h3>
+          <h3 className="text-base font-extrabold text-[#1C1C1E]">All Cebu City Corridors Passable</h3>
           <p className="text-xs text-[#8E8E93] max-w-sm mx-auto">
-            Monitored arterial road networks and underpass corridors will be displayed here once synchronized with the database.
+            No active road closures or severe inundation blockages reported across arterial routes.
           </p>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#007AFF] text-white rounded-xl text-xs font-extrabold shadow-sm hover:bg-[#0062CC] transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            Report Road Hazard
+          </button>
+        </div>
+      )}
+
+      {/* Add Road Hazard Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl border border-[#E5E5EA] shadow-2xl max-w-md w-full p-6 space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-[#F2F2F7] pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-2xl bg-[#FF9500]/10 text-[#FF9500]">
+                  <Car className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-[#1C1C1E]">Report Road Hazard</h3>
+                  <p className="text-xs text-[#8E8E93]">CCTO & CDRRMO Passability Advisory</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="p-2 rounded-full hover:bg-[#F2F2F7] text-[#8E8E93] hover:text-[#1C1C1E] transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateRoad} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#1C1C1E] mb-1">Road / Corridor Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. M.J. Cuenco Avenue near Mabolo Church"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5EA] text-xs font-medium text-[#1C1C1E] focus:outline-none focus:border-[#007AFF]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#1C1C1E] mb-1">Barangay (80 Authentic)</label>
+                  <select
+                    value={formData.barangay_name}
+                    onChange={(e) => setFormData({ ...formData, barangay_name: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-xl border border-[#E5E5EA] text-xs font-medium text-[#1C1C1E] focus:outline-none focus:border-[#007AFF] bg-white cursor-pointer"
+                  >
+                    {CEBU_BARANGAY_NAMES.map((bgy) => (
+                      <option key={bgy} value={bgy}>
+                        Brgy. {bgy}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#1C1C1E] mb-1">Passability Status</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-xl border border-[#E5E5EA] text-xs font-medium text-[#1C1C1E] focus:outline-none focus:border-[#007AFF] bg-white cursor-pointer"
+                  >
+                    <option value="impassable">Impassable (Closed)</option>
+                    <option value="light_vehicles_only">Light Vehicles Only</option>
+                    <option value="passable">Passable (All Clear)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#1C1C1E] mb-1">Estimated Water Depth</label>
+                  <select
+                    value={formData.flood_depth_level}
+                    onChange={(e) => setFormData({ ...formData, flood_depth_level: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-xl border border-[#E5E5EA] text-xs font-medium text-[#1C1C1E] focus:outline-none focus:border-[#007AFF] bg-white cursor-pointer"
+                  >
+                    <option value="ankle">Ankle (0.1m - 0.2m)</option>
+                    <option value="knee">Knee (0.3m - 0.5m)</option>
+                    <option value="waist">Waist (0.6m - 1.0m)</option>
+                    <option value="chest">Chest (1.1m - 1.5m)</option>
+                    <option value="above_head">Above Head (&gt; 1.5m)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#1C1C1E] mb-1">Obstruction Type</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Canal overflow, stalled bus"
+                    value={formData.blockage_reason}
+                    onChange={(e) => setFormData({ ...formData, blockage_reason: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5EA] text-xs font-medium text-[#1C1C1E] focus:outline-none focus:border-[#007AFF]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#F2F2F7]">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2.5 rounded-xl border border-[#E5E5EA] text-xs font-bold text-[#1C1C1E] hover:bg-[#F2F2F7] transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2.5 rounded-xl bg-[#007AFF] text-white text-xs font-extrabold hover:bg-[#0062CC] transition-all disabled:opacity-50 cursor-pointer shadow-sm"
+                >
+                  {isSubmitting ? 'Submitting...' : 'Post Road Advisory'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

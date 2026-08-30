@@ -24,23 +24,8 @@ alertsRouter.get('/active', async (_req: Request, res: Response, next: NextFunct
     const result = await query(sql);
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    // Fallback active alert data
-    res.json({
-      success: true,
-      data: [
-        {
-          id: '1',
-          barangay_name: 'Mabolo',
-          severity: 'critical',
-          title_en: 'Critical Flood Warning: Mabolo Suba River Overflow',
-          title_tl: 'Babala sa Malubhang Baha: Pag-apaw ng Ilog Suba sa Mabolo',
-          body_en: 'Suba river waters have breached critical bank levels along M.J. Cuenco. Residents in low-lying zones must proceed to Mabolo Elementary School Gym.',
-          body_tl: 'Umapaw na ang tubig sa Ilog Suba sa kahabaan ng M.J. Cuenco. Ang mga residente sa mababang lugar ay dapat lumikas sa Mabolo Elementary School Gym.',
-          is_active: true,
-          published_at: new Date().toISOString(),
-        },
-      ],
-    });
+    console.error('Error fetching active alerts:', error);
+    res.json({ success: true, data: [] });
   }
 });
 
@@ -60,31 +45,8 @@ alertsRouter.get('/history', async (_req: Request, res: Response, next: NextFunc
     const result = await query(sql);
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    res.json({
-      success: true,
-      data: [
-        {
-          id: '1',
-          barangay_name: 'Mabolo',
-          severity: 'critical',
-          title_en: 'Critical Flood Warning: Mabolo Suba River Overflow',
-          title_tl: 'Babala sa Malubhang Baha: Pag-apaw ng Ilog Suba sa Mabolo',
-          body_en: 'Water levels along M.J. Cuenco bridge have breached critical thresholds.',
-          body_tl: 'Ang lebel ng tubig sa tulay ng M.J. Cuenco ay lumampas sa kritikal na antas.',
-          published_at: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          barangay_name: 'Kasambagan',
-          severity: 'warning',
-          title_en: 'Flood Watch: Mahiga Creek Rising',
-          title_tl: 'Pagbabantay sa Baha: Pagtaas ng Mahiga Creek',
-          body_en: 'Continuous heavy rainfall has caused Mahiga Creek to rise rapidly.',
-          body_tl: 'Ang patuloy na malakas na ulan ay nagdulot ng mabilis na pagtaas ng Mahiga Creek.',
-          published_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-        },
-      ],
-    });
+    console.error('Error fetching alerts history:', error);
+    res.json({ success: true, data: [] });
   }
 });
 

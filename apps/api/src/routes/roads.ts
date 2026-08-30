@@ -34,80 +34,8 @@ roadsRouter.get('/', async (req: Request, res: Response, next: NextFunction) => 
     const result = await query(sql, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    // Fallback seed data for Metro Cebu arterial corridors
-    res.json({
-      success: true,
-      data: [
-        {
-          id: '1',
-          name: 'M.J. Cuenco Avenue (Mabolo Corridor)',
-          barangay_name: 'Mabolo',
-          status: 'impassable',
-          flood_depth_level: 'waist',
-          blockage_reason: 'Suba river overflow reaching 0.9m depth across 4 lanes',
-          geometry: {
-            type: 'LineString',
-            coordinates: [
-              [123.912, 10.322],
-              [123.916, 10.325],
-              [123.921, 10.329],
-            ],
-          },
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          name: 'N. Bacalso Avenue (Mambaling Underpass)',
-          barangay_name: 'Mambaling',
-          status: 'impassable',
-          flood_depth_level: 'chest',
-          blockage_reason: 'Submerged underpass section; impassable to all traffic',
-          geometry: {
-            type: 'LineString',
-            coordinates: [
-              [123.871, 10.291],
-              [123.875, 10.294],
-              [123.879, 10.297],
-            ],
-          },
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: '3',
-          name: 'Pope John Paul II Avenue (Kasambagan Section)',
-          barangay_name: 'Kasambagan',
-          status: 'light_vehicles_only',
-          flood_depth_level: 'knee',
-          blockage_reason: 'Mahiga creek spillover on outer lanes',
-          geometry: {
-            type: 'LineString',
-            coordinates: [
-              [123.909, 10.329],
-              [123.914, 10.332],
-              [123.918, 10.335],
-            ],
-          },
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: '4',
-          name: 'Guadalupe Main Access Corridor',
-          barangay_name: 'Guadalupe',
-          status: 'passable',
-          flood_depth_level: 'ankle',
-          blockage_reason: 'Minor gutter runoff; all lanes passable',
-          geometry: {
-            type: 'LineString',
-            coordinates: [
-              [123.881, 10.323],
-              [123.885, 10.327],
-              [123.889, 10.331],
-            ],
-          },
-          updated_at: new Date().toISOString(),
-        },
-      ],
-    });
+    console.error('Error fetching roads:', error);
+    res.json({ success: true, data: [] });
   }
 });
 
@@ -168,6 +96,67 @@ roadsRouter.patch(
       const io = getIO();
       if (io) io.emit('road:status_update', updated);
       res.json({ success: true, data: updated });
+    }
+  }
+);
+
+// POST /api/v1/roads - Register new road segment status
+roadsRouter.post(
+  '/',
+  authenticate,
+  requireRole('admin', 'barangay_focal', 'first_responder'),
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const { name, barangay_id, status = 'impassable', flood_depth_level = 'knee', blockage_reason = 'Flood water' } = req.body;
+
+      if (!name) {
+        return res.status(400).json({ success: false, error: 'Road corridor name is required' });
+      }
+
+      const sql = `
+        INSERT INTO road_segments (
+          name, barangay_id, status, flood_depth_level, blockage_reason,
+          geometry_geom, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5,
+          ST_SetSRID(ST_MakeLine(ST_Point(123.89, 10.31), ST_Point(123.895, 10.315)), 4326),
+          NOW()
+        ) RETURNING id, name, barangay_id, status, flood_depth_level, blockage_reason, updated_at
+      `;
+
+      const result = await query(sql, [
+        name,
+        barangay_id || null,
+        status,
+        flood_depth_level,
+        blockage_reason,
+      ]);
+
+      const newRoad = result.rows[0];
+      const io = getIO();
+      if (io) io.emit('road:status_update', newRoad);
+
+      res.status(201).json({ success: true, data: newRoad });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// DELETE /api/v1/roads/:id - Remove road advisory
+roadsRouter.delete(
+  '/:id',
+  authenticate,
+  requireRole('admin'),
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      await query(`DELETE FROM road_segments WHERE id = $1`, [id]);
+      const io = getIO();
+      if (io) io.emit('road:deleted', { id });
+      res.json({ success: true, message: 'Road record removed' });
+    } catch (error) {
+      next(error);
     }
   }
 );
