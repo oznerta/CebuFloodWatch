@@ -28,32 +28,36 @@ interface MapContainerProps {
   showHazardControls?: boolean;
 }
 
-export type MapTileStyle = 'clean' | 'dark' | 'hybrid' | 'streets' | 'terrain';
+export type MapTileStyle = 'osm' | 'osm-hot' | 'hybrid' | 'clean' | 'dark';
 export type FloodScenario = '5yr' | '25yr' | '100yr' | 'none';
 
 // 100% Free, Public, Keyless & Watermark-Free Multi-Engine Basemap Catalog
 const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
-    // 1. ESRI World Light Gray Canvas (Ultra-Clean Minimal - 100% Free, Zero Watermark)
-    'esri-clean-src': {
+    // 1. OpenStreetMap Standard (Official Free Worldwide Vector/Raster - No Key, Zero Watermark)
+    'osm-standard-src': {
       type: 'raster',
       tiles: [
-        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      ],
+      tileSize: 256,
+      maxzoom: 19,
+    },
+    // 2. OpenStreetMap Humanitarian (Clean Disaster Mapping Edition)
+    'osm-hot-src': {
+      type: 'raster',
+      tiles: [
+        'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+        'https://b.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
       ],
       tileSize: 256,
       maxzoom: 20,
     },
-    // 2. ESRI World Dark Gray Canvas (Tactical Cyber Dark - 100% Free, Zero Watermark)
-    'esri-dark-src': {
-      type: 'raster',
-      tiles: [
-        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-      ],
-      tileSize: 256,
-      maxzoom: 20,
-    },
-    // 3. Google Hybrid Satellite (High-Res Aerial + Street Names - Zero Watermark)
+    // 3. Google Hybrid Satellite (High-Res Aerial + Street Labels)
     'google-hybrid-src': {
       type: 'raster',
       tiles: [
@@ -65,21 +69,20 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       tileSize: 256,
       maxzoom: 20,
     },
-    // 4. OpenStreetMap Humanitarian (Clean Detailed Urban Map - 100% Free, Zero Watermark)
-    'osm-streets-src': {
+    // 4. ESRI World Light Gray Canvas (Minimal Gray Disaster Base)
+    'esri-clean-src': {
       type: 'raster',
       tiles: [
-        'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
-        'https://b.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
       ],
       tileSize: 256,
       maxzoom: 20,
     },
-    // 5. ESRI World Topo Map (Topographic Relief & Mountain Elevation - 100% Free, Zero Watermark)
-    'esri-topo-src': {
+    // 5. ESRI World Dark Gray Canvas (Tactical Cyber Dark Mode)
+    'esri-dark-src': {
       type: 'raster',
       tiles: [
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
       ],
       tileSize: 256,
       maxzoom: 20,
@@ -87,17 +90,17 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
   },
   layers: [
     {
-      id: 'base-layer-clean',
+      id: 'base-layer-osm',
       type: 'raster',
-      source: 'esri-clean-src',
+      source: 'osm-standard-src',
       minzoom: 0,
       maxzoom: 22,
       layout: { visibility: 'visible' },
     },
     {
-      id: 'base-layer-dark',
+      id: 'base-layer-osm-hot',
       type: 'raster',
-      source: 'esri-dark-src',
+      source: 'osm-hot-src',
       minzoom: 0,
       maxzoom: 22,
       layout: { visibility: 'none' },
@@ -111,17 +114,17 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       layout: { visibility: 'none' },
     },
     {
-      id: 'base-layer-streets',
+      id: 'base-layer-clean',
       type: 'raster',
-      source: 'osm-streets-src',
+      source: 'esri-clean-src',
       minzoom: 0,
       maxzoom: 22,
       layout: { visibility: 'none' },
     },
     {
-      id: 'base-layer-terrain',
+      id: 'base-layer-dark',
       type: 'raster',
-      source: 'esri-topo-src',
+      source: 'esri-dark-src',
       minzoom: 0,
       maxzoom: 22,
       layout: { visibility: 'none' },
@@ -130,11 +133,11 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
 };
 
 const TILE_STYLES_INFO: Record<MapTileStyle, { name: string; icon: any; desc: string; previewColor: string }> = {
-  clean: { name: 'Clean Light (ESRI Canvas)', icon: Sun, desc: 'Ultra-clean, zero watermark disaster map', previewColor: '#F5F5F3' },
-  dark: { name: 'Dark Ops (ESRI Dark)', icon: Moon, desc: 'High-contrast nocturnal command map', previewColor: '#242424' },
-  hybrid: { name: 'Satellite Hybrid', icon: Satellite, desc: 'High-resolution aerial imagery', previewColor: '#2C442A' },
-  streets: { name: 'OSM Humanitarian', icon: MapIcon, desc: 'Open disaster-ready urban road network', previewColor: '#E8ECE9' },
-  terrain: { name: 'ESRI Topographic', icon: Mountain, desc: 'Contour elevation & mountain relief', previewColor: '#E0D8C3' },
+  osm: { name: 'OpenStreetMap (Default)', icon: MapIcon, desc: 'Official OpenStreetMap live global basemap', previewColor: '#EDF5D9' },
+  'osm-hot': { name: 'OSM Humanitarian', icon: MapIcon, desc: 'High-contrast disaster mapping edition', previewColor: '#E8ECE9' },
+  hybrid: { name: 'Satellite Hybrid', icon: Satellite, desc: 'High-resolution aerial imagery + labels', previewColor: '#2C442A' },
+  clean: { name: 'Minimal Gray Canvas', icon: Sun, desc: 'Light gray backdrop for maximum flood clarity', previewColor: '#F5F5F3' },
+  dark: { name: 'Dark Ops Tactical', icon: Moon, desc: 'Night situational command map', previewColor: '#242424' },
 };
 
 export function MapContainer({
@@ -156,7 +159,7 @@ export function MapContainer({
   const [selectedScenario, setSelectedScenario] = useState<FloodScenario>('25yr');
   const [showBarangays, setShowBarangays] = useState(true);
   const [showBoundary, setShowBoundary] = useState(true);
-  const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('clean');
+  const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('osm');
   const [is3DMode, setIs3DMode] = useState(false);
   const [showLayersMenu, setShowLayersMenu] = useState(false);
   const [showStyleMenu, setShowStyleMenu] = useState(false);
@@ -438,7 +441,7 @@ export function MapContainer({
     if (!mapRef.current) return;
     const map = mapRef.current;
 
-    const styles: MapTileStyle[] = ['clean', 'dark', 'hybrid', 'streets', 'terrain'];
+    const styles: MapTileStyle[] = ['osm', 'osm-hot', 'hybrid', 'clean', 'dark'];
     styles.forEach((key) => {
       const layerId = `base-layer-${key}`;
       if (map.getLayer(layerId)) {
