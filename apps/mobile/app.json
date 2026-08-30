@@ -13,7 +13,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "ph.gov.cebu.floodwatch",
+      "bundleIdentifier": "com.cebufloodwatch.mobile",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "CebuFloodWatch requires your location to display nearby flood hazard alerts and provide safe evacuation guidance."
       }
@@ -23,7 +23,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f172a"
       },
-      "package": "ph.gov.cebu.floodwatch",
+      "package": "com.cebufloodwatch.mobile",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
