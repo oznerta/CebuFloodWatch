@@ -87,7 +87,7 @@ export function MapContainer({
       bearing: 0,
     });
 
-    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
     map.addControl(new maplibregl.ScaleControl(), 'bottom-right');
 
     const setupLayers = () => {
@@ -478,8 +478,8 @@ export function MapContainer({
       {/* MapLibre DOM Node */}
       <div ref={mapContainerRef} className="w-full h-full" />
 
-      {/* Floating Controls Overlay */}
-      <div className="absolute top-4 right-14 z-10 flex flex-col gap-2 pointer-events-auto">
+      {/* Floating 3D Tilt & Recenter Controls (Docked cleanly at bottom-right) */}
+      <div className="absolute bottom-24 right-3.5 z-10 flex flex-col gap-2 pointer-events-auto">
         {/* 3D Isometric Tilt Toggle */}
         <button
           onClick={toggle3DMode}
