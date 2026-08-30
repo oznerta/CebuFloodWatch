@@ -267,9 +267,28 @@ export function MapContainer({
       });
     }
 
-    // 3. UP NOAH Hydrodynamic Inundation Channels (Accurate Return Periods & Depth Tiers)
-    
-    // 5-Year (Low Risk Inundation: 0.1m - 0.5m Drainage Overflow)
+    // 3. UP NOAH Hydrodynamic Inundation Channels (Official DOST-UP NOAH Standard Color Coding)
+    // Official Scale: Low (0.1m-0.5m) = #FFE600 (Yellow), Medium (0.5m-1.5m) = #FF9900 (Orange), High (>1.5m) = #E53935 (Red)
+
+    const NOAH_FILL_COLOR_EXPRESSION: any = [
+      'match',
+      ['get', 'hazard_level'],
+      1, '#FFE600', // Low Hazard (0.1m - 0.5m) -> Official UP NOAH Yellow
+      2, '#FF9900', // Medium Hazard (0.5m - 1.5m) -> Official UP NOAH Orange
+      3, '#E53935', // High Hazard (> 1.5m) -> Official UP NOAH Red
+      ['coalesce', ['get', 'color'], '#FFE600'],
+    ];
+
+    const NOAH_LINE_COLOR_EXPRESSION: any = [
+      'match',
+      ['get', 'hazard_level'],
+      1, '#D4B106', // Yellow border
+      2, '#D46B08', // Orange border
+      3, '#A8071A', // Red border
+      ['coalesce', ['get', 'color'], '#D4B106'],
+    ];
+
+    // 5-Year (Low Recurrence / 5-Year Flood Inundation Simulation)
     if (!map.getSource('cebu-flood-5yr')) {
       map.addSource('cebu-flood-5yr', {
         type: 'geojson',
@@ -280,8 +299,8 @@ export function MapContainer({
         type: 'fill',
         source: 'cebu-flood-5yr',
         paint: {
-          'fill-color': '#00E5FF',
-          'fill-opacity': 0.38,
+          'fill-color': NOAH_FILL_COLOR_EXPRESSION,
+          'fill-opacity': 0.55,
         },
       });
       map.addLayer({
@@ -289,14 +308,14 @@ export function MapContainer({
         type: 'line',
         source: 'cebu-flood-5yr',
         paint: {
-          'line-color': '#00B8D4',
+          'line-color': NOAH_LINE_COLOR_EXPRESSION,
           'line-width': 1.2,
           'line-opacity': 0.85,
         },
       });
     }
 
-    // 25-Year (Medium Risk Inundation: 0.5m - 1.5m Design Storm Plain)
+    // 25-Year (Medium Recurrence / 25-Year Design Storm Plain)
     if (!map.getSource('cebu-flood-25yr')) {
       map.addSource('cebu-flood-25yr', {
         type: 'geojson',
@@ -307,8 +326,8 @@ export function MapContainer({
         type: 'fill',
         source: 'cebu-flood-25yr',
         paint: {
-          'fill-color': '#FF9500',
-          'fill-opacity': 0.45,
+          'fill-color': NOAH_FILL_COLOR_EXPRESSION,
+          'fill-opacity': 0.60,
         },
       });
       map.addLayer({
@@ -316,14 +335,14 @@ export function MapContainer({
         type: 'line',
         source: 'cebu-flood-25yr',
         paint: {
-          'line-color': '#E65100',
+          'line-color': NOAH_LINE_COLOR_EXPRESSION,
           'line-width': 1.5,
           'line-opacity': 0.90,
         },
       });
     }
 
-    // 100-Year (High / Severe Inundation: >1.5m Extreme 100-Yr Plain)
+    // 100-Year (Severe Recurrence / 100-Year Extreme Flood Plain)
     if (!map.getSource('cebu-flood-100yr')) {
       map.addSource('cebu-flood-100yr', {
         type: 'geojson',
@@ -334,8 +353,8 @@ export function MapContainer({
         type: 'fill',
         source: 'cebu-flood-100yr',
         paint: {
-          'fill-color': '#FF3B30',
-          'fill-opacity': 0.52,
+          'fill-color': NOAH_FILL_COLOR_EXPRESSION,
+          'fill-opacity': 0.65,
         },
       });
       map.addLayer({
@@ -343,39 +362,47 @@ export function MapContainer({
         type: 'line',
         source: 'cebu-flood-100yr',
         paint: {
-          'line-color': '#B71C1C',
+          'line-color': NOAH_LINE_COLOR_EXPRESSION,
           'line-width': 2.0,
           'line-opacity': 0.95,
         },
       });
     }
 
-    // Click on flood hazard polygons for official UP NOAH hydrodynamic metadata
-    const floodLayers = [
-      { id: 'hazard-5yr-fill', period: '5-Year (High Frequency)', depth: '0.1m - 0.5m (Ankle to Knee)', advisory: 'Caution: Road gutter backflow & localized street flooding.', color: '#00E5FF' },
-      { id: 'hazard-25yr-fill', period: '25-Year (Medium Severity)', depth: '0.5m - 1.5m (Knee to Chest)', advisory: 'Warning: Major creek alluvial overflow. Sedans & compact vehicles impassable.', color: '#FF9500' },
-      { id: 'hazard-100yr-fill', period: '100-Year (Extreme Inundation)', depth: '> 1.5m (Deep Submersion)', advisory: 'Emergency: Severe basin flash flood risk. Immediate evacuation to multi-story shelters.', color: '#FF3B30' },
-    ];
+    // Click on flood hazard polygons for official UP NOAH metadata
+    const floodLayers = ['hazard-5yr-fill', 'hazard-25yr-fill', 'hazard-100yr-fill'];
 
-    floodLayers.forEach(({ id, period, depth, advisory, color }) => {
-      map.on('click', id, (e: any) => {
+    floodLayers.forEach((layerId) => {
+      map.on('click', layerId, (e: any) => {
         if (!e.features || e.features.length === 0) return;
         const props = e.features[0].properties || {};
-        const hazardName = props.hazard_name || 'Hydrodynamic Inundation Channel';
+        const level = Number(props.hazard_level || props.var || 1);
+        const returnPeriod = props.return_period || 'UP NOAH Hydrodynamic Model';
+        const depth = props.depth_range || (level === 3 ? '> 1.5m' : level === 2 ? '0.5m - 1.5m' : '0.1m - 0.5m');
+        const hazardName = props.hazard_name || (level === 3 ? 'High Hazard (> 1.5m)' : level === 2 ? 'Medium Hazard (0.5m - 1.5m)' : 'Low Hazard (0.1m - 0.5m)');
+        
+        // Official UP NOAH classification colors
+        const levelColor = level === 3 ? '#E53935' : level === 2 ? '#FF9900' : '#D4B106';
+        const levelBg = level === 3 ? '#FFEBEE' : level === 2 ? '#FFF3E0' : '#FEFDE8';
+        const advisory = level === 3
+          ? 'Emergency: Torrential flood depth (>1.5m). Deep submersion risk. Immediate evacuation to multi-story shelters.'
+          : level === 2
+          ? 'Warning: Medium flood depth (0.5m-1.5m). Alluvial plain overflow. Compact vehicles & sedans impassable.'
+          : 'Caution: Low flood depth (0.1m-0.5m). Road gutter backflow & localized street ponding.';
 
         if (popupRef.current) popupRef.current.remove();
         popupRef.current = new maplibregl.Popup({ closeButton: true, className: 'cebu-clean-popup' })
           .setLngLat(e.lngLat)
           .setHTML(`
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 8px; min-width: 210px;">
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 8px; min-width: 220px;">
               <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                <span style="font-size: 10px; font-weight: 900; text-transform: uppercase; color: ${color}; letter-spacing: 0.5px;">UP NOAH Hydro Model</span>
-                <span style="font-size: 9px; font-weight: 900; background: ${color}20; color: ${color}; padding: 2px 6px; border-radius: 6px;">${period.split(' ')[0]}</span>
+                <span style="font-size: 10px; font-weight: 900; text-transform: uppercase; color: ${levelColor}; letter-spacing: 0.5px;">DOST-UP NOAH Official</span>
+                <span style="font-size: 9px; font-weight: 900; background: ${levelBg}; color: ${levelColor}; border: 1px solid ${levelColor}40; padding: 2px 6px; border-radius: 6px;">LEVEL ${level}</span>
               </div>
               <div style="font-size: 14px; font-weight: 900; color: #1C1C1E; margin-top: 4px;">${hazardName}</div>
               
               <div style="margin-top: 6px; font-size: 11px; font-weight: 800; color: #1C1C1E; background: #F2F2F7; padding: 6px 8px; border-radius: 8px;">
-                Depth Range: <strong style="color: ${color};">${depth}</strong>
+                Depth Range: <strong style="color: ${levelColor};">${depth}</strong> &bull; <span style="color: #636366; font-size: 10px;">${returnPeriod}</span>
               </div>
 
               <div style="margin-top: 6px; font-size: 10px; color: #636366; line-height: 1.35;">
@@ -808,7 +835,7 @@ export function MapContainer({
                     : selectedScenario === '25yr'
                     ? 'bg-amber-500 shadow-sm shadow-amber-500/50'
                     : selectedScenario === '5yr'
-                    ? 'bg-cyan-400 shadow-sm shadow-cyan-400/50'
+                    ? 'bg-yellow-400 shadow-sm shadow-yellow-400/50'
                     : 'bg-gray-400'
                 }`}
               />
@@ -818,7 +845,7 @@ export function MapContainer({
               <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                 <span className="font-black text-[11px] uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5 text-blue-600" />
-                  UP NOAH Hydro Scenarios
+                  DOST-UP NOAH Hydro Scenarios
                 </span>
                 <button
                   onClick={() => setShowLayersMenu(false)}
@@ -834,11 +861,11 @@ export function MapContainer({
                   onClick={() => setSelectedScenario('5yr')}
                   className={`py-2 px-2.5 rounded-xl font-black text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                     selectedScenario === '5yr'
-                      ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/30'
+                      ? 'bg-amber-400 text-amber-950 shadow-md shadow-amber-400/30'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <span className="w-2 h-2 rounded-full bg-cyan-200" />
+                  <span className="w-2 h-2 rounded-full bg-yellow-300" />
                   5-Yr (Low Risk)
                 </button>
 
@@ -846,11 +873,11 @@ export function MapContainer({
                   onClick={() => setSelectedScenario('25yr')}
                   className={`py-2 px-2.5 rounded-xl font-black text-[10px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                     selectedScenario === '25yr'
-                      ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30'
+                      ? 'bg-orange-500 text-white shadow-md shadow-orange-500/30'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <span className="w-2 h-2 rounded-full bg-amber-200" />
+                  <span className="w-2 h-2 rounded-full bg-orange-200" />
                   25-Yr (Medium)
                 </button>
 
@@ -878,19 +905,19 @@ export function MapContainer({
                 </button>
               </div>
 
-              {/* Inundation Depth Gradient Legend */}
+              {/* Official UP NOAH Inundation Depth Gradient Legend */}
               {selectedScenario !== 'none' && (
                 <div className="pt-2 border-t border-gray-100 space-y-1.5">
-                  <div className="text-[10px] font-black uppercase text-gray-400">Inundation Depth Legend</div>
+                  <div className="text-[10px] font-black uppercase text-gray-400">UP NOAH Official Hazard Scale</div>
                   <div className="flex items-center justify-between text-[9px] font-bold text-gray-700">
                     <span className="flex items-center gap-1">
-                      <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-xs" /> 0.1m - 0.5m
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#FFE600] border border-[#D4B106] shadow-xs" /> Low (0.1–0.5m)
                     </span>
                     <span className="flex items-center gap-1">
-                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-xs" /> 0.5m - 1.5m
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#FF9900] border border-[#D46B08] shadow-xs" /> Med (0.5–1.5m)
                     </span>
                     <span className="flex items-center gap-1">
-                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-xs" /> &gt;1.5m
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#E53935] border border-[#A8071A] shadow-xs" /> High (&gt;1.5m)
                     </span>
                   </div>
                 </div>
