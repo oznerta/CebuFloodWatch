@@ -9,29 +9,17 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  User,
   AlertCircle,
-  Building,
-  UserPlus,
-  LogIn,
+  Key,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function LoginPage() {
-  const { login, register } = useAuth();
-  const [tab, setTab] = useState<'login' | 'register'>('login');
+  const { login } = useAuth();
 
   // Login Form State
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-
-  // Register Form State
-  const [regFullName, setRegFullName] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regRole, setRegRole] = useState<'admin' | 'lgu_officer' | 'responder'>('admin');
-  const [regBarangay, setRegBarangay] = useState('Mabolo');
-  const [regPhone, setRegPhone] = useState('');
 
   // UI State
   const [showPassword, setShowPassword] = useState(false);
@@ -46,7 +34,7 @@ export default function LoginPage() {
     try {
       const result = await login(loginEmail, loginPassword);
       if (!result.success) {
-        setErrorMessage(result.error || 'Invalid email or password. Please check your credentials or create an account.');
+        setErrorMessage(result.error || 'Invalid credentials. Access is restricted to authorized operators.');
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Authentication error. Please check your network connection.');
@@ -55,35 +43,10 @@ export default function LoginPage() {
     }
   };
 
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleQuickFillAdmin = () => {
+    setLoginEmail('admin@cebucity.gov.ph');
+    setLoginPassword('AdminPassword123!');
     setErrorMessage(null);
-
-    if (regPassword.length < 6) {
-      setErrorMessage('Password must be at least 6 characters.');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const result = await register({
-        fullName: regFullName,
-        email: regEmail,
-        password: regPassword,
-        role: regRole,
-        barangay: regBarangay,
-        phone: regPhone,
-      });
-
-      if (!result.success) {
-        setErrorMessage(result.error || 'Registration failed. Please try again.');
-      }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Registration network error. Please try again.');
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
@@ -103,45 +66,14 @@ export default function LoginPage() {
             CebuFloodWatch
           </h1>
           <p className="text-xs font-bold text-[#007AFF] uppercase tracking-wider">
-            CDRRMO Operations &bull; Official Access
+            CDRRMO Command & Control Center
           </p>
         </div>
 
-        {/* Segmented Tab Switcher */}
-        <div className="flex bg-[#F2F2F7] p-1 rounded-2xl border border-[#E5E5EA]">
-          <button
-            type="button"
-            onClick={() => {
-              setTab('login');
-              setLoading(false);
-              setErrorMessage(null);
-            }}
-            className={`flex-1 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              tab === 'login'
-                ? 'bg-white text-[#1C1C1E] shadow-sm'
-                : 'text-[#6C6C70] hover:text-[#1C1C1E]'
-            }`}
-          >
-            <LogIn className="w-4 h-4" />
-            Sign In
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setTab('register');
-              setLoading(false);
-              setErrorMessage(null);
-            }}
-            className={`flex-1 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              tab === 'register'
-                ? 'bg-white text-[#1C1C1E] shadow-sm'
-                : 'text-[#6C6C70] hover:text-[#1C1C1E]'
-            }`}
-          >
-            <UserPlus className="w-4 h-4" />
-            Create Account
-          </button>
+        {/* Security Notice Banner */}
+        <div className="p-3 bg-[#F8F9FA] border border-[#E5E5EA] rounded-2xl flex items-center gap-2.5 text-[11px] text-[#6C6C70]">
+          <ShieldCheck className="w-4 h-4 text-[#007AFF] flex-shrink-0" />
+          <span>Official Access Only. Operator clearances are provisioned by System Administrators.</span>
         </div>
 
         {/* Error Alert Banner */}
@@ -152,173 +84,74 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Tab 1: Sign In Form */}
-        {tab === 'login' ? (
-          <form onSubmit={handleLoginSubmit} className="space-y-3.5 text-xs">
-            <div>
-              <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
-                Official Email Address
-              </label>
-              <div className="flex items-center gap-2 bg-[#F8F9FA] border border-[#E5E5EA] rounded-2xl px-3.5 py-3 focus-within:border-[#007AFF]">
-                <Mail className="w-4 h-4 text-[#8E8E93]" />
-                <input
-                  type="email"
-                  required
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="e.g. admin@cebucity.gov.ph"
-                  className="w-full text-xs font-semibold text-[#1C1C1E] bg-transparent focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
-                Password
-              </label>
-              <div className="flex items-center gap-2 bg-[#F8F9FA] border border-[#E5E5EA] rounded-2xl px-3.5 py-3 focus-within:border-[#007AFF]">
-                <Lock className="w-4 h-4 text-[#8E8E93]" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="Enter your password..."
-                  className="w-full text-xs font-semibold text-[#1C1C1E] bg-transparent focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="text-[#8E8E93] hover:text-[#1C1C1E] cursor-pointer"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3.5 rounded-2xl bg-[#007AFF] hover:bg-[#0062CC] text-white font-extrabold text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
-            >
-              <span>{loading ? 'Authenticating Clearance...' : 'Sign In to Command Center'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setTab('register');
-                setLoading(false);
-                setErrorMessage(null);
-              }}
-              className="w-full text-center text-xs font-bold text-[#007AFF] hover:underline pt-1 cursor-pointer"
-            >
-              Don't have an account? Tap here to Create One
-            </button>
-          </form>
-        ) : (
-          /* Tab 2: Register Official Form */
-          <form onSubmit={handleRegisterSubmit} className="space-y-3 text-xs">
-            <div>
-              <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
-                Full Name
-              </label>
-              <input
-                type="text"
-                required
-                value={regFullName}
-                onChange={(e) => setRegFullName(e.target.value)}
-                placeholder="e.g. Matt Oznerta"
-                className="w-full p-2.5 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-semibold text-[#1C1C1E] focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
-                Official Gov / Work Email
-              </label>
+        {/* Sign In Form */}
+        <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs">
+          <div>
+            <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
+              Official Email Address
+            </label>
+            <div className="flex items-center gap-2 bg-[#F8F9FA] border border-[#E5E5EA] rounded-2xl px-3.5 py-3 focus-within:border-[#007AFF]">
+              <Mail className="w-4 h-4 text-[#8E8E93]" />
               <input
                 type="email"
                 required
-                value={regEmail}
-                onChange={(e) => setRegEmail(e.target.value)}
-                placeholder="matt@cebucity.gov.ph"
-                className="w-full p-2.5 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-semibold text-[#1C1C1E] focus:outline-none"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder="e.g. admin@cebucity.gov.ph"
+                className="w-full text-xs font-semibold text-[#1C1C1E] bg-transparent focus:outline-none"
               />
             </div>
+          </div>
 
-            <div>
-              <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
-                Password (Min. 6 Characters)
-              </label>
+          <div>
+            <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
+              Password
+            </label>
+            <div className="flex items-center gap-2 bg-[#F8F9FA] border border-[#E5E5EA] rounded-2xl px-3.5 py-3 focus-within:border-[#007AFF]">
+              <Lock className="w-4 h-4 text-[#8E8E93]" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
-                minLength={6}
-                value={regPassword}
-                onChange={(e) => setRegPassword(e.target.value)}
-                placeholder="Create password..."
-                className="w-full p-2.5 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-semibold text-[#1C1C1E] focus:outline-none"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                placeholder="Enter password..."
+                className="w-full text-xs font-semibold text-[#1C1C1E] bg-transparent focus:outline-none"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-[#8E8E93] hover:text-[#1C1C1E] cursor-pointer"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
-                  Clearance Role
-                </label>
-                <select
-                  value={regRole}
-                  onChange={(e) => setRegRole(e.target.value as any)}
-                  className="w-full p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-bold text-[#1C1C1E] focus:outline-none cursor-pointer"
-                >
-                  <option value="admin">System Admin</option>
-                  <option value="lgu_officer">LGU Dispatcher</option>
-                  <option value="responder">WASAR Responder</option>
-                </select>
-              </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 rounded-2xl bg-[#007AFF] hover:bg-[#0062CC] text-white font-extrabold text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+          >
+            <span>{loading ? 'Authenticating Clearance...' : 'Sign In to Command Center'}</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </form>
 
-              <div>
-                <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
-                  Home Barangay
-                </label>
-                <select
-                  value={regBarangay}
-                  onChange={(e) => setRegBarangay(e.target.value)}
-                  className="w-full p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-bold text-[#1C1C1E] focus:outline-none cursor-pointer"
-                >
-                  <option value="Mabolo">Mabolo</option>
-                  <option value="Kasambagan">Kasambagan</option>
-                  <option value="Mambaling">Mambaling</option>
-                  <option value="Guadalupe">Guadalupe</option>
-                  <option value="Lahug">Lahug</option>
-                </select>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3.5 rounded-2xl bg-[#007AFF] hover:bg-[#0062CC] text-white font-extrabold text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50 mt-1 cursor-pointer"
-            >
-              <span>{loading ? 'Creating Account...' : 'Register & Enter Command Center'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setTab('login');
-                setLoading(false);
-                setErrorMessage(null);
-              }}
-              className="w-full text-center text-xs font-bold text-[#007AFF] hover:underline pt-1 cursor-pointer"
-            >
-              Already have an account? Tap here to Sign In
-            </button>
-          </form>
-        )}
+        {/* Master Admin Helper Pill */}
+        <div className="p-3 bg-[#E5F1FF] border border-[#CCE3FF] rounded-2xl flex items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2">
+            <Key className="w-4 h-4 text-[#007AFF]" />
+            <span className="font-bold text-[#007AFF] text-[11px]">Primary Admin:</span>
+            <code className="text-[11px] font-mono text-[#1C1C1E]">admin@cebucity.gov.ph</code>
+          </div>
+          <button
+            type="button"
+            onClick={handleQuickFillAdmin}
+            className="px-2.5 py-1 bg-[#007AFF] hover:bg-[#0062CC] text-white font-bold text-[10px] rounded-lg cursor-pointer"
+          >
+            Autofill
+          </button>
+        </div>
 
         {/* Footer Security Notice */}
         <div className="pt-2 text-center text-[10px] text-[#8E8E93] font-medium leading-relaxed">

@@ -6,8 +6,9 @@ const TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 Days
 
 export interface TokenPayload {
   userId: string;
+  id: string;
   email: string;
-  role: 'admin' | 'lgu_officer' | 'responder' | 'citizen';
+  role: 'admin' | 'lgu_officer' | 'barangay_focal' | 'responder' | 'citizen';
   name: string;
   barangay?: string;
   exp: number;
@@ -48,53 +49,62 @@ export function verifyPassword(password: string, combinedHash: string): boolean 
 export function generateSignedToken(user: {
   id: string;
   email: string;
-  role: 'admin' | 'lgu_officer' | 'responder' | 'citizen';
-  name: string;
+  role: 'admin' | 'lgu_officer' | 'barangay_focal' | 'responder' | 'citizen';
+  name?: string;
   barangay?: string;
 }): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
   const exp = Date.now() + TOKEN_EXPIRY_MS;
   const payload: TokenPayload = {
     userId: user.id,
+    id: user.id,
     email: user.email,
     role: user.role,
-    name: user.name,
+    name: user.name || user.email.split('@')[0],
     barangay: user.barangay,
     exp,
   };
-  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+
+  const payloadEncoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const signature = crypto
     .createHmac('sha256', JWT_SECRET)
-    .update(`${header}.${encodedPayload}`)
+    .update(`${header}.${payloadEncoded}`)
     .digest('base64url');
 
-  return `${header}.${encodedPayload}.${signature}`;
+  return `${header}.${payloadEncoded}.${signature}`;
 }
 
 /**
- * Verify signed token, signature integrity, and expiration
+ * Cryptographically verify an incoming HMAC-SHA256 JWT
  */
 export function verifySignedToken(token: string): TokenPayload | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
 
-    const [header, encodedPayload, signature] = parts;
-    const expectedSignature = crypto
+    const [header, payloadEncoded, signature] = parts;
+
+    // Verify signature using constant-time comparison
+    const expectedSig = crypto
       .createHmac('sha256', JWT_SECRET)
-      .update(`${header}.${encodedPayload}`)
+      .update(`${header}.${payloadEncoded}`)
       .digest('base64url');
 
-    const sigBuf = Buffer.from(signature);
-    const expBuf = Buffer.from(expectedSignature);
+    if (signature.length !== expectedSig.length) return null;
+    const isSigValid = crypto.timingSafeEqual(
+      Buffer.from(signature, 'utf8'),
+      Buffer.from(expectedSig, 'utf8')
+    );
 
-    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
-      return null; // Tampered token
-    }
+    if (!isSigValid) return null;
 
-    const payload: TokenPayload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
-    if (Date.now() > payload.exp) {
-      return null; // Expired token
+    const payload: TokenPayload = JSON.parse(
+      Buffer.from(payloadEncoded, 'base64url').toString('utf8')
+    );
+
+    // Check token expiration
+    if (payload.exp && Date.now() > payload.exp) {
+      return null;
     }
 
     return payload;
@@ -104,21 +114,24 @@ export function verifySignedToken(token: string): TokenPayload | null {
 }
 
 /**
- * Simple in-memory Sliding Window Rate Limiter to prevent brute-force attacks
+ * Sliding Window In-Memory Rate Limiter
  */
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
-export function checkRateLimit(key: string, maxAttempts = 10, windowMinutes = 15): boolean {
+export function checkRateLimit(key: string, maxAttempts: number = 10, windowMinutes: number = 15): boolean {
   const now = Date.now();
   const entry = rateLimitMap.get(key);
 
-  if (!entry || now > entry.resetTime) {
-    rateLimitMap.set(key, { count: 1, resetTime: now + windowMinutes * 60 * 1000 });
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(key, {
+      count: 1,
+      resetAt: now + windowMinutes * 60 * 1000,
+    });
     return true;
   }
 
   if (entry.count >= maxAttempts) {
-    return false; // Rate limit exceeded
+    return false;
   }
 
   entry.count += 1;

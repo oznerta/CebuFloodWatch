@@ -21,17 +21,9 @@ import {
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mobileFetch } from '../services/api';
+import { CEBU_BARANGAY_NAMES } from '@cebufloodwatch/shared';
 
-const CEBU_BARANGAYS = [
-  'Mabolo',
-  'Kasambagan',
-  'Mambaling',
-  'Guadalupe',
-  'Lahug',
-  'Tejero',
-  'Pari-an',
-  'Banilad',
-];
+const CEBU_BARANGAYS = CEBU_BARANGAY_NAMES;
 
 interface AuthScreenProps {
   onSuccess: (userData: {
