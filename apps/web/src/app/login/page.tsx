@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Radio,
   Lock,
@@ -10,55 +9,65 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  Sparkles,
+  User,
+  AlertCircle,
   Building,
-  Key,
+  UserPlus,
+  LogIn,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState('admin@cebucity.gov.ph');
-  const [password, setPassword] = useState('••••••••••••');
-  const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState<'admin' | 'lgu_officer' | 'responder'>('admin');
-  const [loading, setLoading] = useState(false);
+  const { login, register } = useAuth();
+  const [tab, setTab] = useState<'login' | 'register'>('login');
 
-  const handleLogin = (e: React.FormEvent) => {
+  // Login Form State
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+
+  // Register Form State
+  const [regFullName, setRegFullName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regRole, setRegRole] = useState<'admin' | 'lgu_officer' | 'responder'>('admin');
+  const [regBarangay, setRegBarangay] = useState('Mabolo');
+  const [regPhone, setRegPhone] = useState('');
+
+  // UI State
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
     setLoading(true);
 
-    // Store auth session
-    localStorage.setItem(
-      'cebu_auth_user',
-      JSON.stringify({
-        email,
-        role,
-        name: role === 'admin' ? 'Matt Oznerta (Admin)' : 'CDRRMO Operator',
-        token: 'auth_token_' + Date.now(),
-      })
-    );
-
-    setTimeout(() => {
+    const result = await login(loginEmail, loginPassword);
+    if (!result.success) {
+      setErrorMessage(result.error || 'Invalid credentials. Please register or check your login.');
       setLoading(false);
-      router.push('/dashboard');
-    }, 600);
+    }
   };
 
-  const handleSSOLogin = () => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
     setLoading(true);
-    localStorage.setItem(
-      'cebu_auth_user',
-      JSON.stringify({
-        email: 'sso.officer@cebucity.gov.ph',
-        role: 'admin',
-        name: 'Gov SSO Authorized Admin',
-        token: 'firebase_sso_token_' + Date.now(),
-      })
-    );
-    setTimeout(() => {
+
+    const result = await register({
+      fullName: regFullName,
+      email: regEmail,
+      password: regPassword,
+      role: regRole,
+      barangay: regBarangay,
+      phone: regPhone,
+    });
+
+    if (!result.success) {
+      setErrorMessage(result.error || 'Registration failed. Please try again.');
       setLoading(false);
-      router.push('/dashboard');
-    }, 400);
+    }
   };
 
   return (
@@ -68,9 +77,9 @@ export default function LoginPage() {
       <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-[#34C759]/15 rounded-full blur-3xl pointer-events-none" />
 
       {/* Main Glassmorphism Authentication Card */}
-      <div className="bg-white/95 backdrop-blur-2xl border border-[#E5E5EA] rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6 z-10">
+      <div className="bg-white/95 backdrop-blur-2xl border border-[#E5E5EA] rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-5 z-10">
         {/* Brand Header */}
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-1.5">
           <div className="w-14 h-14 rounded-2xl bg-[#007AFF] text-white flex items-center justify-center mx-auto shadow-xl shadow-blue-500/30">
             <Radio className="w-7 h-7" />
           </div>
@@ -78,113 +87,199 @@ export default function LoginPage() {
             CebuFloodWatch
           </h1>
           <p className="text-xs font-bold text-[#007AFF] uppercase tracking-wider">
-            CDRRMO Command Portal &bull; Official Access
+            CDRRMO Operations &bull; Command Access
           </p>
         </div>
 
-        {/* Login Form */}
-        <form onSubmit={handleLogin} className="space-y-4 text-xs">
-          {/* Role Selection Tabs */}
-          <div>
-            <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1.5">
-              Select Clearance Tier
-            </label>
-            <div className="grid grid-cols-3 gap-1.5 bg-[#F8F9FA] p-1 rounded-2xl border border-[#E5E5EA]">
-              {[
-                { id: 'admin', label: '👑 Admin' },
-                { id: 'lgu_officer', label: '🛡️ Dispatcher' },
-                { id: 'responder', label: '📋 Responder' },
-              ].map((r) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  onClick={() => setRole(r.id as any)}
-                  className={`py-2 rounded-xl font-extrabold text-[11px] transition-all ${
-                    role === r.id
-                      ? 'bg-[#007AFF] text-white shadow-sm'
-                      : 'text-[#6C6C70] hover:text-[#1C1C1E]'
-                  }`}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
-          </div>
+        {/* Segmented Tab Switcher */}
+        <div className="flex bg-[#F2F2F7] p-1 rounded-2xl border border-[#E5E5EA]">
+          <button
+            type="button"
+            onClick={() => {
+              setTab('login');
+              setErrorMessage(null);
+            }}
+            className={`flex-1 py-2 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${
+              tab === 'login'
+                ? 'bg-white text-[#1C1C1E] shadow-sm'
+                : 'text-[#6C6C70] hover:text-[#1C1C1E]'
+            }`}
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            Sign In
+          </button>
 
-          {/* Email Input */}
-          <div>
-            <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1.5">
-              Official Gov Email Address
-            </label>
-            <div className="flex items-center gap-2 bg-[#F8F9FA] border border-[#E5E5EA] rounded-2xl px-3.5 py-3 focus-within:border-[#007AFF]">
-              <Mail className="w-4 h-4 text-[#8E8E93]" />
+          <button
+            type="button"
+            onClick={() => {
+              setTab('register');
+              setErrorMessage(null);
+            }}
+            className={`flex-1 py-2 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${
+              tab === 'register'
+                ? 'bg-white text-[#1C1C1E] shadow-sm'
+                : 'text-[#6C6C70] hover:text-[#1C1C1E]'
+            }`}
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            Create Account
+          </button>
+        </div>
+
+        {/* Error Alert Banner */}
+        {errorMessage && (
+          <div className="p-3 bg-[#FFEBEA] border border-[#FFD0CE] rounded-2xl flex items-center gap-2 text-xs font-bold text-[#FF3B30]">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
+        {/* Tab 1: Sign In Form */}
+        {tab === 'login' ? (
+          <form onSubmit={handleLoginSubmit} className="space-y-3.5 text-xs">
+            <div>
+              <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
+                Official Email Address
+              </label>
+              <div className="flex items-center gap-2 bg-[#F8F9FA] border border-[#E5E5EA] rounded-2xl px-3.5 py-3 focus-within:border-[#007AFF]">
+                <Mail className="w-4 h-4 text-[#8E8E93]" />
+                <input
+                  type="email"
+                  required
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="e.g. operator@cebucity.gov.ph"
+                  className="w-full text-xs font-semibold text-[#1C1C1E] bg-transparent focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
+                Password
+              </label>
+              <div className="flex items-center gap-2 bg-[#F8F9FA] border border-[#E5E5EA] rounded-2xl px-3.5 py-3 focus-within:border-[#007AFF]">
+                <Lock className="w-4 h-4 text-[#8E8E93]" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="Enter your password..."
+                  className="w-full text-xs font-semibold text-[#1C1C1E] bg-transparent focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-[#8E8E93] hover:text-[#1C1C1E]"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 rounded-2xl bg-[#007AFF] hover:bg-[#0062CC] text-white font-extrabold text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+            >
+              <span>{loading ? 'Authenticating...' : 'Sign In to Command Center'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </form>
+        ) : (
+          /* Tab 2: Register Official Form */
+          <form onSubmit={handleRegisterSubmit} className="space-y-3 text-xs">
+            <div>
+              <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
+                Full Name
+              </label>
+              <input
+                type="text"
+                required
+                value={regFullName}
+                onChange={(e) => setRegFullName(e.target.value)}
+                placeholder="e.g. Maria Santos"
+                className="w-full p-2.5 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-semibold text-[#1C1C1E] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
+                Official Gov / Work Email
+              </label>
               <input
                 type="email"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@cebucity.gov.ph"
-                className="w-full text-xs font-semibold text-[#1C1C1E] bg-transparent focus:outline-none"
+                value={regEmail}
+                onChange={(e) => setRegEmail(e.target.value)}
+                placeholder="maria@cebucity.gov.ph"
+                className="w-full p-2.5 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-semibold text-[#1C1C1E] focus:outline-none"
               />
             </div>
-          </div>
 
-          {/* Password Input */}
-          <div>
-            <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1.5">
-              Security Clearance Password
-            </label>
-            <div className="flex items-center gap-2 bg-[#F8F9FA] border border-[#E5E5EA] rounded-2xl px-3.5 py-3 focus-within:border-[#007AFF]">
-              <Lock className="w-4 h-4 text-[#8E8E93]" />
+            <div>
+              <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
+                Password
+              </label>
               <input
-                type={showPassword ? 'text' : 'password'}
+                type="password"
                 required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password..."
-                className="w-full text-xs font-semibold text-[#1C1C1E] bg-transparent focus:outline-none"
+                value={regPassword}
+                onChange={(e) => setRegPassword(e.target.value)}
+                placeholder="Create a strong password..."
+                className="w-full p-2.5 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-semibold text-[#1C1C1E] focus:outline-none"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="text-[#8E8E93] hover:text-[#1C1C1E]"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
             </div>
-          </div>
 
-          {/* Sign In CTA */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 rounded-2xl bg-[#007AFF] hover:bg-[#0062CC] text-white font-extrabold text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-          >
-            <span>{loading ? 'Authenticating Clearance...' : 'Authorize & Enter Command Center'}</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </form>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
+                  Clearance Role
+                </label>
+                <select
+                  value={regRole}
+                  onChange={(e) => setRegRole(e.target.value as any)}
+                  className="w-full p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-bold text-[#1C1C1E] focus:outline-none"
+                >
+                  <option value="admin">System Admin</option>
+                  <option value="lgu_officer">LGU Dispatcher</option>
+                  <option value="responder">WASAR Responder</option>
+                </select>
+              </div>
 
-        {/* Divider */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-[#E5E5EA]" />
-          <span className="text-[10px] font-extrabold uppercase text-[#8E8E93]">Or</span>
-          <div className="flex-1 h-px bg-[#E5E5EA]" />
-        </div>
+              <div>
+                <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
+                  Home Barangay
+                </label>
+                <select
+                  value={regBarangay}
+                  onChange={(e) => setRegBarangay(e.target.value)}
+                  className="w-full p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-bold text-[#1C1C1E] focus:outline-none"
+                >
+                  <option value="Mabolo">Mabolo</option>
+                  <option value="Kasambagan">Kasambagan</option>
+                  <option value="Mambaling">Mambaling</option>
+                  <option value="Guadalupe">Guadalupe</option>
+                  <option value="Lahug">Lahug</option>
+                </select>
+              </div>
+            </div>
 
-        {/* SSO / Firebase Auth Button */}
-        <button
-          onClick={handleSSOLogin}
-          disabled={loading}
-          className="w-full py-3 rounded-2xl bg-[#F8F9FA] hover:bg-[#E5E5EA] border border-[#E5E5EA] text-[#1C1C1E] font-extrabold text-xs flex items-center justify-center gap-2 transition-all"
-        >
-          <Building className="w-4 h-4 text-[#007AFF]" />
-          <span>Sign In with Government SSO / Firebase</span>
-        </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 rounded-2xl bg-[#007AFF] hover:bg-[#0062CC] text-white font-extrabold text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50 mt-1"
+            >
+              <span>{loading ? 'Registering Account...' : 'Register Official Account'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </form>
+        )}
 
         {/* Footer Security Notice */}
         <div className="pt-2 text-center text-[10px] text-[#8E8E93] font-medium leading-relaxed">
-          🔒 Official Disaster Risk Reduction & Management System &bull; OCD-7 Compliant
+          🔒 Official Disaster Risk Reduction & Management System &bull; OCD-7 Security Standard
         </div>
       </div>
     </div>

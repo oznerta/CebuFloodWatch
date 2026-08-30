@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
@@ -9,10 +9,30 @@ import { LiveMapScreen } from './src/screens/LiveMapScreen';
 import { ReportFloodScreen } from './src/screens/ReportFloodScreen';
 import { SafetyNetworkScreen } from './src/screens/SafetyNetworkScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
+import { AuthScreen } from './src/screens/AuthScreen';
 
 const Tab = createBottomTabNavigator();
 
 export default function App() {
+  const [userSession, setUserSession] = useState<{
+    name: string;
+    phone?: string;
+    email?: string;
+    isAnonymous?: boolean;
+  } | null>(null);
+
+  // If citizen hasn't selected an auth path, present the AuthScreen
+  if (!userSession) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="dark" />
+        <AuthScreen
+          onSuccess={(session) => setUserSession(session)}
+        />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <NavigationContainer>

@@ -11,10 +11,12 @@ import { clustersRouter } from './clusters.js';
 import { telemetryRouter } from './telemetry.js';
 import { auditRouter } from './audit.js';
 import { adminRouter } from './admin.js';
+import { authRouter } from './auth.js';
 
 export const apiRouter = Router();
 
 apiRouter.use('/', healthRouter);
+apiRouter.use('/auth', authRouter);
 apiRouter.use('/barangays', barangaysRouter);
 apiRouter.use('/reports', reportsRouter);
 apiRouter.use('/shelters', sheltersRouter);

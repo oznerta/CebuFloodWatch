@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -20,7 +20,9 @@ import {
   Sliders,
   Lock,
   UserCheck,
+  LogOut,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 interface NavItem {
   name: string;
@@ -47,7 +49,8 @@ const adminNav: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [isAdmin, setIsAdmin] = useState(true); // Default to Admin for full configuration power
+  const { user, logout } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   return (
     <aside className="w-64 bg-white/95 backdrop-blur-2xl border-r border-[#E5E5EA] flex flex-col shrink-0 min-h-screen text-[#1C1C1E] shadow-sm z-30">
@@ -147,38 +150,37 @@ export function Sidebar() {
         ) : (
           <div className="p-3 rounded-2xl bg-[#F8F9FA] border border-[#E5E5EA] text-center space-y-1.5">
             <Lock className="w-4 h-4 text-[#8E8E93] mx-auto" />
-            <p className="text-[11px] font-bold text-[#1C1C1E]">Admin Suite Locked</p>
-            <p className="text-[10px] text-[#8E8E93]">Logged in as CDRRMO Operator</p>
+            <p className="text-[11px] font-bold text-[#1C1C1E]">Admin Suite Restricted</p>
+            <p className="text-[10px] text-[#8E8E93]">Admin clearance required</p>
           </div>
         )}
       </div>
 
-      {/* Operator Profile & Role Switcher Dock */}
+      {/* Operator Profile & Logout Dock */}
       <div className="p-3.5 border-t border-[#E5E5EA] bg-[#F8F9FA]/80 space-y-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-[#E5F1FF] border border-[#CCE3FF] flex items-center justify-center font-extrabold text-xs text-[#007AFF]">
-              {isAdmin ? 'AD' : 'OP'}
+              {user?.name ? user.name.slice(0, 2).toUpperCase() : 'OP'}
             </div>
-            <div>
-              <p className="text-xs font-bold text-[#1C1C1E]">
-                {isAdmin ? 'Admin Console' : 'Field Operator'}
+            <div className="overflow-hidden">
+              <p className="text-xs font-bold text-[#1C1C1E] truncate max-w-[120px]">
+                {user?.name || 'Authorized Operator'}
               </p>
-              <p className="text-[10px] text-[#8E8E93]">
-                {isAdmin ? 'Full Clearance' : 'CDRRMO Desk'}
+              <p className="text-[10px] text-[#8E8E93] uppercase font-bold">
+                {user?.role?.replace('_', ' ') || 'CDRRMO Desk'}
               </p>
             </div>
           </div>
-        </div>
 
-        {/* Dynamic Role Switcher (For Demo & Multi-Operator Switching) */}
-        <button
-          onClick={() => setIsAdmin(!isAdmin)}
-          className="w-full py-1.5 px-2 rounded-xl bg-white border border-[#E5E5EA] hover:bg-[#F2F2F7] text-[10px] font-extrabold text-[#6C6C70] hover:text-[#1C1C1E] transition-all flex items-center justify-center gap-1.5 shadow-2xs"
-        >
-          <UserCheck className="w-3 h-3 text-[#007AFF]" />
-          <span>Switch Role: {isAdmin ? 'Operator View' : 'Admin View'}</span>
-        </button>
+          <button
+            onClick={logout}
+            title="Sign Out"
+            className="p-1.5 rounded-xl bg-white border border-[#E5E5EA] text-[#8E8E93] hover:text-[#FF3B30] hover:bg-[#FFEBEA] transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </aside>
   );

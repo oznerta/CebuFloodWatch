@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   UserPlus,
@@ -13,70 +13,52 @@ import {
   Phone,
   Building,
   Key,
+  Inbox,
+  RefreshCw,
 } from 'lucide-react';
+import { fetchApi } from '../../../lib/api';
 
 interface Operator {
   id: string;
   name: string;
   email: string;
   phone: string;
-  role: 'admin' | 'lgu_officer' | 'responder' | 'analyst';
+  role: 'admin' | 'lgu_officer' | 'responder' | 'citizen';
   barangay: string;
   status: 'active' | 'suspended';
   lastActive: string;
 }
 
-const INITIAL_OPERATORS: Operator[] = [
-  {
-    id: '1',
-    name: 'Matt Oznerta',
-    email: 'matt.oznerta@cebucity.gov.ph',
-    phone: '+63 917 123 4567',
-    role: 'admin',
-    barangay: 'CDRRMO Central Command',
-    status: 'active',
-    lastActive: 'Just now',
-  },
-  {
-    id: '2',
-    name: 'Capt. Juan Dela Cruz',
-    email: 'juan.delacruz@mabolo.cebu.gov.ph',
-    phone: '+63 918 234 5678',
-    role: 'lgu_officer',
-    barangay: 'Mabolo',
-    status: 'active',
-    lastActive: '12 mins ago',
-  },
-  {
-    id: '3',
-    name: 'Elena Santos',
-    email: 'elena.santos@kasambagan.cebu.gov.ph',
-    phone: '+63 919 345 6789',
-    role: 'lgu_officer',
-    barangay: 'Kasambagan',
-    status: 'active',
-    lastActive: '25 mins ago',
-  },
-  {
-    id: '4',
-    name: 'BFP Rescue Team Alpha',
-    email: 'rescue.alpha@bfp.gov.ph',
-    phone: '+63 920 456 7890',
-    role: 'responder',
-    barangay: 'Mambaling Sector',
-    status: 'active',
-    lastActive: '5 mins ago',
-  },
-];
-
 export default function UserManagementPage() {
-  const [operators, setOperators] = useState<Operator[]>(INITIAL_OPERATORS);
+  const [operators, setOperators] = useState<Operator[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<'admin' | 'lgu_officer' | 'responder'>('lgu_officer');
-  const [newBarangay, setNewBarangay] = useState('Guadalupe');
+  const [newBarangay, setNewBarangay] = useState('Mabolo');
+  const [newPhone, setNewPhone] = useState('');
+
+  const loadUsers = async () => {
+    try {
+      const res = await fetchApi<any>('/auth/users');
+      if (res && res.data) {
+        setOperators(res.data);
+      } else {
+        setOperators([]);
+      }
+    } catch {
+      setOperators([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   const filteredOperators = operators.filter(
     (op) =>
@@ -85,25 +67,36 @@ export default function UserManagementPage() {
       op.email.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleAddOperator = (e: React.FormEvent) => {
+  const handleAddOperator = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName || !newEmail) return;
+    if (!newName || !newEmail || !newPassword) return;
 
-    const created: Operator = {
-      id: Date.now().toString(),
-      name: newName,
-      email: newEmail,
-      phone: '+63 900 000 0000',
-      role: newRole,
-      barangay: newBarangay,
-      status: 'active',
-      lastActive: 'Invited',
-    };
+    try {
+      const res = await fetchApi<any>('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          full_name: newName,
+          email: newEmail,
+          password: newPassword,
+          role: newRole,
+          barangay: newBarangay,
+          phone_number: newPhone,
+        }),
+      });
 
-    setOperators([created, ...operators]);
-    setNewName('');
-    setNewEmail('');
-    setInviteModalOpen(false);
+      if (res && res.success) {
+        loadUsers();
+        setNewName('');
+        setNewEmail('');
+        setNewPassword('');
+        setNewPhone('');
+        setInviteModalOpen(false);
+      } else {
+        alert(res?.error || 'Failed to create operator.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error creating operator.');
+    }
   };
 
   const getRoleBadge = (role: Operator['role']) => {
@@ -115,7 +108,7 @@ export default function UserManagementPage() {
       case 'responder':
         return <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-[#FFF4E5] text-[#FF9500] border border-[#FFE4BE]">WASAR RESCUE</span>;
       default:
-        return <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-[#F2F2F7] text-[#6C6C70] border border-[#E5E5EA]">ANALYST</span>;
+        return <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-[#F2F2F7] text-[#6C6C70] border border-[#E5E5EA]">CITIZEN</span>;
     }
   };
 
@@ -158,59 +151,76 @@ export default function UserManagementPage() {
             className="w-full text-xs font-semibold text-[#1C1C1E] placeholder-[#8E8E93] focus:outline-none"
           />
         </div>
+
+        <button
+          onClick={loadUsers}
+          className="p-2.5 rounded-2xl bg-white border border-[#E5E5EA] text-[#8E8E93] hover:text-[#1C1C1E]"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Operators Table */}
-      <div className="bg-white border border-[#E5E5EA] rounded-3xl overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-[#F8F9FA] border-b border-[#E5E5EA] text-[#8E8E93] font-extrabold uppercase tracking-wider">
-              <tr>
-                <th className="py-3 px-5">Operator</th>
-                <th className="py-3 px-5">Role & Clearance</th>
-                <th className="py-3 px-5">Assigned Barangay</th>
-                <th className="py-3 px-5">Status</th>
-                <th className="py-3 px-5">Last Active</th>
-                <th className="py-3 px-5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#E5E5EA]">
-              {filteredOperators.map((op) => (
-                <tr key={op.id} className="hover:bg-[#F8F9FA]/80 transition-colors">
-                  <td className="py-3.5 px-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-[#E5F1FF] border border-[#CCE3FF] flex items-center justify-center font-bold text-xs text-[#007AFF]">
-                        {op.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-extrabold text-sm text-[#1C1C1E]">{op.name}</p>
-                        <p className="text-[11px] text-[#8E8E93]">{op.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-5">{getRoleBadge(op.role)}</td>
-                  <td className="py-3.5 px-5 font-bold text-[#1C1C1E]">{op.barangay}</td>
-                  <td className="py-3.5 px-5">
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#34C759]">
-                      <span className="w-2 h-2 rounded-full bg-[#34C759]" />
-                      Active
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-5 text-[#8E8E93] font-medium">{op.lastActive}</td>
-                  <td className="py-3.5 px-5 text-right">
-                    <button
-                      onClick={() => alert(`Editing permissions for ${op.name}`)}
-                      className="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-xs font-bold text-[#1C1C1E] transition-all"
-                    >
-                      Edit Role
-                    </button>
-                  </td>
+      {filteredOperators.length > 0 ? (
+        <div className="bg-white border border-[#E5E5EA] rounded-3xl overflow-hidden shadow-xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-[#F8F9FA] border-b border-[#E5E5EA] text-[#8E8E93] font-extrabold uppercase tracking-wider">
+                <tr>
+                  <th className="py-3 px-5">Operator</th>
+                  <th className="py-3 px-5">Role & Clearance</th>
+                  <th className="py-3 px-5">Assigned Barangay</th>
+                  <th className="py-3 px-5">Status</th>
+                  <th className="py-3 px-5">Last Active</th>
+                  <th className="py-3 px-5 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-[#E5E5EA]">
+                {filteredOperators.map((op) => (
+                  <tr key={op.id} className="hover:bg-[#F8F9FA]/80 transition-colors">
+                    <td className="py-3.5 px-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-[#E5F1FF] border border-[#CCE3FF] flex items-center justify-center font-bold text-xs text-[#007AFF]">
+                          {op.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-sm text-[#1C1C1E]">{op.name}</p>
+                          <p className="text-[11px] text-[#8E8E93]">{op.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-5">{getRoleBadge(op.role)}</td>
+                    <td className="py-3.5 px-5 font-bold text-[#1C1C1E]">{op.barangay}</td>
+                    <td className="py-3.5 px-5">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#34C759]">
+                        <span className="w-2 h-2 rounded-full bg-[#34C759]" />
+                        Active
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-5 text-[#8E8E93] font-medium">{op.lastActive}</td>
+                    <td className="py-3.5 px-5 text-right">
+                      <button
+                        onClick={() => alert(`Operator account ${op.name} is active.`)}
+                        className="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-xs font-bold text-[#1C1C1E] transition-all"
+                      >
+                        Manage
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-white border border-[#E5E5EA] rounded-3xl p-12 text-center space-y-3 shadow-xs">
+          <Inbox className="w-10 h-10 text-[#C7C7CC] mx-auto" />
+          <h3 className="text-base font-extrabold text-[#1C1C1E]">No Operators Registered Yet</h3>
+          <p className="text-xs text-[#8E8E93] max-w-sm mx-auto">
+            Click "Add Operator" above or register new accounts from the login page.
+          </p>
+        </div>
+      )}
 
       {/* Invite Modal */}
       {inviteModalOpen && (
@@ -251,6 +261,20 @@ export default function UserManagementPage() {
                   placeholder="maria.tan@cebucity.gov.ph"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-semibold text-[#1C1C1E] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold uppercase text-[#8E8E93] block mb-1">
+                  Temporary Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Create password for operator..."
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full p-2.5 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-semibold text-[#1C1C1E] focus:outline-none"
                 />
               </div>

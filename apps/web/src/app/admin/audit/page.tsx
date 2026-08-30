@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileCheck,
   Download,
@@ -10,6 +10,8 @@ import {
   Filter,
   CheckCircle,
   FileSpreadsheet,
+  Inbox,
+  RefreshCw,
 } from 'lucide-react';
 import { fetchApi } from '../../../lib/api';
 
@@ -23,49 +25,30 @@ interface AuditRecord {
   checksum: string;
 }
 
-const INITIAL_AUDIT_LOGS: AuditRecord[] = [
-  {
-    id: 'aud_88192',
-    eventType: 'VERIFY_REPORT',
-    description: 'Verified citizen flood report at Mabolo Suba river (Waist depth confirmed via field photo).',
-    operator: 'Capt. Juan Dela Cruz (LGU Officer)',
-    barangay: 'Mabolo',
-    timestamp: new Date(Date.now() - 1000 * 60 * 14).toISOString(),
-    checksum: 'sha256:7f8a91c2e4b3d8...',
-  },
-  {
-    id: 'aud_88191',
-    eventType: 'BROADCAST_ALERT',
-    description: 'Dispatched bilingual emergency broadcast: "Mabolo River Overflow Warning".',
-    operator: 'Matt Oznerta (Admin)',
-    barangay: 'Metro Cebu Cluster',
-    timestamp: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
-    checksum: 'sha256:3a91b2c4e8f1d7...',
-  },
-  {
-    id: 'aud_88190',
-    eventType: 'UPDATE_SHELTER',
-    description: 'Updated Mabolo Elementary Gym capacity occupancy to 85 / 350 evacuees.',
-    operator: 'Capt. Juan Dela Cruz (LGU Officer)',
-    barangay: 'Mabolo',
-    timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    checksum: 'sha256:4d8c2e1f9a7b3c...',
-  },
-  {
-    id: 'aud_88189',
-    eventType: 'UPDATE_ROAD',
-    description: 'Marked N. Bacalso (Mambaling Underpass) as IMPASSABLE due to chest-level water pooling.',
-    operator: 'BFP Rescue Team Alpha (Responder)',
-    barangay: 'Mambaling',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-    checksum: 'sha256:9c1a7d3e5f2b8a...',
-  },
-];
-
 export default function OCD7AuditLogsPage() {
-  const [logs, setLogs] = useState<AuditRecord[]>(INITIAL_AUDIT_LOGS);
+  const [logs, setLogs] = useState<AuditRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<string>('all');
   const [search, setSearch] = useState('');
+
+  const loadAuditLogs = async () => {
+    try {
+      const res = await fetchApi<any[]>('/audit/export');
+      if (res && Array.isArray(res)) {
+        setLogs(res);
+      } else {
+        setLogs([]);
+      }
+    } catch {
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAuditLogs();
+  }, []);
 
   const filteredLogs = logs.filter((l) => {
     if (filterType !== 'all' && l.eventType !== filterType) return false;
@@ -116,13 +99,23 @@ export default function OCD7AuditLogsPage() {
           </div>
         </div>
 
-        <button
-          onClick={handleExportJSON}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#007AFF] hover:bg-[#0062CC] text-white text-xs font-extrabold shadow-md shadow-blue-500/20 transition-all"
-        >
-          <Download className="w-4 h-4" />
-          Export OCD-7 Audit Certificate
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={loadAuditLogs}
+            className="p-2.5 rounded-2xl bg-white border border-[#E5E5EA] text-[#8E8E93] hover:text-[#1C1C1E]"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={handleExportJSON}
+            disabled={logs.length === 0}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#007AFF] hover:bg-[#0062CC] disabled:opacity-50 text-white text-xs font-extrabold shadow-md shadow-blue-500/20 transition-all"
+          >
+            <Download className="w-4 h-4" />
+            Export OCD-7 Audit Certificate
+          </button>
+        </div>
       </div>
 
       {/* Filter Bar */}
@@ -156,38 +149,48 @@ export default function OCD7AuditLogsPage() {
       </div>
 
       {/* Audit Log Table */}
-      <div className="bg-white border border-[#E5E5EA] rounded-3xl overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-[#F8F9FA] border-b border-[#E5E5EA] text-[#8E8E93] font-extrabold uppercase tracking-wider">
-              <tr>
-                <th className="py-3 px-5">Event Type</th>
-                <th className="py-3 px-5">Action & Description</th>
-                <th className="py-3 px-5">Authorizing Operator</th>
-                <th className="py-3 px-5">Barangay</th>
-                <th className="py-3 px-5">Timestamp</th>
-                <th className="py-3 px-5 font-mono">Checksum</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#E5E5EA]">
-              {filteredLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-[#F8F9FA]/80 transition-colors">
-                  <td className="py-3.5 px-5">{getEventBadge(log.eventType)}</td>
-                  <td className="py-3.5 px-5 max-w-sm">
-                    <p className="font-bold text-xs text-[#1C1C1E] leading-relaxed">{log.description}</p>
-                  </td>
-                  <td className="py-3.5 px-5 font-bold text-[#1C1C1E]">{log.operator}</td>
-                  <td className="py-3.5 px-5 text-[#6C6C70] font-semibold">{log.barangay}</td>
-                  <td className="py-3.5 px-5 text-[#8E8E93] whitespace-nowrap">
-                    {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} &bull; {new Date(log.timestamp).toLocaleDateString()}
-                  </td>
-                  <td className="py-3.5 px-5 font-mono text-[10px] text-[#8E8E93]">{log.checksum}</td>
+      {filteredLogs.length > 0 ? (
+        <div className="bg-white border border-[#E5E5EA] rounded-3xl overflow-hidden shadow-xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-[#F8F9FA] border-b border-[#E5E5EA] text-[#8E8E93] font-extrabold uppercase tracking-wider">
+                <tr>
+                  <th className="py-3 px-5">Event Type</th>
+                  <th className="py-3 px-5">Action & Description</th>
+                  <th className="py-3 px-5">Authorizing Operator</th>
+                  <th className="py-3 px-5">Barangay</th>
+                  <th className="py-3 px-5">Timestamp</th>
+                  <th className="py-3 px-5 font-mono">Checksum</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-[#E5E5EA]">
+                {filteredLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-[#F8F9FA]/80 transition-colors">
+                    <td className="py-3.5 px-5">{getEventBadge(log.eventType)}</td>
+                    <td className="py-3.5 px-5 max-w-sm">
+                      <p className="font-bold text-xs text-[#1C1C1E] leading-relaxed">{log.description}</p>
+                    </td>
+                    <td className="py-3.5 px-5 font-bold text-[#1C1C1E]">{log.operator}</td>
+                    <td className="py-3.5 px-5 text-[#6C6C70] font-semibold">{log.barangay}</td>
+                    <td className="py-3.5 px-5 text-[#8E8E93] whitespace-nowrap">
+                      {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} &bull; {new Date(log.timestamp).toLocaleDateString()}
+                    </td>
+                    <td className="py-3.5 px-5 font-mono text-[10px] text-[#8E8E93]">{log.checksum}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-white border border-[#E5E5EA] rounded-3xl p-12 text-center space-y-3 shadow-xs">
+          <Inbox className="w-10 h-10 text-[#C7C7CC] mx-auto" />
+          <h3 className="text-base font-extrabold text-[#1C1C1E]">No Audit Records Logged Yet</h3>
+          <p className="text-xs text-[#8E8E93] max-w-sm mx-auto">
+            Disaster dispatches, verified reports, and shelter capacity updates will generate signed audit records here automatically.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
