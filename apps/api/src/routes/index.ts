@@ -10,6 +10,7 @@ import { uploadRouter } from './upload.js';
 import { clustersRouter } from './clusters.js';
 import { telemetryRouter } from './telemetry.js';
 import { auditRouter } from './audit.js';
+import { adminRouter } from './admin.js';
 
 export const apiRouter = Router();
 
@@ -24,3 +25,4 @@ apiRouter.use('/upload', uploadRouter);
 apiRouter.use('/clusters', clustersRouter);
 apiRouter.use('/telemetry', telemetryRouter);
 apiRouter.use('/audit', auditRouter);
+apiRouter.use('/admin', adminRouter);

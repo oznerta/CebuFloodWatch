@@ -2,31 +2,23 @@
 
 import React, { useEffect, useState } from 'react';
 import {
+  ShieldAlert,
   AlertTriangle,
-  Home,
-  Megaphone,
+  Radio,
   Clock,
+  ArrowUpRight,
+  Droplet,
+  Users,
+  Home,
   CheckCircle2,
   XCircle,
-  TrendingUp,
-  MapPin,
-  RefreshCw,
-  Droplet,
+  FileCheck,
+  ChevronRight,
   CloudRain,
-  Download,
-  Activity,
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus,
-  Search,
-  PhoneCall,
-  Gauge,
   Waves,
-  Ship,
-  Layers,
+  MapPin,
   Sparkles,
-  ShieldAlert,
-  Compass,
+  Inbox,
 } from 'lucide-react';
 import { MapContainer } from '../../components/map/MapContainer';
 import { fetchApi } from '../../lib/api';
@@ -43,107 +35,16 @@ export default function DashboardPage() {
   const loadData = async () => {
     try {
       const [reportsData, sheltersData, alertsData, stationsData] = await Promise.all([
-        fetchApi<any[]>('/reports').catch(() => [
-          {
-            id: '1',
-            barangay_name: 'Mabolo',
-            flood_depth_level: 'waist',
-            description: 'Suba river overflow reaching front of church',
-            created_at: new Date().toISOString(),
-            latitude: 10.325,
-            longitude: 123.9167,
-            status: 'pending',
-          },
-          {
-            id: '2',
-            barangay_name: 'Mambaling',
-            flood_depth_level: 'chest',
-            description: 'Underpass totally flooded, stranded vehicles',
-            created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-            latitude: 10.2915,
-            longitude: 123.8742,
-            status: 'verified',
-          },
-          {
-            id: '3',
-            barangay_name: 'Kasambagan',
-            flood_depth_level: 'knee',
-            description: 'Mahiga creek backflow into residential lane',
-            created_at: new Date(Date.now() - 1000 * 60 * 40).toISOString(),
-            latitude: 10.334,
-            longitude: 123.914,
-            status: 'pending',
-          },
-        ]),
-        fetchApi<any[]>('/shelters').catch(() => [
-          {
-            id: '1',
-            name: 'Mabolo Elementary School Gym',
-            barangay_name: 'Mabolo',
-            max_capacity: 350,
-            current_occupancy: 85,
-            status: 'open',
-            latitude: 10.3265,
-            longitude: 123.918,
-          },
-          {
-            id: '2',
-            name: 'Kasambagan Sports Complex',
-            barangay_name: 'Kasambagan',
-            max_capacity: 250,
-            current_occupancy: 240,
-            status: 'full',
-            latitude: 10.334,
-            longitude: 123.914,
-          },
-        ]),
-        fetchApi<any[]>('/alerts/active').catch(() => [
-          {
-            id: '1',
-            severity: 'critical',
-            title_en: 'Critical Flood Warning: Mabolo River Overflow',
-            body_en: 'Water levels around M.J. Cuenco bridge have breached critical thresholds.',
-            published_at: new Date().toISOString(),
-          },
-        ]),
-        fetchApi<any[]>('/telemetry/stations').catch(() => [
-          {
-            id: 'station_mabolo_suba',
-            station_name: 'Mabolo River Sensor',
-            barangay_name: 'Mabolo',
-            water_level_meters: 2.15,
-            critical_overflow_meters: 2.0,
-            rainfall_rate_mmh: 42.5,
-            trend: 'rising',
-            status: 'critical_breach',
-          },
-          {
-            id: 'station_mahiga_creek',
-            station_name: 'Mahiga Creek Gauge',
-            barangay_name: 'Kasambagan',
-            water_level_meters: 1.62,
-            critical_overflow_meters: 1.8,
-            rainfall_rate_mmh: 31.0,
-            trend: 'rising',
-            status: 'watch',
-          },
-          {
-            id: 'station_guadalupe_river',
-            station_name: 'Guadalupe River Midstream',
-            barangay_name: 'Guadalupe',
-            water_level_meters: 0.85,
-            critical_overflow_meters: 2.2,
-            rainfall_rate_mmh: 12.0,
-            trend: 'stable',
-            status: 'normal',
-          },
-        ]),
+        fetchApi<any[]>('/reports').catch(() => []),
+        fetchApi<any[]>('/shelters').catch(() => []),
+        fetchApi<any[]>('/alerts/active').catch(() => []),
+        fetchApi<any[]>('/telemetry/stations').catch(() => []),
       ]);
 
-      setReports(reportsData);
-      setShelters(sheltersData);
-      setAlerts(alertsData);
-      setStations(stationsData);
+      if (reportsData) setReports(reportsData);
+      if (sheltersData) setShelters(sheltersData);
+      if (alertsData) setAlerts(alertsData);
+      if (stationsData) setStations(stationsData);
     } finally {
       setLoading(false);
     }
@@ -153,19 +54,35 @@ export default function DashboardPage() {
     loadData();
 
     const socket = getSocket();
-    socket.on('report:new', (newReport) => {
-      setReports((prev) => [newReport, ...prev.filter((r) => r.id !== newReport.id)]);
-    });
+    if (socket) {
+      socket.on('report:created', (newReport: any) => {
+        setReports((prev) => [newReport, ...prev]);
+      });
 
-    socket.on('report:status_update', (updatedReport) => {
-      setReports((prev) =>
-        prev.map((r) => (r.id === updatedReport.id ? { ...r, status: updatedReport.status } : r))
-      );
-    });
+      socket.on('report:status_changed', ({ reportId, status }: any) => {
+        setReports((prev) =>
+          prev.map((r) => (r.id === reportId ? { ...r, status } : r))
+        );
+      });
+
+      socket.on('alert:broadcast', (newAlert: any) => {
+        setAlerts((prev) => [newAlert, ...prev]);
+      });
+
+      socket.on('shelter:updated', (updated: any) => {
+        setShelters((prev) =>
+          prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s))
+        );
+      });
+    }
 
     return () => {
-      socket.off('report:new');
-      socket.off('report:status_update');
+      if (socket) {
+        socket.off('report:created');
+        socket.off('report:status_changed');
+        socket.off('alert:broadcast');
+        socket.off('shelter:updated');
+      }
     };
   }, []);
 
@@ -248,88 +165,93 @@ export default function DashboardPage() {
           <span className="text-xs text-[#8E8E93]">&bull;</span>
           <span className="text-xs font-bold text-[#007AFF] flex items-center gap-1">
             <Home className="w-3.5 h-3.5" />
-            {openSheltersCount} Open Shelters ({totalOccupancy}/{totalCapacity} Hosted)
+            {openSheltersCount} Open Shelters
           </span>
         </div>
 
-        {/* Right Audit & Refresh Pill */}
+        {/* Right Action Trigger: OCD-7 Compliance Certificate */}
         <div className="pointer-events-auto flex items-center gap-2">
           <button
             onClick={handleExportAudit}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/90 backdrop-blur-xl border border-[#E5E5EA] text-[#1C1C1E] hover:text-[#007AFF] hover:bg-white text-xs font-extrabold shadow-md transition-all"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/90 backdrop-blur-2xl border border-[#E5E5EA] hover:bg-white text-xs font-extrabold text-[#1C1C1E] shadow-lg hover:shadow-xl transition-all"
           >
-            <Download className="w-3.5 h-3.5 text-[#007AFF]" />
-            <span>OCD-7 Log</span>
-          </button>
-
-          <button
-            onClick={loadData}
-            aria-label="Refresh telemetry"
-            className="p-2 rounded-xl bg-white/90 backdrop-blur-xl border border-[#E5E5EA] text-[#6C6C70] hover:text-[#1C1C1E] hover:bg-white shadow-md transition-all"
-          >
-            <RefreshCw className="w-4 h-4" />
+            <FileCheck className="w-4 h-4 text-[#007AFF]" />
+            <span>OCD-7 Audit Log</span>
           </button>
         </div>
       </div>
 
-      {/* 3. Left Docked Modular Widget: Live River Telemetry */}
-      <div className="absolute top-20 left-6 z-20 w-80 pointer-events-auto space-y-3">
+      {/* 3. Left Docked Modular Widgets: Telemetry & Tidal Grid */}
+      <div className="absolute top-20 left-6 z-20 w-80 space-y-3 pointer-events-auto">
+        {/* Live River Catchment Telemetry */}
         <div className="bg-white/92 backdrop-blur-2xl border border-[#E5E5EA] rounded-3xl p-4 shadow-xl space-y-3">
-          <div className="flex items-center justify-between border-b border-[#F2F2F7] pb-2">
+          <div className="flex items-center justify-between border-b border-[#F2F2F7] pb-2.5">
             <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#8E8E93] flex items-center gap-1.5">
-              <Activity className="w-4 h-4 text-[#007AFF]" />
-              Hydrological River Sensors
+              <Radio className="w-4 h-4 text-[#007AFF]" />
+              Hydrological Sensors
             </h3>
-            <span className="text-[10px] font-bold text-[#34C759] bg-[#EBF9EE] px-2 py-0.5 rounded-full">
-              Live Stream
+            <span className="text-[10px] font-black uppercase text-[#34C759] bg-[#EBF9EE] px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#34C759] animate-ping" />
+              {stations.length} Live
             </span>
           </div>
 
-          <div className="space-y-2.5">
-            {stations.map((st) => (
-              <div
-                key={st.id}
-                className={`p-3 rounded-2xl border transition-all ${
-                  st.status === 'critical_breach'
-                    ? 'bg-[#FFEBEA]/90 border-[#FFD0CE]'
-                    : st.status === 'watch'
-                    ? 'bg-[#FFF4E5]/90 border-[#FFE4BE]'
-                    : 'bg-[#F8F9FA]/90 border-[#E5E5EA]'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className="text-[9px] font-extrabold text-[#8E8E93] uppercase">
-                      Brgy. {st.barangay_name}
+          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+            {stations.length > 0 ? (
+              stations.map((st) => (
+                <div
+                  key={st.id}
+                  className="p-2.5 rounded-2xl bg-[#F8F9FA] border border-[#E5E5EA] space-y-1.5 hover:border-[#CCE3FF] transition-all"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-xs text-[#1C1C1E]">{st.station_name}</span>
+                    <span
+                      className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        st.status === 'critical_breach'
+                          ? 'bg-[#FFEBEA] text-[#FF3B30]'
+                          : st.status === 'watch'
+                          ? 'bg-[#FFF4E5] text-[#FF9500]'
+                          : 'bg-[#EBF9EE] text-[#34C759]'
+                      }`}
+                    >
+                      {st.status?.replace('_', ' ')}
                     </span>
-                    <h4 className="font-extrabold text-xs text-[#1C1C1E]">{st.station_name}</h4>
                   </div>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
-                      st.status === 'critical_breach'
-                        ? 'bg-[#FF3B30] text-white'
-                        : st.status === 'watch'
-                        ? 'bg-[#FF9500] text-white'
-                        : 'bg-[#34C759] text-white'
-                    }`}
-                  >
-                    {st.status?.replace(/_/g, ' ')}
-                  </span>
-                </div>
 
-                <div className="flex items-center justify-between pt-2">
-                  <div className="flex items-center gap-1.5">
-                    <Droplet className="w-4 h-4 text-[#007AFF]" />
-                    <span className="text-base font-black text-[#1C1C1E]">{st.water_level_meters}m</span>
-                    <span className="text-[10px] text-[#8E8E93]">/ {st.critical_overflow_meters}m</span>
+                  {/* Level Progress Indicator */}
+                  <div className="w-full h-1.5 bg-[#E5E5EA] rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${
+                        st.water_level_meters >= st.critical_overflow_meters
+                          ? 'bg-[#FF3B30]'
+                          : 'bg-[#007AFF]'
+                      }`}
+                      style={{
+                        width: `${Math.min(100, (st.water_level_meters / (st.critical_overflow_meters || 3)) * 100)}%`,
+                      }}
+                    />
                   </div>
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-[#6C6C70]">
-                    <CloudRain className="w-3.5 h-3.5 text-[#007AFF]" />
-                    <span>{st.rainfall_rate_mmh} mm/h</span>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center gap-1.5">
+                      <Droplet className="w-3.5 h-3.5 text-[#007AFF]" />
+                      <span className="text-xs font-black text-[#1C1C1E]">{st.water_level_meters}m</span>
+                      <span className="text-[10px] text-[#8E8E93]">/ {st.critical_overflow_meters}m</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] font-bold text-[#6C6C70]">
+                      <CloudRain className="w-3 h-3 text-[#007AFF]" />
+                      <span>{st.rainfall_rate_mmh || 0} mm/h</span>
+                    </div>
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="py-4 text-center text-xs text-[#8E8E93] space-y-1">
+                <Radio className="w-5 h-5 mx-auto text-[#C7C7CC]" />
+                <p className="font-bold">No telemetry sensors online</p>
+                <p className="text-[10px]">Configure IoT nodes in Admin &gt; APIs</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
@@ -372,69 +294,79 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-2.5 pt-3 pr-1">
-            {reports.map((report) => (
-              <div
-                key={report.id}
-                onClick={() => handleFlyToReport(report)}
-                className="p-3 rounded-2xl border border-[#E5E5EA] bg-[#F8F9FA]/90 hover:bg-white hover:shadow-md transition-all space-y-2 cursor-pointer group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-[#007AFF]" />
-                    <span className="font-extrabold text-xs text-[#1C1C1E]">
-                      Brgy. {report.barangay_name || 'Area'}
+            {reports.length > 0 ? (
+              reports.map((report) => (
+                <div
+                  key={report.id}
+                  onClick={() => handleFlyToReport(report)}
+                  className="p-3 rounded-2xl border border-[#E5E5EA] bg-[#F8F9FA]/90 hover:bg-white hover:shadow-md transition-all space-y-2 cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-[#007AFF]" />
+                      <span className="font-extrabold text-xs text-[#1C1C1E]">
+                        Brgy. {report.barangay_name || 'Area'}
+                      </span>
+                    </div>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                        report.flood_depth_level === 'waist' || report.flood_depth_level === 'chest' || report.flood_depth_level === 'above_head'
+                          ? 'bg-[#FFEBEA] text-[#FF3B30] border border-[#FFD0CE]'
+                          : 'bg-[#FFF4E5] text-[#FF9500] border-[#FFE4BE]'
+                      }`}
+                    >
+                      {report.flood_depth_level?.toUpperCase()}
                     </span>
                   </div>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                      report.flood_depth_level === 'waist' || report.flood_depth_level === 'chest' || report.flood_depth_level === 'above_head'
-                        ? 'bg-[#FFEBEA] text-[#FF3B30] border border-[#FFD0CE]'
-                        : 'bg-[#FFF4E5] text-[#FF9500] border-[#FFE4BE]'
-                    }`}
+
+                  <p className="text-xs text-[#3A3A3C] font-normal leading-relaxed line-clamp-2">
+                    {report.description || 'No additional field notes.'}
+                  </p>
+
+                  <div className="flex items-center justify-between text-[10px] text-[#8E8E93] border-t border-[#E5E5EA] pt-1.5">
+                    <span className="font-mono">GPS: {report.latitude?.toFixed(4)}, {report.longitude?.toFixed(4)}</span>
+                    <div className="flex items-center gap-1 text-[#007AFF] font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span>Fly to Pin</span>
+                    </div>
+                  </div>
+
+                  {/* Quick Triage Buttons */}
+                  <div
+                    className="flex items-center justify-end gap-1.5 pt-1"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    {report.flood_depth_level?.toUpperCase()}
-                  </span>
-                </div>
-
-                <p className="text-xs text-[#3A3A3C] font-normal leading-relaxed line-clamp-2">
-                  {report.description || 'No additional field notes.'}
-                </p>
-
-                <div className="flex items-center justify-between text-[10px] text-[#8E8E93] border-t border-[#E5E5EA] pt-1.5">
-                  <span className="font-mono">GPS: {report.latitude?.toFixed(4)}, {report.longitude?.toFixed(4)}</span>
-                  <div className="flex items-center gap-1 text-[#007AFF] font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span>Fly to Pin</span>
+                    {report.status !== 'verified' && (
+                      <button
+                        onClick={() => handleUpdateStatus(report.id, 'verified')}
+                        disabled={actionLoading === report.id}
+                        className="px-2.5 py-1 rounded-lg bg-[#EBF9EE] text-[#34C759] hover:bg-[#34C759] hover:text-white text-[10px] font-extrabold flex items-center gap-1 transition-all"
+                      >
+                        <CheckCircle2 className="w-3 h-3" />
+                        Verify
+                      </button>
+                    )}
+                    {report.status !== 'rejected' && (
+                      <button
+                        onClick={() => handleUpdateStatus(report.id, 'rejected')}
+                        disabled={actionLoading === report.id}
+                        className="px-2.5 py-1 rounded-lg bg-[#FFEBEA] text-[#FF3B30] hover:bg-[#FF3B30] hover:text-white text-[10px] font-extrabold flex items-center gap-1 transition-all"
+                      >
+                        <XCircle className="w-3 h-3" />
+                        Reject
+                      </button>
+                    )}
                   </div>
                 </div>
-
-                {/* Quick Triage Buttons */}
-                <div
-                  className="flex items-center justify-end gap-1.5 pt-1"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {report.status !== 'verified' && (
-                    <button
-                      onClick={() => handleUpdateStatus(report.id, 'verified')}
-                      disabled={actionLoading === report.id}
-                      className="px-2.5 py-1 rounded-lg bg-[#EBF9EE] text-[#34C759] hover:bg-[#34C759] hover:text-white text-[10px] font-extrabold flex items-center gap-1 transition-all"
-                    >
-                      <CheckCircle2 className="w-3 h-3" />
-                      Verify
-                    </button>
-                  )}
-                  {report.status !== 'rejected' && (
-                    <button
-                      onClick={() => handleUpdateStatus(report.id, 'rejected')}
-                      disabled={actionLoading === report.id}
-                      className="px-2.5 py-1 rounded-lg bg-[#FFEBEA] text-[#FF3B30] hover:bg-[#FF3B30] hover:text-white text-[10px] font-extrabold flex items-center gap-1 transition-all"
-                    >
-                      <XCircle className="w-3 h-3" />
-                      Reject
-                    </button>
-                  )}
-                </div>
+              ))
+            ) : (
+              <div className="py-8 text-center text-xs text-[#8E8E93] space-y-2">
+                <Inbox className="w-8 h-8 mx-auto text-[#C7C7CC]" />
+                <p className="font-bold text-[#1C1C1E]">No Active Flood Incidents</p>
+                <p className="text-[11px] leading-relaxed">
+                  Incoming citizen reports and verified field photos will appear here in real time.
+                </p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>

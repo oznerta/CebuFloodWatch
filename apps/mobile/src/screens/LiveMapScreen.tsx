@@ -28,10 +28,12 @@ import {
   Zap,
   Droplets,
   HeartPulse,
+  Inbox,
 } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { COLORS } from '../constants/theme';
 import { mobileFetch } from '../services/api';
+import { getOfflineShelters } from '../services/sqlite';
 import { MobileMap } from '../components/MobileMap';
 import {
   searchCebuLandmarks,
@@ -82,77 +84,26 @@ export function LiveMapScreen() {
 
   const fetchIncidents = async () => {
     try {
-      const [reportsData, sheltersData] = await Promise.all([
-        mobileFetch<any[]>('/reports').catch(() => null),
-        mobileFetch<any[]>('/shelters').catch(() => null),
-      ]);
-
-      if (reportsData && reportsData.length > 0) {
-        setReports(reportsData);
-      } else {
-        setReports([
-          {
-            id: '1',
-            barangay_name: 'Mabolo',
-            flood_depth_level: 'waist',
-            description: 'Suba river overflow reaching church perimeter. Avoid M.J. Cuenco.',
-            created_at: new Date().toISOString(),
-            latitude: 10.325,
-            longitude: 123.9167,
-            verified: true,
-          },
-          {
-            id: '2',
-            barangay_name: 'Kasambagan',
-            flood_depth_level: 'knee',
-            description: 'Mahiga creek backflow along residential access road.',
-            created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-            latitude: 10.334,
-            longitude: 123.914,
-            verified: true,
-          },
-          {
-            id: '3',
-            barangay_name: 'Mambaling',
-            flood_depth_level: 'above_head',
-            description: 'Underpass submerged completely, road impassable to all traffic.',
-            created_at: new Date(Date.now() - 1000 * 60 * 50).toISOString(),
-            latitude: 10.2915,
-            longitude: 123.8742,
-            verified: true,
-          },
-        ]);
+      // 1. Fetch live citizen reports
+      try {
+        const reportsData = await mobileFetch<any[]>('/reports');
+        if (reportsData) setReports(reportsData);
+      } catch {
+        setReports([]);
       }
 
-      if (sheltersData && sheltersData.length > 0) {
-        setShelters(sheltersData);
-      } else {
-        setShelters([
-          {
-            id: '1',
-            name: 'Mabolo Elementary School Gym',
-            barangay_name: 'Mabolo',
-            latitude: 10.3265,
-            longitude: 123.918,
-            status: 'open',
-            max_capacity: 350,
-            current_occupancy: 85,
-            contact_number: '+63322311234',
-            distance_meters: 450,
-          },
-          {
-            id: '2',
-            name: 'Kasambagan Sports Complex',
-            barangay_name: 'Kasambagan',
-            latitude: 10.334,
-            longitude: 123.914,
-            status: 'open',
-            max_capacity: 250,
-            current_occupancy: 120,
-            contact_number: '+63322325678',
-            distance_meters: 850,
-          },
-        ]);
+      // 2. Fetch live shelters or fallback to local SQLite cache
+      try {
+        const sheltersData = await mobileFetch<any[]>('/shelters');
+        if (sheltersData && sheltersData.length > 0) {
+          setShelters(sheltersData);
+        } else {
+          const offlineS = await getOfflineShelters();
+          setShelters(offlineS || []);
+        }
+      } catch {
+        const offlineS = await getOfflineShelters();
+        setShelters(offlineS || []);
       }
     } finally {
       setLoading(false);
@@ -189,7 +140,7 @@ export function LiveMapScreen() {
   };
 
   const handleCall = (phone: string) => {
-    Linking.openURL(`tel:${phone}`);
+    if (phone) Linking.openURL(`tel:${phone}`);
   };
 
   const handleShareSOS = () => {
@@ -242,7 +193,7 @@ export function LiveMapScreen() {
         >
           <View style={styles.alertPulseDot} />
           <Text style={styles.alertIslandText} numberOfLines={1}>
-            Heavy Rainfall Alert &bull; Mahiga Creek Watch (31mm/h)
+            Telemetry Grid Active &bull; Metro Cebu Live Watch
           </Text>
           <ChevronDown
             color="#FF9500"
@@ -255,7 +206,7 @@ export function LiveMapScreen() {
           <View style={styles.alertExpandedCard}>
             <Text style={styles.alertCardTitle}>CDRRMO Flood Advisory &bull; Metro Cebu</Text>
             <Text style={styles.alertCardBody}>
-              Continuous rainfall over Mabolo and Subangdaku catchments. Low-lying barangays along rivers are on active evacuation standby. Next high tide peak at 14:30 PHT (+1.62m).
+              Continuous sensor monitoring across Mabolo, Mahiga, and Guadalupe catchments. Verified citizen reports are plotted live.
             </Text>
           </View>
         )}
@@ -441,6 +392,14 @@ export function LiveMapScreen() {
                   keyExtractor={(item) => item.id}
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={styles.listContent}
+                  ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                      <Text style={styles.emptyTitle}>No Active Flood Incidents</Text>
+                      <Text style={styles.emptySubtitle}>
+                        Your area is clear or no citizen flood reports have been logged in this depth range.
+                      </Text>
+                    </View>
+                  }
                   renderItem={({ item }) => {
                     const depthColor = getDepthColor(item.flood_depth_level);
                     return (
@@ -480,9 +439,17 @@ export function LiveMapScreen() {
                 keyExtractor={(item) => item.id}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.listContent}
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyTitle}>No Shelters Available</Text>
+                    <Text style={styles.emptySubtitle}>
+                      No evacuation centers are currently registered in this zone.
+                    </Text>
+                  </View>
+                }
                 renderItem={({ item }) => {
                   const occPct = Math.round(
-                    ((item.current_occupancy || 0) / item.max_capacity) * 100
+                    ((item.current_occupancy || 0) / (item.max_capacity || 100)) * 100
                   );
                   return (
                     <View style={styles.shelterCard}>
@@ -491,17 +458,19 @@ export function LiveMapScreen() {
                           <Text style={styles.barangayTag}>BARANGAY {item.barangay_name?.toUpperCase()}</Text>
                           <Text style={styles.shelterName}>{item.name}</Text>
                           <Text style={styles.shelterAddress}>
-                            📍 {item.distance_meters}m away &bull; {item.status?.toUpperCase()}
+                            📍 {item.distance_meters ? `${item.distance_meters}m away` : 'Metro Cebu'} &bull; {item.status?.toUpperCase() || 'OPEN'}
                           </Text>
                         </View>
 
-                        <TouchableOpacity
-                          style={styles.callButton}
-                          onPress={() => handleCall(item.contact_number)}
-                        >
-                          <PhoneCall color="#FFFFFF" size={12} />
-                          <Text style={styles.callButtonText}>Call</Text>
-                        </TouchableOpacity>
+                        {item.contact_number && (
+                          <TouchableOpacity
+                            style={styles.callButton}
+                            onPress={() => handleCall(item.contact_number)}
+                          >
+                            <PhoneCall color="#FFFFFF" size={12} />
+                            <Text style={styles.callButtonText}>Call</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
 
                       {/* Capacity Bar */}
@@ -509,7 +478,7 @@ export function LiveMapScreen() {
                         <View style={styles.occupancyLabels}>
                           <Text style={styles.occupancyLabel}>Capacity Occupancy</Text>
                           <Text style={styles.occupancyValue}>
-                            {item.current_occupancy || 0} / {item.max_capacity} ({occPct}%)
+                            {item.current_occupancy || 0} / {item.max_capacity || 0} ({occPct}%)
                           </Text>
                         </View>
                         <View style={styles.barBackground}>
@@ -706,7 +675,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#FF9500',
+    backgroundColor: '#34C759',
   },
   alertIslandText: {
     color: '#FFFFFF',
@@ -730,7 +699,7 @@ const styles = StyleSheet.create({
   alertCardTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#FF9500',
+    color: '#007AFF',
   },
   alertCardBody: {
     fontSize: 11,
@@ -922,6 +891,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 28,
     gap: 8,
+  },
+  emptyContainer: {
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  emptyTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1C1C1E',
+  },
+  emptySubtitle: {
+    fontSize: 11,
+    color: '#8E8E93',
+    textAlign: 'center',
+    lineHeight: 16,
   },
   cardItem: {
     backgroundColor: '#F8F9FA',

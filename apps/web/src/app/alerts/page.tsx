@@ -12,6 +12,7 @@ import {
   Globe,
   RefreshCw,
   Layers,
+  Inbox,
 } from 'lucide-react';
 import { fetchApi } from '../../lib/api';
 import { getSocket } from '../../lib/socket';
@@ -38,28 +39,7 @@ export default function AlertsPage() {
       const data = await fetchApi<any[]>('/alerts/history');
       setActiveAlerts(data || []);
     } catch {
-      setActiveAlerts([
-        {
-          id: '1',
-          barangay_name: 'Mabolo',
-          severity: 'critical',
-          title_en: 'Critical Flood Warning: Mabolo Suba River Overflow',
-          title_tl: 'Babala sa Malubhang Baha: Pag-apaw ng Ilog Suba sa Mabolo',
-          body_en: 'Water levels along M.J. Cuenco bridge have breached critical thresholds. Mandatory evacuation initiated.',
-          body_tl: 'Ang lebel ng tubig sa tulay ng M.J. Cuenco ay lumampas sa kritikal na antas. Sinimulan na ang sapilitang paglikas.',
-          published_at: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          barangay_name: 'Kasambagan',
-          severity: 'warning',
-          title_en: 'Flood Watch: Mahiga Creek Rising',
-          title_tl: 'Pagbabantay sa Baha: Pagtaas ng Mahiga Creek',
-          body_en: 'Continuous heavy rainfall has caused Mahiga Creek to rise rapidly. Residents in low-lying zones must stay on alert.',
-          body_tl: 'Ang patuloy na malakas na ulan ay nagdulot ng mabilis na pagtaas ng Mahiga Creek. Mag-ingat ang mga residente sa mababang lugar.',
-          published_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-        },
-      ]);
+      setActiveAlerts([]);
     }
   };
 
@@ -67,12 +47,16 @@ export default function AlertsPage() {
     loadAlerts();
 
     const socket = getSocket();
-    socket.on('alert:new', (newAlert) => {
-      setActiveAlerts((prev) => [newAlert, ...prev.filter((a) => a.id !== newAlert.id)]);
-    });
+    if (socket) {
+      socket.on('alert:new', (newAlert) => {
+        setActiveAlerts((prev) => [newAlert, ...prev.filter((a) => a.id !== newAlert.id)]);
+      });
+    }
 
     return () => {
-      socket.off('alert:new');
+      if (socket) {
+        socket.off('alert:new');
+      }
     };
   }, []);
 
@@ -100,9 +84,9 @@ export default function AlertsPage() {
       }
     } catch {
       setTitleEn(`Emergency Alert: Flooding in Barangay ${targetBarangay}`);
-      setTitleTl(`Babala sa Kagipitan: Pagbaha sa Barangay ${targetBarangay}`);
+      setTitleTl(`Pahibalo sa Katalagman: Pagbaha sa Barangay ${targetBarangay}`);
       setBodyEn(`${rawNotes}. Please follow local CDRRMO safety guidelines and proceed to the nearest open evacuation center.`);
-      setBodyTl(`${rawNotes}. Mangyaring sundin ang mga alituntunin sa kaligtasan ng lokal na CDRRMO at pumunta sa pinakamalapit na bukas na evacuation center.`);
+      setBodyTl(`${rawNotes}. Palihug sunda ang mga pahimangno sa CDRRMO ug pabalhin sa pinakaduol nga evacuation center.`);
     } finally {
       setDrafting(false);
     }
@@ -148,7 +132,7 @@ export default function AlertsPage() {
           AI Early Warning Studio & Push Broadcast
         </h1>
         <p className="text-sm text-[#8E8E93] mt-1 font-medium">
-          Google Gemini 1.5 Flash assisted bilingual emergency drafting with human-in-the-loop signoff
+          Multi-model assisted bilingual emergency drafting (English & Cebuano Bisaya) with human-in-the-loop signoff
         </p>
       </div>
 
@@ -163,7 +147,7 @@ export default function AlertsPage() {
                 1. Operator Field Notes & Parameters
               </h3>
               <span className="text-xs font-bold text-[#007AFF] bg-[#E5F1FF] px-3 py-1 rounded-full">
-                Powered by Gemini AI
+                Configured in Admin &gt; AI
               </span>
             </div>
 
@@ -199,13 +183,11 @@ export default function AlertsPage() {
                       className={`py-2.5 rounded-xl text-[10px] font-extrabold uppercase transition-all ${
                         severity === sev
                           ? sev === 'critical'
-                            ? 'bg-[#FF3B30] text-white shadow-md shadow-red-500/20'
+                            ? 'bg-[#FF3B30] text-white shadow-md shadow-red-500/25'
                             : sev === 'warning'
-                            ? 'bg-[#FF9500] text-white shadow-md shadow-orange-500/20'
-                            : sev === 'watch'
-                            ? 'bg-[#FFCC00] text-white shadow-md shadow-yellow-500/20'
-                            : 'bg-[#007AFF] text-white shadow-md shadow-blue-500/20'
-                          : 'bg-[#F2F2F7] text-[#6C6C70] hover:text-[#1C1C1E]'
+                            ? 'bg-[#FF9500] text-white shadow-md shadow-orange-500/25'
+                            : 'bg-[#007AFF] text-white shadow-md shadow-blue-500/25'
+                          : 'bg-[#F8F9FA] border border-[#E5E5EA] text-[#6C6C70] hover:text-[#1C1C1E]'
                       }`}
                     >
                       {sev}
@@ -217,80 +199,74 @@ export default function AlertsPage() {
 
             <div>
               <label className="block text-xs font-bold text-[#6C6C70] mb-1.5 uppercase">
-                Raw Emergency Field Notes
+                Raw Dispatch Notes / Field Situation
               </label>
               <textarea
                 value={rawNotes}
                 onChange={(e) => setRawNotes(e.target.value)}
-                placeholder="e.g. River breached banks near church. 3 feet deep and rising fast. Rescuers dispatched. Advise immediate high ground evacuation to school gym."
+                placeholder="e.g. Mahiga creek is overflowing rapidly around residential road. Water is waist-deep. 3 families need evacuation immediately."
                 rows={3}
-                className="w-full bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl p-3.5 text-xs text-[#1C1C1E] placeholder-[#8E8E93] focus:outline-none focus:border-[#007AFF] leading-relaxed"
+                className="w-full bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl p-3.5 text-xs text-[#1C1C1E] placeholder-[#8E8E93] focus:outline-none focus:border-[#007AFF] leading-relaxed font-medium"
               />
             </div>
 
             <button
               onClick={handleGenerateDraft}
               disabled={drafting || !rawNotes.trim()}
-              className="w-full py-3 rounded-xl bg-[#007AFF] hover:bg-[#0062CC] disabled:opacity-50 text-white text-xs font-extrabold flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-500/20"
+              className="w-full py-3 rounded-xl bg-[#007AFF] hover:bg-[#0062CC] disabled:opacity-50 text-white text-xs font-extrabold flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-500/25"
             >
-              <Sparkles className="w-4 h-4" />
-              {drafting ? 'Synthesizing Bilingual Draft...' : 'Generate AI Bilingual Draft with Gemini'}
+              <Sparkles className={`w-4 h-4 ${drafting ? 'animate-spin' : ''}`} />
+              {drafting ? 'Drafting Bilingual Emergency Broadcast...' : 'Generate Bilingual Alert with AI'}
             </button>
           </div>
 
-          {/* Step 2: Human-in-the-Loop Review & Editor */}
+          {/* Step 2: Human-in-the-Loop Review */}
           <div className="bg-white border border-[#E5E5EA] rounded-2xl p-6 space-y-4 shadow-sm">
             <div className="flex items-center justify-between border-b border-[#F2F2F7] pb-3">
               <h3 className="font-extrabold text-sm text-[#1C1C1E] flex items-center gap-2">
                 <Globe className="w-4 h-4 text-[#34C759]" />
-                2. Human-in-the-Loop Review (English & Tagalog)
+                2. Bilingual Dispatch Review (Human-in-the-Loop)
               </h3>
-              <span className="text-[11px] font-extrabold text-[#34C759] bg-[#EBF9EE] px-3 py-1 rounded-full">
-                Review & Sign Off
+              <span className="text-xs font-bold text-[#34C759] bg-[#EBF9EE] px-3 py-1 rounded-full">
+                Editable Before Push
               </span>
             </div>
 
-            {/* Bilingual Editors */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* English Version */}
-              <div className="space-y-2">
-                <span className="text-[11px] font-extrabold text-[#007AFF] uppercase tracking-wider">
-                  English Bulletin
-                </span>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#6C6C70] mb-1 uppercase">
+                  English Alert Title
+                </label>
                 <input
                   type="text"
-                  placeholder="English Alert Title..."
                   value={titleEn}
                   onChange={(e) => setTitleEn(e.target.value)}
+                  placeholder="Generated English title..."
                   className="w-full bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl px-3.5 py-2.5 text-xs font-bold text-[#1C1C1E] focus:outline-none focus:border-[#007AFF]"
-                />
-                <textarea
-                  placeholder="Actionable advice in English..."
-                  value={bodyEn}
-                  onChange={(e) => setBodyEn(e.target.value)}
-                  rows={4}
-                  className="w-full bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl p-3.5 text-xs text-[#1C1C1E] placeholder-[#8E8E93] focus:outline-none focus:border-[#007AFF] leading-relaxed"
                 />
               </div>
 
-              {/* Tagalog Version */}
-              <div className="space-y-2">
-                <span className="text-[11px] font-extrabold text-[#34C759] uppercase tracking-wider">
-                  Tagalog Bulletin (Salin)
-                </span>
-                <input
-                  type="text"
-                  placeholder="Pamagat ng Babala sa Tagalog..."
-                  value={titleTl}
-                  onChange={(e) => setTitleTl(e.target.value)}
-                  className="w-full bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl px-3.5 py-2.5 text-xs font-bold text-[#1C1C1E] focus:outline-none focus:border-[#007AFF]"
-                />
+              <div>
+                <label className="block text-xs font-bold text-[#6C6C70] mb-1 uppercase">
+                  English Actionable Advice
+                </label>
                 <textarea
-                  placeholder="Mahahalagang tagubilin sa Tagalog..."
+                  value={bodyEn}
+                  onChange={(e) => setBodyEn(e.target.value)}
+                  rows={3}
+                  className="w-full bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl p-3.5 text-xs text-[#1C1C1E] placeholder-[#8E8E93] focus:outline-none focus:border-[#007AFF] leading-relaxed font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#6C6C70] mb-1 uppercase">
+                  Cebuano / Bisaya Translation
+                </label>
+                <textarea
                   value={bodyTl}
                   onChange={(e) => setBodyTl(e.target.value)}
-                  rows={4}
-                  className="w-full bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl p-3.5 text-xs text-[#1C1C1E] placeholder-[#8E8E93] focus:outline-none focus:border-[#007AFF] leading-relaxed"
+                  rows={3}
+                  className="w-full bg-[#F8F9FA] border border-[#E5E5EA] rounded-xl p-3.5 text-xs text-[#1C1C1E] placeholder-[#8E8E93] focus:outline-none focus:border-[#007AFF] leading-relaxed font-medium"
                 />
               </div>
             </div>
@@ -333,56 +309,66 @@ export default function AlertsPage() {
             </div>
 
             <div className="space-y-3 pt-3 flex-1 overflow-y-auto max-h-[600px] pr-1">
-              {activeAlerts.map((alert) => (
-                <div
-                  key={alert.id}
-                  className="p-4 rounded-xl border border-[#E5E5EA] bg-[#F8F9FA] space-y-2"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                        alert.severity === 'critical'
-                          ? 'bg-[#FFEBEA] text-[#FF3B30]'
-                          : alert.severity === 'warning'
-                          ? 'bg-[#FFF4E5] text-[#FF9500]'
-                          : 'bg-[#E5F1FF] text-[#007AFF]'
-                      }`}
-                    >
-                      {alert.severity}
-                    </span>
+              {activeAlerts.length > 0 ? (
+                activeAlerts.map((alert) => (
+                  <div
+                    key={alert.id}
+                    className="p-4 rounded-xl border border-[#E5E5EA] bg-[#F8F9FA] space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                          alert.severity === 'critical'
+                            ? 'bg-[#FFEBEA] text-[#FF3B30]'
+                            : alert.severity === 'warning'
+                            ? 'bg-[#FFF4E5] text-[#FF9500]'
+                            : 'bg-[#E5F1FF] text-[#007AFF]'
+                        }`}
+                      >
+                        {alert.severity}
+                      </span>
 
-                    <span className="text-[10px] text-[#8E8E93] flex items-center gap-1 font-medium">
-                      <Clock className="w-3 h-3" />
-                      {new Date(alert.published_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
+                      <span className="text-[10px] text-[#8E8E93] flex items-center gap-1 font-medium">
+                        <Clock className="w-3 h-3" />
+                        {new Date(alert.published_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
 
-                  <div>
-                    <h4 className="font-extrabold text-xs text-[#1C1C1E]">
-                      {alert.title_en}
-                    </h4>
-                    <p className="text-xs text-[#6C6C70] mt-1 leading-relaxed font-normal">
-                      {alert.body_en}
-                    </p>
-                  </div>
-
-                  {alert.title_tl && (
-                    <div className="pt-2 border-t border-[#E5E5EA]">
-                      <span className="text-[10px] font-bold text-[#8E8E93]">Tagalog:</span>
-                      <p className="text-xs text-[#3A3A3C] italic mt-0.5 leading-relaxed font-normal">
-                        {alert.body_tl}
+                    <div>
+                      <h4 className="font-extrabold text-xs text-[#1C1C1E]">
+                        {alert.title_en}
+                      </h4>
+                      <p className="text-xs text-[#6C6C70] mt-1 leading-relaxed font-normal">
+                        {alert.body_en}
                       </p>
                     </div>
-                  )}
 
-                  <div className="flex items-center justify-between text-[10px] text-[#8E8E93] pt-1 font-medium">
-                    <span>Target: Barangay {alert.barangay_name || 'All Metro Cebu'}</span>
-                    <span className="text-[#34C759] font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> FCM Dispatched
-                    </span>
+                    {alert.title_tl && (
+                      <div className="pt-2 border-t border-[#E5E5EA]">
+                        <span className="text-[10px] font-bold text-[#8E8E93]">Cebuano / Tagalog:</span>
+                        <p className="text-xs text-[#3A3A3C] italic mt-0.5 leading-relaxed font-normal">
+                          {alert.body_tl}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between text-[10px] text-[#8E8E93] pt-1 font-medium">
+                      <span>Target: Barangay {alert.barangay_name || 'All Metro Cebu'}</span>
+                      <span className="text-[#34C759] font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> FCM Dispatched
+                      </span>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="py-12 text-center text-xs text-[#8E8E93] space-y-2">
+                  <Inbox className="w-8 h-8 mx-auto text-[#C7C7CC]" />
+                  <p className="font-bold text-[#1C1C1E]">No Published Alerts</p>
+                  <p className="text-[11px] leading-relaxed">
+                    Emergency broadcasts issued to mobile citizens will appear here in chronological order.
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
