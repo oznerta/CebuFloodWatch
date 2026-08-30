@@ -19,6 +19,9 @@ import {
   Mountain,
   AlertTriangle,
   ChevronUp,
+  Maximize2,
+  Minimize2,
+  ListFilter,
 } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 import { getOfflineShelters, getOfflineCorridors } from '../services/sqlite';
@@ -31,6 +34,7 @@ export function SafeEvacuationScreen() {
   const [activeTab, setActiveTab] = useState<'shelters' | 'corridors'>('shelters');
   const [selectedCorridor, setSelectedCorridor] = useState<any | null>(null);
   const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [isImmersiveFullscreen, setIsImmersiveFullscreen] = useState(false);
 
   useEffect(() => {
     async function loadEvacuationData() {
@@ -74,253 +78,287 @@ export function SafeEvacuationScreen() {
       </View>
 
       {/* 2. Floating Top Header & Segmented HUD */}
-      <View style={styles.topHudContainer}>
-        {/* Offline Mode Banner */}
-        <View style={styles.offlineBannerPill}>
-          <WifiOff color="#007AFF" size={14} />
-          <Text style={styles.offlineBannerText}>
-            2-Tier Offline SQLite Resilience Active
-          </Text>
-        </View>
-
-        {/* Apple Segmented Control */}
-        <View style={styles.segmentedControl}>
+      {isImmersiveFullscreen ? (
+        <View style={styles.fullscreenExitHud}>
           <TouchableOpacity
-            style={[
-              styles.segmentBtn,
-              activeTab === 'shelters' && styles.segmentBtnActive,
-            ]}
-            onPress={() => {
-              setActiveTab('shelters');
-              setSelectedCorridor(null);
-            }}
+            style={styles.exitFocusBtn}
+            onPress={() => setIsImmersiveFullscreen(false)}
           >
-            <Home
-              color={activeTab === 'shelters' ? '#FFFFFF' : '#6C6C70'}
-              size={15}
-            />
-            <Text
-              style={[
-                styles.segmentText,
-                activeTab === 'shelters' && styles.segmentTextActive,
-              ]}
-            >
-              Shelters ({shelters.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.segmentBtn,
-              activeTab === 'corridors' && styles.segmentBtnActive,
-            ]}
-            onPress={() => setActiveTab('corridors')}
-          >
-            <Compass
-              color={activeTab === 'corridors' ? '#FFFFFF' : '#6C6C70'}
-              size={15}
-            />
-            <Text
-              style={[
-                styles.segmentText,
-                activeTab === 'corridors' && styles.segmentTextActive,
-              ]}
-            >
-              Corridors ({corridors.length})
-            </Text>
+            <Minimize2 color="#007AFF" size={16} />
+            <Text style={styles.exitFocusText}>Exit Fullscreen Map</Text>
           </TouchableOpacity>
         </View>
-      </View>
-
-      {/* 3. Floating Bottom Sheet Evacuation Panel */}
-      <View
-        style={[
-          styles.bottomSheet,
-          sheetExpanded && styles.bottomSheetExpanded,
-        ]}
-      >
-        <TouchableOpacity
-          style={styles.sheetHandleArea}
-          onPress={() => setSheetExpanded(!sheetExpanded)}
-        >
-          <View style={styles.handleBar} />
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>
-              {activeTab === 'shelters'
-                ? 'Open Evacuation Centers'
-                : 'Safe High-Ground Corridors'}
+      ) : (
+        <View style={styles.topHudContainer}>
+          {/* Offline Mode Banner with Fullscreen Pill */}
+          <View style={styles.offlineBannerPill}>
+            <WifiOff color="#007AFF" size={14} />
+            <Text style={styles.offlineBannerText}>
+              2-Tier Offline SQLite Active
             </Text>
-            <View style={styles.togglePill}>
-              <Text style={styles.toggleText}>
-                {sheetExpanded ? 'Collapse' : 'Expand'}
-              </Text>
-              <ChevronUp
-                color="#007AFF"
-                size={14}
-                style={{
-                  transform: [{ rotate: sheetExpanded ? '180deg' : '0deg' }],
-                }}
-              />
-            </View>
-          </View>
-        </TouchableOpacity>
 
-        {activeTab === 'shelters' ? (
-          <FlatList
-            data={sheetExpanded ? shelters : shelters.slice(0, 2)}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const occPct = Math.round(
-                ((item.current_occupancy || 0) / item.max_capacity) * 100
-              );
-              return (
-                <View style={styles.shelterCard}>
-                  <View style={styles.cardTopRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.barangayTag}>
-                        Barangay {item.barangay_name || 'Cebu'}
-                      </Text>
-                      <Text style={styles.shelterName}>{item.name}</Text>
-                      <Text style={styles.shelterAddress}>{item.address}</Text>
-                    </View>
-
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        item.status === 'open'
-                          ? styles.statusOpen
-                          : styles.statusFull,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.statusText,
-                          item.status === 'open'
-                            ? styles.statusTextOpen
-                            : styles.statusTextFull,
-                        ]}
-                      >
-                        {item.status?.toUpperCase()}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Progress Bar */}
-                  <View style={styles.occupancyBox}>
-                    <View style={styles.occupancyLabels}>
-                      <Text style={styles.occupancyLabel}>Occupancy Capacity</Text>
-                      <Text style={styles.occupancyValue}>
-                        {item.current_occupancy || 0} / {item.max_capacity} ({occPct}%)
-                      </Text>
-                    </View>
-                    <View style={styles.barBackground}>
-                      <View
-                        style={[
-                          styles.barFill,
-                          {
-                            width: `${Math.min(100, occPct)}%`,
-                            backgroundColor: occPct >= 90 ? '#FF3B30' : '#34C759',
-                          },
-                        ]}
-                      />
-                    </View>
-                  </View>
-
-                  {/* Card Action Buttons */}
-                  <View style={styles.cardActionsRow}>
-                    <Text style={styles.distanceBadge}>
-                      📍 {item.distance_meters ? `${item.distance_meters}m away` : 'Metro Cebu Safe Zone'}
-                    </Text>
-
-                    {item.contact_number && (
-                      <TouchableOpacity
-                        style={styles.callButton}
-                        onPress={() => handleCall(item.contact_number)}
-                      >
-                        <Phone color="#FFFFFF" size={13} />
-                        <Text style={styles.callButtonText}>Call Center</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              );
-            }}
-          />
-        ) : selectedCorridor ? (
-          /* Step-by-step route view */
-          <ScrollView style={styles.detailScroll} contentContainerStyle={styles.detailScrollContent}>
             <TouchableOpacity
-              style={styles.backBtn}
-              onPress={() => setSelectedCorridor(null)}
+              style={styles.fullscreenIconBtn}
+              onPress={() => setIsImmersiveFullscreen(true)}
+              accessibilityLabel="Fullscreen Focus"
             >
-              <Text style={styles.backBtnText}>← All High-Ground Corridors</Text>
+              <Maximize2 color="#007AFF" size={13} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Apple Segmented Control */}
+          <View style={styles.segmentedControl}>
+            <TouchableOpacity
+              style={[
+                styles.segmentBtn,
+                activeTab === 'shelters' && styles.segmentBtnActive,
+              ]}
+              onPress={() => {
+                setActiveTab('shelters');
+                setSelectedCorridor(null);
+              }}
+            >
+              <Home
+                color={activeTab === 'shelters' ? '#FFFFFF' : '#6C6C70'}
+                size={15}
+              />
+              <Text
+                style={[
+                  styles.segmentText,
+                  activeTab === 'shelters' && styles.segmentTextActive,
+                ]}
+              >
+                Shelters ({shelters.length})
+              </Text>
             </TouchableOpacity>
 
-            <Text style={styles.corridorTitle}>{selectedCorridor.route_name}</Text>
-            <Text style={styles.corridorDestination}>
-              Target: {selectedCorridor.destination_shelter}
-            </Text>
-
-            <View style={styles.metricsGrid}>
-              <View style={styles.metricCard}>
-                <Navigation color="#007AFF" size={18} />
-                <Text style={styles.metricBig}>{selectedCorridor.distance_meters}m</Text>
-                <Text style={styles.metricSmall}>Distance</Text>
-              </View>
-              <View style={styles.metricCard}>
-                <Mountain color="#34C759" size={18} />
-                <Text style={styles.metricBig}>+{selectedCorridor.elevation_gain_meters}m</Text>
-                <Text style={styles.metricSmall}>Elevation Gain</Text>
-              </View>
-            </View>
-
-            <View style={styles.hazardAlertPill}>
-              <AlertTriangle color="#FF9500" size={16} />
-              <Text style={styles.hazardAlertText}>
-                {selectedCorridor.hazard_avoidance_notes}
-              </Text>
-            </View>
-
-            <Text style={styles.stepsTitle}>Turn-by-Turn Waypoints</Text>
-            {selectedCorridor.turn_steps?.map((step: string, index: number) => (
-              <View key={index} style={styles.stepCard}>
-                <View style={styles.stepBadge}>
-                  <Text style={styles.stepBadgeNum}>{index + 1}</Text>
-                </View>
-                <Text style={styles.stepDesc}>{step}</Text>
-              </View>
-            ))}
-          </ScrollView>
-        ) : (
-          /* Corridors List */
-          <FlatList
-            data={sheetExpanded ? corridors : corridors.slice(0, 2)}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.corridorRow}
-                onPress={() => setSelectedCorridor(item)}
+            <TouchableOpacity
+              style={[
+                styles.segmentBtn,
+                activeTab === 'corridors' && styles.segmentBtnActive,
+              ]}
+              onPress={() => setActiveTab('corridors')}
+            >
+              <Compass
+                color={activeTab === 'corridors' ? '#FFFFFF' : '#6C6C70'}
+                size={15}
+              />
+              <Text
+                style={[
+                  styles.segmentText,
+                  activeTab === 'corridors' && styles.segmentTextActive,
+                ]}
               >
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.corridorOrigin}>From Barangay {item.origin_barangay}</Text>
-                  <Text style={styles.corridorName}>{item.route_name}</Text>
-                  <Text style={styles.corridorTarget}>
-                    To {item.destination_shelter} ({item.distance_meters}m)
-                  </Text>
-                </View>
-                <View style={styles.safeTag}>
-                  <CheckCircle color="#34C759" size={14} />
-                  <Text style={styles.safeTagText}>Safe</Text>
-                </View>
+                Corridors ({corridors.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* 3. Floating Bottom Sheet Evacuation Panel */}
+      {isImmersiveFullscreen ? (
+        <View style={styles.fullscreenBottomTrigger}>
+          <TouchableOpacity
+            style={styles.minimalFeedPill}
+            onPress={() => setIsImmersiveFullscreen(false)}
+          >
+            <ListFilter color="#007AFF" size={14} />
+            <Text style={styles.minimalFeedText}>
+              Show {activeTab === 'shelters' ? 'Shelters' : 'Corridors'} List
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View
+          style={[
+            styles.bottomSheet,
+            sheetExpanded && styles.bottomSheetExpanded,
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.sheetHandleArea}
+            onPress={() => setSheetExpanded(!sheetExpanded)}
+          >
+            <View style={styles.handleBar} />
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>
+                {activeTab === 'shelters'
+                  ? 'Open Evacuation Centers'
+                  : 'Safe High-Ground Corridors'}
+              </Text>
+              <View style={styles.togglePill}>
+                <Text style={styles.toggleText}>
+                  {sheetExpanded ? 'Collapse' : 'Expand'}
+                </Text>
+                <ChevronUp
+                  color="#007AFF"
+                  size={14}
+                  style={{
+                    transform: [{ rotate: sheetExpanded ? '180deg' : '0deg' }],
+                  }}
+                />
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          {activeTab === 'shelters' ? (
+            <FlatList
+              data={sheetExpanded ? shelters : shelters.slice(0, 2)}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => {
+                const occPct = Math.round(
+                  ((item.current_occupancy || 0) / item.max_capacity) * 100
+                );
+                return (
+                  <View style={styles.shelterCard}>
+                    <View style={styles.cardTopRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.barangayTag}>
+                          Barangay {item.barangay_name || 'Cebu'}
+                        </Text>
+                        <Text style={styles.shelterName}>{item.name}</Text>
+                        <Text style={styles.shelterAddress}>{item.address}</Text>
+                      </View>
+
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          item.status === 'open'
+                            ? styles.statusOpen
+                            : styles.statusFull,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusText,
+                            item.status === 'open'
+                              ? styles.statusTextOpen
+                              : styles.statusTextFull,
+                          ]}
+                        >
+                          {item.status?.toUpperCase()}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Progress Bar */}
+                    <View style={styles.occupancyBox}>
+                      <View style={styles.occupancyLabels}>
+                        <Text style={styles.occupancyLabel}>Occupancy Capacity</Text>
+                        <Text style={styles.occupancyValue}>
+                          {item.current_occupancy || 0} / {item.max_capacity} ({occPct}%)
+                        </Text>
+                      </View>
+                      <View style={styles.barBackground}>
+                        <View
+                          style={[
+                            styles.barFill,
+                            {
+                              width: `${Math.min(100, occPct)}%`,
+                              backgroundColor: occPct >= 90 ? '#FF3B30' : '#34C759',
+                            },
+                          ]}
+                        />
+                      </View>
+                    </View>
+
+                    {/* Card Action Buttons */}
+                    <View style={styles.cardActionsRow}>
+                      <Text style={styles.distanceBadge}>
+                        📍 {item.distance_meters ? `${item.distance_meters}m away` : 'Metro Cebu Safe Zone'}
+                      </Text>
+
+                      {item.contact_number && (
+                        <TouchableOpacity
+                          style={styles.callButton}
+                          onPress={() => handleCall(item.contact_number)}
+                        >
+                          <Phone color="#FFFFFF" size={13} />
+                          <Text style={styles.callButtonText}>Call Center</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                );
+              }}
+            />
+          ) : selectedCorridor ? (
+            /* Step-by-step route view */
+            <ScrollView style={styles.detailScroll} contentContainerStyle={styles.detailScrollContent}>
+              <TouchableOpacity
+                style={styles.backBtn}
+                onPress={() => setSelectedCorridor(null)}
+              >
+                <Text style={styles.backBtnText}>← All High-Ground Corridors</Text>
               </TouchableOpacity>
-            )}
-          />
-        )}
-      </View>
+
+              <Text style={styles.corridorTitle}>{selectedCorridor.route_name}</Text>
+              <Text style={styles.corridorDestination}>
+                Target: {selectedCorridor.destination_shelter}
+              </Text>
+
+              <View style={styles.metricsGrid}>
+                <View style={styles.metricCard}>
+                  <Navigation color="#007AFF" size={18} />
+                  <Text style={styles.metricBig}>{selectedCorridor.distance_meters}m</Text>
+                  <Text style={styles.metricSmall}>Distance</Text>
+                </View>
+                <View style={styles.metricCard}>
+                  <Mountain color="#34C759" size={18} />
+                  <Text style={styles.metricBig}>+{selectedCorridor.elevation_gain_meters}m</Text>
+                  <Text style={styles.metricSmall}>Elevation Gain</Text>
+                </View>
+              </View>
+
+              <View style={styles.hazardAlertPill}>
+                <AlertTriangle color="#FF9500" size={16} />
+                <Text style={styles.hazardAlertText}>
+                  {selectedCorridor.hazard_avoidance_notes}
+                </Text>
+              </View>
+
+              <Text style={styles.stepsTitle}>Turn-by-Turn Waypoints</Text>
+              {selectedCorridor.turn_steps?.map((step: string, index: number) => (
+                <View key={index} style={styles.stepCard}>
+                  <View style={styles.stepBadge}>
+                    <Text style={styles.stepBadgeNum}>{index + 1}</Text>
+                  </View>
+                  <Text style={styles.stepDesc}>{step}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            /* Corridors List */
+            <FlatList
+              data={sheetExpanded ? corridors : corridors.slice(0, 2)}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.corridorRow}
+                  onPress={() => setSelectedCorridor(item)}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.corridorOrigin}>From Barangay {item.origin_barangay}</Text>
+                    <Text style={styles.corridorName}>{item.route_name}</Text>
+                    <Text style={styles.corridorTarget}>
+                      To {item.destination_shelter} ({item.distance_meters}m)
+                    </Text>
+                  </View>
+                  <View style={styles.safeTag}>
+                    <CheckCircle color="#34C759" size={14} />
+                    <Text style={styles.safeTagText}>Safe</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -338,15 +376,68 @@ const styles = StyleSheet.create({
     zIndex: 20,
     gap: 8,
   },
+  fullscreenExitHud: {
+    position: 'absolute',
+    top: 16,
+    right: 14,
+    zIndex: 30,
+  },
+  exitFocusBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+  },
+  exitFocusText: {
+    color: '#007AFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  fullscreenBottomTrigger: {
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 30,
+  },
+  minimalFeedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  minimalFeedText: {
+    color: '#007AFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
   offlineBannerPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     backgroundColor: 'rgba(255, 255, 255, 0.94)',
     borderRadius: 20,
     paddingVertical: 7,
-    paddingHorizontal: 12,
-    gap: 6,
+    paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.08)',
     shadowColor: '#000',
@@ -358,6 +449,11 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontSize: 11,
     fontWeight: '700',
+  },
+  fullscreenIconBtn: {
+    padding: 4,
+    borderRadius: 10,
+    backgroundColor: '#E5F1FF',
   },
   segmentedControl: {
     flexDirection: 'row',

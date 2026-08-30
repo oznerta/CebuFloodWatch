@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import { CEBU_CITY_BOUNDS, UP_NOAH_CEBU_HAZARD_GEOJSON } from '@cebufloodwatch/shared';
-import { Layers } from 'lucide-react';
+import { Layers, Maximize2, Minimize2, X, RefreshCw } from 'lucide-react';
 
 interface MapContainerProps {
   reports?: any[];
@@ -21,12 +21,14 @@ export function MapContainer({
   showHazardControls = true,
 }: MapContainerProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [show100Year, setShow100Year] = useState(true);
   const [show25Year, setShow25Year] = useState(true);
   const [show5Year, setShow5Year] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Initialize MapLibre with Apple Light Vector Cartography
   useEffect(() => {
@@ -158,6 +160,26 @@ export function MapContainer({
     };
   }, []);
 
+  // Keyboard shortcut for ESC to exit fullscreen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
+
+  // Handle resizing map canvas upon fullscreen toggle
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const timeout = setTimeout(() => {
+      mapRef.current?.resize();
+    }, 150);
+    return () => clearTimeout(timeout);
+  }, [isFullscreen]);
+
   // Update Hazard Layer Visibility
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
@@ -279,11 +301,44 @@ export function MapContainer({
     });
   }, [mapLoaded, reports, shelters]);
 
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
   return (
-    <div className={`relative rounded-2xl overflow-hidden border border-[#E5E5EA] shadow-sm ${className}`}>
+    <div
+      ref={wrapperRef}
+      className={`transition-all duration-300 ${
+        isFullscreen
+          ? 'fixed inset-0 z-50 w-screen h-screen bg-white rounded-none border-0'
+          : `relative rounded-2xl overflow-hidden border border-[#E5E5EA] shadow-sm ${className}`
+      }`}
+    >
       <div ref={mapContainerRef} className="w-full h-full" />
 
-      {/* Apple Frosted Glass Layer Controls */}
+      {/* Floating Action Controls (Top Right HUD) */}
+      <div className="absolute top-4 right-14 z-10 flex items-center gap-2">
+        <button
+          onClick={toggleFullscreen}
+          title={isFullscreen ? 'Exit Fullscreen (ESC)' : 'Expand to Fullscreen Map'}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/90 backdrop-blur-md border border-[#E5E5EA] text-[#1C1C1E] hover:bg-white hover:text-[#007AFF] shadow-md transition-all text-xs font-bold"
+        >
+          {isFullscreen ? (
+            <>
+              <Minimize2 className="w-4 h-4 text-[#007AFF]" />
+              <span>Exit Fullscreen</span>
+              <span className="text-[10px] text-[#8E8E93] ml-1 bg-[#F2F2F7] px-1.5 py-0.5 rounded">ESC</span>
+            </>
+          ) : (
+            <>
+              <Maximize2 className="w-4 h-4 text-[#007AFF]" />
+              <span>Fullscreen Map</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Apple Frosted Glass Layer Controls (Top Left HUD) */}
       {showHazardControls && (
         <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md border border-[#E5E5EA] rounded-2xl p-4 text-xs text-[#1C1C1E] shadow-lg space-y-2.5 z-10">
           <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-[#8E8E93] pb-1 border-b border-[#F2F2F7]">

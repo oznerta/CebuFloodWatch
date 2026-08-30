@@ -6,10 +6,17 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  RefreshControl,
   Dimensions,
 } from 'react-native';
-import { MapPin, Layers, RefreshCw, ShieldAlert, ChevronUp } from 'lucide-react-native';
+import {
+  MapPin,
+  Layers,
+  RefreshCw,
+  ChevronUp,
+  Maximize2,
+  Minimize2,
+  ListFilter,
+} from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 import { mobileFetch } from '../services/api';
 import { MobileMap } from '../components/MobileMap';
@@ -21,6 +28,7 @@ export function LiveMapScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [filterDepth, setFilterDepth] = useState<string>('all');
   const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [isImmersiveFullscreen, setIsImmersiveFullscreen] = useState(false);
 
   const fetchIncidents = async () => {
     try {
@@ -130,151 +138,189 @@ export function LiveMapScreen() {
         />
       </View>
 
-      {/* 2. Floating Top Header & Segmented Filter HUD */}
-      <View style={styles.topHudContainer}>
-        {/* Apple Frosted Glass Hazard Banner */}
-        <View style={styles.floatingHazardPill}>
-          <Layers color="#FF9500" size={16} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.hazardTitle}>UP NOAH Flood Zones Active</Text>
-            <Text style={styles.hazardSub}>5y, 25y & 100y return period overlays</Text>
-          </View>
+      {/* 2. Floating Top Header & Fullscreen Focus HUD */}
+      {isImmersiveFullscreen ? (
+        /* Minimal Floating Chip when in Fullscreen Focus Mode */
+        <View style={styles.fullscreenExitHud}>
           <TouchableOpacity
-            style={styles.refreshIconBtn}
-            onPress={() => {
-              setRefreshing(true);
-              fetchIncidents();
-            }}
+            style={styles.exitFocusBtn}
+            onPress={() => setIsImmersiveFullscreen(false)}
           >
-            <RefreshCw color="#007AFF" size={14} />
+            <Minimize2 color="#007AFF" size={16} />
+            <Text style={styles.exitFocusText}>Exit Fullscreen Map</Text>
           </TouchableOpacity>
         </View>
+      ) : (
+        /* Standard Floating Top HUD */
+        <View style={styles.topHudContainer}>
+          {/* Apple Frosted Glass Hazard Banner */}
+          <View style={styles.floatingHazardPill}>
+            <Layers color="#FF9500" size={16} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.hazardTitle}>UP NOAH Flood Zones Active</Text>
+              <Text style={styles.hazardSub}>5y, 25y & 100y return period overlays</Text>
+            </View>
 
-        {/* Big Apple Segmented Control Pills */}
-        <View style={styles.segmentedFilterRow}>
-          {[
-            { id: 'all', label: 'All Incidents' },
-            { id: 'knee', label: 'Knee+' },
-            { id: 'waist', label: 'Waist+' },
-            { id: 'chest', label: 'Chest+' },
-          ].map((item) => {
-            const isSelected = filterDepth === item.id;
-            return (
-              <TouchableOpacity
-                key={item.id}
-                style={[
-                  styles.filterPill,
-                  isSelected && styles.filterPillActive,
-                ]}
-                onPress={() => setFilterDepth(item.id)}
-              >
-                <Text
+            <TouchableOpacity
+              style={styles.fullscreenPillBtn}
+              onPress={() => setIsImmersiveFullscreen(true)}
+              accessibilityLabel="Fullscreen Focus"
+            >
+              <Maximize2 color="#007AFF" size={14} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.refreshIconBtn}
+              onPress={() => {
+                setRefreshing(true);
+                fetchIncidents();
+              }}
+            >
+              <RefreshCw color="#007AFF" size={14} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Big Apple Segmented Control Pills */}
+          <View style={styles.segmentedFilterRow}>
+            {[
+              { id: 'all', label: 'All Incidents' },
+              { id: 'knee', label: 'Knee+' },
+              { id: 'waist', label: 'Waist+' },
+              { id: 'chest', label: 'Chest+' },
+            ].map((item) => {
+              const isSelected = filterDepth === item.id;
+              return (
+                <TouchableOpacity
+                  key={item.id}
                   style={[
-                    styles.filterPillText,
-                    isSelected && styles.filterPillTextActive,
+                    styles.filterPill,
+                    isSelected && styles.filterPillActive,
                   ]}
+                  onPress={() => setFilterDepth(item.id)}
                 >
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                  <Text
+                    style={[
+                      styles.filterPillText,
+                      isSelected && styles.filterPillTextActive,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
-      </View>
+      )}
 
       {/* 3. Floating Bottom Sheet Telemetry Feed (Apple Maps Style) */}
-      <View
-        style={[
-          styles.bottomSheetCard,
-          sheetExpanded && styles.bottomSheetCardExpanded,
-        ]}
-      >
-        {/* Handle Bar / Toggle */}
-        <TouchableOpacity
-          style={styles.sheetHandleArea}
-          onPress={() => setSheetExpanded(!sheetExpanded)}
+      {isImmersiveFullscreen ? (
+        /* Minimal Bottom Drawer Trigger in Fullscreen Mode */
+        <View style={styles.fullscreenBottomTrigger}>
+          <TouchableOpacity
+            style={styles.minimalFeedPill}
+            onPress={() => setIsImmersiveFullscreen(false)}
+          >
+            <ListFilter color="#007AFF" size={14} />
+            <Text style={styles.minimalFeedText}>
+              Show Incident Feed ({filteredReports.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View
+          style={[
+            styles.bottomSheetCard,
+            sheetExpanded && styles.bottomSheetCardExpanded,
+          ]}
         >
-          <View style={styles.sheetHandleBar} />
-          <View style={styles.sheetHeaderRow}>
-            <View>
-              <Text style={styles.sheetTitle}>Active Flood Incidents</Text>
-              <Text style={styles.sheetSub}>
-                {filteredReports.length} reports in Metro Cebu
-              </Text>
+          {/* Handle Bar / Toggle */}
+          <TouchableOpacity
+            style={styles.sheetHandleArea}
+            onPress={() => setSheetExpanded(!sheetExpanded)}
+          >
+            <View style={styles.sheetHandleBar} />
+            <View style={styles.sheetHeaderRow}>
+              <View>
+                <Text style={styles.sheetTitle}>Active Flood Incidents</Text>
+                <Text style={styles.sheetSub}>
+                  {filteredReports.length} reports in Metro Cebu
+                </Text>
+              </View>
+              <View style={styles.expandTogglePill}>
+                <Text style={styles.expandToggleText}>
+                  {sheetExpanded ? 'Collapse' : 'View All'}
+                </Text>
+                <ChevronUp
+                  color="#007AFF"
+                  size={14}
+                  style={{
+                    transform: [{ rotate: sheetExpanded ? '180deg' : '0deg' }],
+                  }}
+                />
+              </View>
             </View>
-            <View style={styles.expandTogglePill}>
-              <Text style={styles.expandToggleText}>
-                {sheetExpanded ? 'Collapse' : 'View All'}
-              </Text>
-              <ChevronUp
-                color="#007AFF"
-                size={14}
-                style={{
-                  transform: [{ rotate: sheetExpanded ? '180deg' : '0deg' }],
-                }}
-              />
+          </TouchableOpacity>
+
+          {/* Incident List */}
+          {loading ? (
+            <View style={styles.loadingBox}>
+              <ActivityIndicator color={COLORS.primary} size="small" />
+              <Text style={styles.loadingText}>Syncing GPS reports...</Text>
             </View>
-          </View>
-        </TouchableOpacity>
-
-        {/* Incident List */}
-        {loading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator color={COLORS.primary} size="small" />
-            <Text style={styles.loadingText}>Syncing GPS reports...</Text>
-          </View>
-        ) : (
-          <FlatList
-            data={sheetExpanded ? filteredReports : filteredReports.slice(0, 2)}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.sheetList}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const depthColor = getDepthColor(item.flood_depth_level);
-              return (
-                <View style={styles.incidentRowCard}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                    <View style={styles.incidentHeader}>
-                      <View style={styles.locationPin}>
-                        <MapPin color="#007AFF" size={15} />
+          ) : (
+            <FlatList
+              data={sheetExpanded ? filteredReports : filteredReports.slice(0, 2)}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.sheetList}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => {
+                const depthColor = getDepthColor(item.flood_depth_level);
+                return (
+                  <View style={styles.incidentRowCard}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                      <View style={styles.incidentHeader}>
+                        <View style={styles.locationPin}>
+                          <MapPin color="#007AFF" size={15} />
+                        </View>
+                        <View>
+                          <Text style={styles.incidentBarangay}>
+                            Barangay {item.barangay_name || 'Cebu'}
+                          </Text>
+                          <Text style={styles.incidentTime}>
+                            {new Date(item.created_at).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </Text>
+                        </View>
                       </View>
-                      <View>
-                        <Text style={styles.incidentBarangay}>
-                          Barangay {item.barangay_name || 'Cebu'}
-                        </Text>
-                        <Text style={styles.incidentTime}>
-                          {new Date(item.created_at).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </Text>
-                      </View>
-                    </View>
 
-                    <View
-                      style={[
-                        styles.depthTag,
-                        { backgroundColor: `${depthColor}18`, borderColor: `${depthColor}40` },
-                      ]}
-                    >
                       <View
-                        style={[styles.depthDot, { backgroundColor: depthColor }]}
-                      />
-                      <Text style={[styles.depthTagText, { color: depthColor }]}>
-                        {item.flood_depth_level?.toUpperCase()}
-                      </Text>
+                        style={[
+                          styles.depthTag,
+                          { backgroundColor: `${depthColor}18`, borderColor: `${depthColor}40` },
+                        ]}
+                      >
+                        <View
+                          style={[styles.depthDot, { backgroundColor: depthColor }]}
+                        />
+                        <Text style={[styles.depthTagText, { color: depthColor }]}>
+                          {item.flood_depth_level?.toUpperCase()}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
 
-                  <Text style={styles.incidentDescription}>
-                    {item.description}
-                  </Text>
-                </View>
-              );
-            }}
-          />
-        )}
-      </View>
+                    <Text style={styles.incidentDescription}>
+                      {item.description}
+                    </Text>
+                  </View>
+                );
+              }}
+            />
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -292,6 +338,60 @@ const styles = StyleSheet.create({
     zIndex: 20,
     gap: 8,
   },
+  fullscreenExitHud: {
+    position: 'absolute',
+    top: 16,
+    right: 14,
+    zIndex: 30,
+  },
+  exitFocusBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+  },
+  exitFocusText: {
+    color: '#007AFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  fullscreenBottomTrigger: {
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 30,
+  },
+  minimalFeedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  minimalFeedText: {
+    color: '#007AFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
   floatingHazardPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -299,7 +399,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    gap: 10,
+    gap: 8,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.08)',
     shadowColor: '#000',
@@ -317,8 +417,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 1,
   },
+  fullscreenPillBtn: {
+    padding: 7,
+    borderRadius: 12,
+    backgroundColor: '#E5F1FF',
+  },
   refreshIconBtn: {
-    padding: 6,
+    padding: 7,
     borderRadius: 12,
     backgroundColor: '#F2F2F7',
   },
