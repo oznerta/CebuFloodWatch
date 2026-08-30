@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { query } from '../config/db.js';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
-import { getFallbackClusters } from '../services/clustering.js';
+import { recomputeIncidentClusters } from '../services/clustering.js';
 import { DisasterAuditExport } from '@cebufloodwatch/shared';
 
 export const auditRouter = Router();
@@ -16,45 +16,68 @@ auditRouter.get(
     try {
       const format = (req.query.format as string) || 'json';
 
-      // Aggregate data from PostGIS tables
-      const [reportsRes, sheltersRes, alertsRes, roadsRes] = await Promise.all([
-        query(`SELECT * FROM citizen_reports WHERE status = 'verified' ORDER BY created_at DESC LIMIT 100`).catch(() => ({ rows: [] })),
-        query(`SELECT * FROM evacuation_centers ORDER BY name ASC`).catch(() => ({ rows: [] })),
-        query(`SELECT * FROM alerts ORDER BY published_at DESC LIMIT 50`).catch(() => ({ rows: [] })),
-        query(`SELECT * FROM road_segments ORDER BY name ASC`).catch(() => ({ rows: [] })),
+      // Aggregate live data from PostGIS tables
+      const [reportsRes, sheltersRes, alertsRes, roadsRes, clusters] = await Promise.all([
+        query(`
+          SELECT 
+            r.id, r.user_id, r.barangay_id, b.name as barangay_name,
+            r.flood_depth_level, r.description, r.photo_url, r.status,
+            r.created_at, r.updated_at
+          FROM public.citizen_reports r
+          LEFT JOIN public.barangays b ON r.barangay_id = b.id
+          ORDER BY r.created_at DESC
+          LIMIT 200
+        `),
+        query(`
+          SELECT 
+            e.id, e.barangay_id, b.name as barangay_name, e.name, e.address,
+            e.max_capacity, e.current_occupancy, e.status, e.supply_notes,
+            e.contact_person, e.contact_number, e.created_at, e.updated_at
+          FROM public.evacuation_centers e
+          LEFT JOIN public.barangays b ON e.barangay_id = b.id
+          ORDER BY e.name ASC
+        `),
+        query(`
+          SELECT 
+            a.id, a.barangay_id, b.name as barangay_name, a.severity,
+            a.title_en, a.title_tl, a.body_en, a.body_tl, a.status,
+            a.published_at, a.created_at
+          FROM public.alerts a
+          LEFT JOIN public.barangays b ON a.barangay_id = b.id
+          ORDER BY a.created_at DESC
+          LIMIT 100
+        `),
+        query(`
+          SELECT 
+            r.id, r.barangay_id, b.name as barangay_name, r.name,
+            r.is_blocked, 
+            CASE WHEN r.is_blocked THEN 'impassable' ELSE 'passable' END as status,
+            r.block_reason, r.blocked_at, r.created_at, r.updated_at
+          FROM public.road_segments r
+          LEFT JOIN public.barangays b ON r.barangay_id = b.id
+          ORDER BY r.name ASC
+        `),
+        recomputeIncidentClusters(),
       ]);
 
-      const clusters = getFallbackClusters();
-      const verifiedReports = reportsRes.rows.length > 0 ? reportsRes.rows : [
-        { id: '1', barangay_name: 'Mabolo', flood_depth_level: 'chest', description: 'Suba river overflow', status: 'verified' },
-        { id: '2', barangay_name: 'Mambaling', flood_depth_level: 'above_head', description: 'Underpass flooded', status: 'verified' },
-      ];
-
-      const shelters = sheltersRes.rows.length > 0 ? sheltersRes.rows : [
-        { id: '1', name: 'Mabolo Elementary School Gym', max_capacity: 350, current_occupancy: 85, status: 'open' },
-        { id: '2', name: 'Kasambagan Sports Complex', max_capacity: 250, current_occupancy: 240, status: 'full' },
-      ];
-
-      const alerts = alertsRes.rows.length > 0 ? alertsRes.rows : [
-        { id: '1', severity: 'critical', title_en: 'Critical Flood Warning: Mabolo River Overflow', published_at: new Date().toISOString() },
-      ];
-
-      const roads = roadsRes.rows.length > 0 ? roadsRes.rows : [
-        { id: '1', name: 'M.J. Cuenco Avenue', status: 'impassable', flood_depth_level: 'waist' },
-      ];
+      const allReports = reportsRes.rows;
+      const verifiedReports = allReports.filter((r) => r.status === 'verified');
+      const shelters = sheltersRes.rows;
+      const alerts = alertsRes.rows;
+      const roads = roadsRes.rows;
 
       const auditPayload: DisasterAuditExport = {
         export_timestamp: new Date().toISOString(),
         jurisdiction: 'Metro Cebu (Cebu City, Mandaue, Talisay)',
         reporting_agency: 'Cebu Disaster Risk Reduction & Management Office (CDRRMO) / OCD-7',
         audit_summary: {
-          total_citizen_reports: verifiedReports.length + 5,
+          total_citizen_reports: allReports.length,
           verified_flood_events: verifiedReports.length,
           total_incident_clusters: clusters.length,
           active_evacuation_centers: shelters.filter((s: any) => s.status === 'open').length,
           total_hosted_evacuees: shelters.reduce((acc: number, s: any) => acc + (s.current_occupancy || 0), 0),
-          published_emergency_alerts: alerts.length,
-          blocked_road_corridors: roads.filter((r: any) => r.status === 'impassable').length,
+          published_emergency_alerts: alerts.filter((a: any) => a.status === 'published').length,
+          blocked_road_corridors: roads.filter((r: any) => r.is_blocked === true).length,
         },
         incident_clusters: clusters,
         verified_reports: verifiedReports,
@@ -68,9 +91,10 @@ auditRouter.get(
         res.setHeader('Content-Disposition', 'attachment; filename="cebufloodwatch_ocd7_audit.csv"');
         const csvLines = [
           'Record Type,ID,Location/Name,Severity/Status,Details,Timestamp',
-          ...clusters.map((c) => `Incident Cluster,${c.id},${c.barangay_name},${c.max_depth_level},"${c.summary_description}",${c.last_reported_at}`),
-          ...shelters.map((s: any) => `Evacuation Center,${s.id},"${s.name}",${s.status},Occupancy: ${s.current_occupancy}/${s.max_capacity},${new Date().toISOString()}`),
-          ...alerts.map((a: any) => `Emergency Alert,${a.id},${a.barangay_name || 'Citywide'},${a.severity},"${a.title_en}",${a.published_at}`),
+          ...clusters.map((c) => `Incident Cluster,${c.id},${c.barangay_name || 'Cebu Area'},${c.max_depth_level},"${(c.summary_description || '').replace(/"/g, '""')}",${c.last_reported_at}`),
+          ...shelters.map((s: any) => `Evacuation Center,${s.id},"${(s.name || '').replace(/"/g, '""')}",${s.status},Occupancy: ${s.current_occupancy || 0}/${s.max_capacity || 0},${s.updated_at || s.created_at || new Date().toISOString()}`),
+          ...alerts.map((a: any) => `Emergency Alert,${a.id},${a.barangay_name || 'Citywide'},${a.severity},"${(a.title_en || '').replace(/"/g, '""')}",${a.published_at || a.created_at}`),
+          ...roads.map((r: any) => `Road Corridor,${r.id},"${(r.name || '').replace(/"/g, '""')}",${r.status},"${(r.block_reason || 'Open').replace(/"/g, '""')}",${r.updated_at || r.created_at}`),
         ];
         res.send(csvLines.join('\n'));
         return;
@@ -86,3 +110,4 @@ auditRouter.get(
     }
   }
 );
+

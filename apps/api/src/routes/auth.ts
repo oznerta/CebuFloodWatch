@@ -28,8 +28,8 @@ export const runtimeUsers: StoredUser[] = [];
 
 // Seed the Primary Master Administrator Account
 const DEFAULT_ADMIN_ID = '00000000-0000-4000-8000-000000000001';
-const DEFAULT_ADMIN_EMAIL = 'admin@cebucity.gov.ph';
-const DEFAULT_ADMIN_PASSWORD = 'AdminPassword123!';
+const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_INITIAL_EMAIL || 'admin@cebucity.gov.ph';
+const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_INITIAL_PASSWORD || process.env.INITIAL_ADMIN_PASSWORD || 'AdminPassword123!';
 
 const seedMasterAdmin = async () => {
   const existing = runtimeUsers.find((u) => u.email === DEFAULT_ADMIN_EMAIL);
@@ -40,7 +40,7 @@ const seedMasterAdmin = async () => {
       passwordHash: hashPassword(DEFAULT_ADMIN_PASSWORD),
       fullName: 'CDRRMO Master Administrator',
       role: 'admin',
-      phoneNumber: '+63 917 000 0000',
+      phoneNumber: '',
       barangay: 'Global (Citywide Jurisdiction)',
       createdAt: new Date().toISOString(),
     };

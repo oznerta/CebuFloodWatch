@@ -96,10 +96,9 @@ export default function EvacuationPage() {
       setShelters((prev) =>
         prev.map((s) => (s.id === shelterId ? { ...s, current_occupancy: nextOccupancy } : s))
       );
-    } catch {
-      setShelters((prev) =>
-        prev.map((s) => (s.id === shelterId ? { ...s, current_occupancy: nextOccupancy } : s))
-      );
+    } catch (err: any) {
+      console.error('Failed to update shelter occupancy:', err);
+      alert(`Failed to update shelter occupancy: ${err?.message || 'Server error'}`);
     } finally {
       setUpdatingId(null);
     }
@@ -108,17 +107,16 @@ export default function EvacuationPage() {
   const handleToggleStatus = async (shelterId: string, nextStatus: string) => {
     setUpdatingId(shelterId);
     try {
-      await fetchApi(`/shelters/${shelterId}/status`, {
+      await fetchApi(`/shelters/${shelterId}/occupancy`, {
         method: 'PATCH',
         body: JSON.stringify({ status: nextStatus }),
       });
       setShelters((prev) =>
         prev.map((s) => (s.id === shelterId ? { ...s, status: nextStatus } : s))
       );
-    } catch {
-      setShelters((prev) =>
-        prev.map((s) => (s.id === shelterId ? { ...s, status: nextStatus } : s))
-      );
+    } catch (err: any) {
+      console.error('Failed to update shelter status:', err);
+      alert(`Failed to update shelter status: ${err?.message || 'Server error'}`);
     } finally {
       setUpdatingId(null);
     }

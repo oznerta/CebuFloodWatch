@@ -43,12 +43,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickFillAdmin = () => {
-    setLoginEmail('admin@cebucity.gov.ph');
-    setLoginPassword('AdminPassword123!');
-    setErrorMessage(null);
-  };
-
   return (
     <div className="min-h-screen w-full bg-[#F2F2F7] flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background Decorative Blurs */}
@@ -136,22 +130,6 @@ export default function LoginPage() {
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
-
-        {/* Master Admin Helper Pill */}
-        <div className="p-3 bg-[#E5F1FF] border border-[#CCE3FF] rounded-2xl flex items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2">
-            <Key className="w-4 h-4 text-[#007AFF]" />
-            <span className="font-bold text-[#007AFF] text-[11px]">Primary Admin:</span>
-            <code className="text-[11px] font-mono text-[#1C1C1E]">admin@cebucity.gov.ph</code>
-          </div>
-          <button
-            type="button"
-            onClick={handleQuickFillAdmin}
-            className="px-2.5 py-1 bg-[#007AFF] hover:bg-[#0062CC] text-white font-bold text-[10px] rounded-lg cursor-pointer"
-          >
-            Autofill
-          </button>
-        </div>
 
         {/* Footer Security Notice */}
         <div className="pt-2 text-center text-[10px] text-[#8E8E93] font-medium leading-relaxed">

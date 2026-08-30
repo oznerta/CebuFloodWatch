@@ -15,17 +15,19 @@ alertsRouter.get('/active', async (_req: Request, res: Response, next: NextFunct
       SELECT 
         a.id, a.barangay_id, b.name as barangay_name, a.severity,
         a.title_en, a.title_tl, a.body_en, a.body_tl,
-        a.is_active, a.published_at, a.expires_at
-      FROM alerts a
-      LEFT JOIN barangays b ON a.barangay_id = b.id
-      WHERE a.is_active = true
-      ORDER BY a.published_at DESC
+        a.status, a.is_ai_drafted, a.published_at, a.created_at,
+        u.full_name as author_name
+      FROM public.alerts a
+      LEFT JOIN public.barangays b ON a.barangay_id = b.id
+      LEFT JOIN public.users u ON a.author_id = u.id
+      WHERE a.status = 'published'
+      ORDER BY a.published_at DESC NULLS LAST, a.created_at DESC
     `;
     const result = await query(sql);
     res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching active alerts:', error);
-    res.json({ success: true, data: [] });
+    next(error);
   }
 });
 
@@ -36,17 +38,19 @@ alertsRouter.get('/history', async (_req: Request, res: Response, next: NextFunc
       SELECT 
         a.id, a.barangay_id, b.name as barangay_name, a.severity,
         a.title_en, a.title_tl, a.body_en, a.body_tl,
-        a.is_active, a.published_at, a.expires_at
-      FROM alerts a
-      LEFT JOIN barangays b ON a.barangay_id = b.id
-      ORDER BY a.published_at DESC
-      LIMIT 20
+        a.status, a.is_ai_drafted, a.published_at, a.created_at,
+        u.full_name as author_name
+      FROM public.alerts a
+      LEFT JOIN public.barangays b ON a.barangay_id = b.id
+      LEFT JOIN public.users u ON a.author_id = u.id
+      ORDER BY a.created_at DESC
+      LIMIT 50
     `;
     const result = await query(sql);
     res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching alerts history:', error);
-    res.json({ success: true, data: [] });
+    next(error);
   }
 });
 
@@ -82,7 +86,7 @@ alertsRouter.post(
   requireRole('admin', 'barangay_focal'),
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const { barangay_id, severity, title_en, title_tl, body_en, body_tl, duration_hours } = req.body;
+      const { barangay_id, severity, title_en, title_tl, body_en, body_tl, is_ai_drafted, raw_prompt_input } = req.body;
 
       if (!title_en || !body_en || !severity) {
         res.status(400).json({
@@ -92,52 +96,45 @@ alertsRouter.post(
         return;
       }
 
-      const hours = duration_hours || 6;
-      let newAlert: any;
+      const authorId = req.user?.id || '00000000-0000-4000-8000-000000000001';
 
-      try {
-        const sql = `
-          INSERT INTO alerts (
-            barangay_id, created_by, severity, 
-            title_en, title_tl, body_en, body_tl, 
-            is_active, published_at, expires_at
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW(), NOW() + interval '${hours} hours')
-          RETURNING *
-        `;
+      const sql = `
+        INSERT INTO public.alerts (
+          author_id, barangay_id, severity, 
+          title_en, title_tl, body_en, body_tl,
+          raw_prompt_input, is_ai_drafted,
+          status, published_at, created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'published', NOW(), NOW())
+        RETURNING *
+      `;
 
-        const result = await query(sql, [
-          barangay_id || null,
-          req.user?.id || 'system_admin',
-          severity,
-          title_en,
-          title_tl || title_en,
-          body_en,
-          body_tl || body_en,
-        ]);
-        newAlert = result.rows[0];
-      } catch {
-        newAlert = {
-          id: `alert_${Date.now()}`,
-          barangay_id: barangay_id || null,
-          severity,
-          title_en,
-          title_tl: title_tl || title_en,
-          body_en,
-          body_tl: body_tl || body_en,
-          is_active: true,
-          published_at: new Date().toISOString(),
-        };
-      }
+      const result = await query(sql, [
+        authorId,
+        barangay_id || null,
+        severity,
+        title_en.trim(),
+        (title_tl || title_en).trim(),
+        body_en.trim(),
+        (body_tl || body_en).trim(),
+        raw_prompt_input || null,
+        Boolean(is_ai_drafted),
+      ]);
+
+      const newAlert = result.rows[0];
 
       // 1. Dispatch Targeted FCM Push Notification
-      await sendTargetedAlertFCM({
-        title: title_en,
-        body: body_en,
-        severity,
-        alert_id: newAlert.id,
-        barangay_id: newAlert.barangay_id,
-      });
+      try {
+        await sendTargetedAlertFCM({
+          title: title_en,
+          body: body_en,
+          severity,
+          alert_id: newAlert.id,
+          barangay_id: newAlert.barangay_id,
+        });
+      } catch (fcmErr: any) {
+        console.warn('FCM dispatch warning:', fcmErr.message);
+      }
 
       // 2. Broadcast over WebSockets to all connected Command Portals & Mobile apps
       const io = getIO();

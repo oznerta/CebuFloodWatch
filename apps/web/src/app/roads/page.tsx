@@ -83,10 +83,9 @@ export default function RoadsPage() {
       setRoads((prev) =>
         prev.map((r) => (r.id === roadId ? { ...r, status: nextStatus } : r))
       );
-    } catch {
-      setRoads((prev) =>
-        prev.map((r) => (r.id === roadId ? { ...r, status: nextStatus } : r))
-      );
+    } catch (err: any) {
+      console.error('Failed to update road status:', err);
+      alert(`Failed to update road status: ${err?.message || 'Server error'}`);
     } finally {
       setUpdatingId(null);
     }

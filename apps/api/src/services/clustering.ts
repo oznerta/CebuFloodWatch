@@ -103,8 +103,8 @@ export async function recomputeIncidentClusters(): Promise<IncidentClusterSummar
 
       clusters.push({
         id: `cluster_${rep.id}`,
-        barangay_id: rep.barangay_id || 'cebu_central',
-        barangay_name: rep.barangay_name || 'Metro Cebu Area',
+        barangay_id: rep.barangay_id || null,
+        barangay_name: rep.barangay_name || 'Unassigned Area',
         report_count: group.length,
         max_depth_level: maxDepth,
         centroid_lat: centroidLat,

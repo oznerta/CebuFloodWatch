@@ -9,33 +9,42 @@ export const roadsRouter = Router();
 // GET /api/v1/roads - List all road segments and current passability status
 roadsRouter.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { status, barangay_id } = req.query;
+    const { is_blocked, barangay_id } = req.query;
     let sql = `
       SELECT 
-        id, barangay_id, name, status, flood_depth_level, blockage_reason,
-        ST_AsGeoJSON(geometry_geom)::json as geometry,
-        updated_at
-      FROM road_segments
+        r.id, 
+        r.barangay_id, 
+        b.name as barangay_name,
+        r.name, 
+        r.is_blocked, 
+        CASE WHEN r.is_blocked THEN 'impassable' ELSE 'passable' END as status,
+        r.block_reason,
+        r.blocked_at,
+        ST_AsGeoJSON(r.line_geom)::json as geometry,
+        r.updated_at,
+        r.created_at
+      FROM public.road_segments r
+      LEFT JOIN public.barangays b ON r.barangay_id = b.id
       WHERE 1=1
     `;
     const params: any[] = [];
 
-    if (status) {
-      params.push(status);
-      sql += ` AND status = $${params.length}`;
+    if (is_blocked !== undefined) {
+      params.push(is_blocked === 'true');
+      sql += ` AND r.is_blocked = $${params.length}`;
     }
     if (barangay_id) {
       params.push(barangay_id);
-      sql += ` AND barangay_id = $${params.length}`;
+      sql += ` AND r.barangay_id = $${params.length}`;
     }
 
-    sql += ` ORDER BY name ASC`;
+    sql += ` ORDER BY r.name ASC`;
 
     const result = await query(sql, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching roads:', error);
-    res.json({ success: true, data: [] });
+    next(error);
   }
 });
 
@@ -47,36 +56,32 @@ roadsRouter.patch(
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      const { status, flood_depth_level, blockage_reason } = req.body;
+      const { status, is_blocked, block_reason } = req.body;
 
-      if (!['passable', 'light_vehicles_only', 'impassable'].includes(status)) {
-        res.status(400).json({
-          success: false,
-          error: { code: 'INVALID_STATUS', message: 'status must be passable, light_vehicles_only, or impassable' },
-        });
-        return;
-      }
+      const blockedBool = is_blocked !== undefined ? Boolean(is_blocked) : (status === 'impassable' || status === 'blocked');
 
       const updateRes = await query(
         `
-        UPDATE road_segments
-        SET status = $1, 
-            flood_depth_level = COALESCE($2, flood_depth_level),
-            blockage_reason = COALESCE($3, blockage_reason),
+        UPDATE public.road_segments
+        SET is_blocked = $1, 
+            block_reason = COALESCE($2, block_reason),
+            blocked_at = CASE WHEN $1 = TRUE THEN NOW() ELSE NULL END,
+            updated_by = $3,
             updated_at = NOW()
         WHERE id = $4
-        RETURNING *
+        RETURNING 
+          id, barangay_id, name, is_blocked,
+          CASE WHEN is_blocked THEN 'impassable' ELSE 'passable' END as status,
+          block_reason, blocked_at, updated_at
       `,
-        [status, flood_depth_level || null, blockage_reason || null, id]
+        [blockedBool, block_reason || null, req.user?.id || null, id]
       );
 
-      const updated = updateRes.rows[0] || {
-        id,
-        status,
-        flood_depth_level,
-        blockage_reason,
-        updated_at: new Date().toISOString(),
-      };
+      if (updateRes.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Road segment not found' });
+      }
+
+      const updated = updateRes.rows[0];
 
       // Broadcast real-time road update to map and navigation clients
       const io = getIO();
@@ -86,16 +91,7 @@ roadsRouter.patch(
 
       res.json({ success: true, data: updated });
     } catch (error) {
-      const updated = {
-        id: req.params.id,
-        status: req.body.status,
-        flood_depth_level: req.body.flood_depth_level,
-        blockage_reason: req.body.blockage_reason,
-        updated_at: new Date().toISOString(),
-      };
-      const io = getIO();
-      if (io) io.emit('road:status_update', updated);
-      res.json({ success: true, data: updated });
+      next(error);
     }
   }
 );
@@ -107,29 +103,35 @@ roadsRouter.post(
   requireRole('admin', 'barangay_focal', 'first_responder'),
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const { name, barangay_id, status = 'impassable', flood_depth_level = 'knee', blockage_reason = 'Flood water' } = req.body;
+      const { name, barangay_id, is_blocked = false, block_reason, coordinates } = req.body;
 
       if (!name) {
         return res.status(400).json({ success: false, error: 'Road corridor name is required' });
       }
 
+      // If coordinates are provided as [[lng, lat], [lng, lat]], construct LineString, else default line in barangay
+      let geomSql = `ST_SetSRID(ST_MakeLine(ST_Point(123.89, 10.31), ST_Point(123.895, 10.315)), 4326)`;
+      if (Array.isArray(coordinates) && coordinates.length >= 2) {
+        const points = coordinates.map((c: [number, number]) => `${c[0]} ${c[1]}`).join(', ');
+        geomSql = `ST_SetSRID(ST_GeomFromText('LINESTRING(${points})'), 4326)`;
+      }
+
       const sql = `
-        INSERT INTO road_segments (
-          name, barangay_id, status, flood_depth_level, blockage_reason,
-          geometry_geom, updated_at
+        INSERT INTO public.road_segments (
+          name, barangay_id, is_blocked, block_reason, blocked_at, line_geom, updated_by, created_at, updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5,
-          ST_SetSRID(ST_MakeLine(ST_Point(123.89, 10.31), ST_Point(123.895, 10.315)), 4326),
-          NOW()
-        ) RETURNING id, name, barangay_id, status, flood_depth_level, blockage_reason, updated_at
+          $1, $2, $3, $4, CASE WHEN $3 = TRUE THEN NOW() ELSE NULL END,
+          ${geomSql},
+          $5, NOW(), NOW()
+        ) RETURNING id, name, barangay_id, is_blocked, block_reason, blocked_at, updated_at
       `;
 
       const result = await query(sql, [
-        name,
+        name.trim(),
         barangay_id || null,
-        status,
-        flood_depth_level,
-        blockage_reason,
+        Boolean(is_blocked),
+        block_reason || null,
+        req.user?.id || null,
       ]);
 
       const newRoad = result.rows[0];
@@ -151,7 +153,10 @@ roadsRouter.delete(
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      await query(`DELETE FROM road_segments WHERE id = $1`, [id]);
+      const del = await query(`DELETE FROM public.road_segments WHERE id = $1 RETURNING id`, [id]);
+      if (del.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Road segment not found' });
+      }
       const io = getIO();
       if (io) io.emit('road:deleted', { id });
       res.json({ success: true, message: 'Road record removed' });
@@ -160,3 +165,4 @@ roadsRouter.delete(
     }
   }
 );
+

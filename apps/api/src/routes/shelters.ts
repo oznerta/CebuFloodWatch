@@ -2,7 +2,6 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { query } from '../config/db.js';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
-import { updateShelterSchema } from '@cebufloodwatch/shared';
 import { getIO } from '../services/socket.js';
 
 export const sheltersRouter = Router();
@@ -13,32 +12,43 @@ sheltersRouter.get('/', async (req: Request, res: Response, next: NextFunction) 
     const { barangay_id, status } = req.query;
     let sql = `
       SELECT 
-        id, barangay_id, name, address, max_capacity, current_occupancy, 
-        status, contact_number, supplies,
-        ST_Y(location_geom) as latitude,
-        ST_X(location_geom) as longitude,
-        created_at, updated_at
-      FROM evacuation_centers
+        e.id, 
+        e.barangay_id, 
+        b.name as barangay_name,
+        e.name, 
+        e.address, 
+        e.max_capacity, 
+        e.current_occupancy, 
+        e.status, 
+        e.contact_person,
+        e.contact_number, 
+        e.supply_notes,
+        ST_Y(e.location_geom) as latitude,
+        ST_X(e.location_geom) as longitude,
+        e.created_at, 
+        e.updated_at
+      FROM public.evacuation_centers e
+      LEFT JOIN public.barangays b ON e.barangay_id = b.id
       WHERE 1=1
     `;
     const params: any[] = [];
 
     if (barangay_id) {
       params.push(barangay_id);
-      sql += ` AND barangay_id = $${params.length}`;
+      sql += ` AND e.barangay_id = $${params.length}`;
     }
     if (status) {
       params.push(status);
-      sql += ` AND status = $${params.length}`;
+      sql += ` AND e.status = $${params.length}`;
     }
 
-    sql += ` ORDER BY name ASC`;
+    sql += ` ORDER BY e.name ASC`;
 
     const result = await query(sql, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching shelters:', error);
-    res.json({ success: true, data: [] });
+    next(error);
   }
 });
 
@@ -59,39 +69,34 @@ sheltersRouter.get('/nearest', async (req: Request, res: Response, next: NextFun
 
     const sql = `
       SELECT 
-        id, barangay_id, name, address, max_capacity, current_occupancy, 
-        status, contact_number, supplies,
-        ST_Y(location_geom) as latitude,
-        ST_X(location_geom) as longitude,
-        ROUND(ST_DistanceSphere(location_geom, ST_SetSRID(ST_Point($1, $2), 4326))::numeric, 1) as distance_meters
-      FROM evacuation_centers
-      WHERE status = 'open'
-        AND current_occupancy < max_capacity
-        AND ST_DWithin(location_geom::geography, ST_SetSRID(ST_Point($1, $2), 4326)::geography, $3)
-      ORDER BY location_geom <-> ST_SetSRID(ST_Point($1, $2), 4326)
+        e.id, 
+        e.barangay_id, 
+        b.name as barangay_name,
+        e.name, 
+        e.address, 
+        e.max_capacity, 
+        e.current_occupancy, 
+        e.status, 
+        e.contact_person,
+        e.contact_number, 
+        e.supply_notes,
+        ST_Y(e.location_geom) as latitude,
+        ST_X(e.location_geom) as longitude,
+        ROUND(ST_DistanceSphere(e.location_geom, ST_SetSRID(ST_Point($1, $2), 4326))::numeric, 1) as distance_meters
+      FROM public.evacuation_centers e
+      LEFT JOIN public.barangays b ON e.barangay_id = b.id
+      WHERE e.status = 'open'
+        AND e.current_occupancy < e.max_capacity
+        AND ST_DWithin(e.location_geom::geography, ST_SetSRID(ST_Point($1, $2), 4326)::geography, $3)
+      ORDER BY e.location_geom <-> ST_SetSRID(ST_Point($1, $2), 4326)
       LIMIT 5
     `;
 
     const result = await query(sql, [lng, lat, radiusMeters]);
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    // Fallback response with calculated distance
-    res.json({
-      success: true,
-      data: [
-        {
-          id: '1',
-          name: 'Mabolo Elementary School Gym',
-          address: 'M.J. Cuenco Ave, Mabolo, Cebu City',
-          max_capacity: 350,
-          current_occupancy: 85,
-          status: 'open',
-          distance_meters: 650,
-          latitude: 10.3265,
-          longitude: 123.918,
-        },
-      ],
-    });
+    console.error('Error finding nearest shelters:', error);
+    next(error);
   }
 });
 
@@ -99,7 +104,7 @@ sheltersRouter.get('/nearest', async (req: Request, res: Response, next: NextFun
 sheltersRouter.patch(
   '/:id/occupancy',
   authenticate,
-  requireRole('admin', 'barangay_focal'),
+  requireRole('admin', 'barangay_focal', 'first_responder'),
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
@@ -113,21 +118,25 @@ sheltersRouter.patch(
         return;
       }
 
-      const shelterRes = await query(`SELECT max_capacity FROM evacuation_centers WHERE id = $1`, [id]);
-      const maxCap = shelterRes.rows[0]?.max_capacity || 300;
+      const shelterRes = await query(`SELECT max_capacity FROM public.evacuation_centers WHERE id = $1`, [id]);
+      if (shelterRes.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Evacuation center not found' });
+      }
+
+      const maxCap = shelterRes.rows[0].max_capacity || 300;
       const newStatus = current_occupancy >= maxCap ? 'full' : 'open';
 
       const updateRes = await query(
         `
-        UPDATE evacuation_centers
+        UPDATE public.evacuation_centers
         SET current_occupancy = $1, status = $2, updated_at = NOW()
         WHERE id = $3
-        RETURNING *
+        RETURNING *, ST_Y(location_geom) as latitude, ST_X(location_geom) as longitude
       `,
         [current_occupancy, newStatus, id]
       );
 
-      const updated = updateRes.rows[0] || { id, current_occupancy, status: newStatus };
+      const updated = updateRes.rows[0];
 
       // Broadcast real-time update to web command portal and mobile clients
       const io = getIO();
@@ -137,11 +146,7 @@ sheltersRouter.patch(
 
       res.json({ success: true, data: updated });
     } catch (error) {
-      // Optimistic response
-      const updated = { id: req.params.id, current_occupancy: req.body.current_occupancy, status: 'open' };
-      const io = getIO();
-      if (io) io.emit('shelter:updated', updated);
-      res.json({ success: true, data: updated });
+      next(error);
     }
   }
 );
@@ -153,32 +158,33 @@ sheltersRouter.post(
   requireRole('admin', 'barangay_focal'),
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const { name, barangay_id, address, max_capacity, contact_number, latitude, longitude, supplies } = req.body;
+      const { name, barangay_id, address, max_capacity, contact_person, contact_number, latitude, longitude, supply_notes } = req.body;
 
-      if (!name) {
-        return res.status(400).json({ success: false, error: 'Shelter name is required' });
+      if (!name || latitude === undefined || longitude === undefined) {
+        return res.status(400).json({ success: false, error: 'Shelter name, latitude, and longitude are required' });
       }
 
       const sql = `
-        INSERT INTO evacuation_centers (
+        INSERT INTO public.evacuation_centers (
           name, barangay_id, address, max_capacity, current_occupancy,
-          status, contact_number, supplies, location_geom, created_at, updated_at
+          status, contact_person, contact_number, supply_notes, location_geom, created_at, updated_at
         ) VALUES (
-          $1, $2, $3, $4, 0, 'open', $5, $6,
-          ST_SetSRID(ST_Point($7, $8), 4326),
+          $1, $2, $3, $4, 0, 'open', $5, $6, $7,
+          ST_SetSRID(ST_Point($8, $9), 4326),
           NOW(), NOW()
         ) RETURNING *, ST_Y(location_geom) as latitude, ST_X(location_geom) as longitude
       `;
 
       const result = await query(sql, [
-        name,
+        name.trim(),
         barangay_id || null,
-        address || 'Designated Center',
+        address || '',
         max_capacity || 300,
+        contact_person || '',
         contact_number || '',
-        JSON.stringify(supplies || { water_liters: 1000, food_packs: 300 }),
-        longitude || 123.89,
-        latitude || 10.31,
+        supply_notes || '',
+        parseFloat(longitude),
+        parseFloat(latitude),
       ]);
 
       const newShelter = result.rows[0];
@@ -200,7 +206,10 @@ sheltersRouter.delete(
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      await query(`DELETE FROM evacuation_centers WHERE id = $1`, [id]);
+      const del = await query(`DELETE FROM public.evacuation_centers WHERE id = $1 RETURNING id`, [id]);
+      if (del.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Evacuation center not found' });
+      }
       const io = getIO();
       if (io) io.emit('shelter:deleted', { id });
       res.json({ success: true, message: 'Shelter removed successfully' });
@@ -209,3 +218,4 @@ sheltersRouter.delete(
     }
   }
 );
+

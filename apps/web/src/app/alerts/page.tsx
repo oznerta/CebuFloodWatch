@@ -117,9 +117,9 @@ export default function AlertsPage() {
       setBodyEn('');
       setBodyTl('');
       loadAlerts();
-    } catch {
-      setBroadcastSuccess(true);
-      loadAlerts();
+    } catch (err: any) {
+      console.error('Failed to broadcast emergency alert:', err);
+      alert(`Failed to broadcast emergency alert: ${err?.message || 'Network error'}`);
     } finally {
       setPublishing(false);
     }
