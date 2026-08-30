@@ -12,16 +12,6 @@ import {
   Minus,
   Sun,
   Moon,
-  ShieldAlert,
-  Droplet,
-  ExternalLink,
-  ChevronRight,
-  Info,
-  X,
-  Navigation,
-  AlertTriangle,
-  Radio,
-  CheckCircle2,
 } from 'lucide-react';
 
 interface MapContainerProps {
@@ -35,23 +25,6 @@ interface MapContainerProps {
 
 export type MapTileStyle = 'clean' | 'dark' | 'hybrid' | 'streets';
 export type FloodScenario = '5yr' | '25yr' | '100yr' | 'none';
-
-export interface SelectedFeature {
-  type: 'barangay' | 'flood' | 'station' | 'shelter' | 'report';
-  title: string;
-  subtitle?: string;
-  badge?: string;
-  badgeBg?: string;
-  badgeColor?: string;
-  level?: number;
-  depth?: string;
-  returnPeriod?: string;
-  advisory?: string;
-  description?: string;
-  stats?: { label: string; value: string; color?: string }[];
-  coordinates?: [number, number];
-  raw?: any;
-}
 
 // 100% Free, Public, Keyless & Watermark-Free Multi-Engine Basemap Catalog
 const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
@@ -154,6 +127,7 @@ export function MapContainer({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const targetMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const popupRef = useRef<maplibregl.Popup | null>(null);
 
   const [mapLoaded, setMapLoaded] = useState(false);
   const [selectedScenario, setSelectedScenario] = useState<FloodScenario>('25yr');
@@ -165,7 +139,6 @@ export function MapContainer({
   const [showStyleMenu, setShowStyleMenu] = useState(false);
   const [mouseCoords, setMouseCoords] = useState<{ lng: number; lat: number } | null>(null);
   const [currentZoom, setCurrentZoom] = useState<number>(13.5);
-  const [selectedFeature, setSelectedFeature] = useState<SelectedFeature | null>(null);
 
   // Setup vector and flood layers on load
   const setupLayers = () => {
@@ -218,7 +191,7 @@ export function MapContainer({
         source: 'cebu-city-barangays',
         paint: {
           'fill-color': '#007AFF',
-          'fill-opacity': 0.02, // Click target
+          'fill-opacity': 0.02,
         },
       });
 
@@ -233,44 +206,9 @@ export function MapContainer({
           'line-opacity': 0.65,
         },
       });
-
-      // Click on barangay to view details
-      map.on('click', 'cebu-barangay-fills', (e: any) => {
-        if (!e.features || e.features.length === 0) return;
-        if (e.originalEvent) {
-          e.originalEvent.stopPropagation();
-        }
-        const feat = e.features[0];
-        const props = feat.properties || {};
-        const bgyName = props.adm4_name || props.adm4_en || 'Barangay';
-
-        setSelectedFeature({
-          type: 'barangay',
-          title: `Brgy. ${bgyName}`,
-          subtitle: 'Cebu City Operational Sector',
-          badge: 'SECTOR NOMINAL',
-          badgeBg: '#E8F8EE',
-          badgeColor: '#34C759',
-          stats: [
-            { label: 'CDRRMO Code', value: `CEB-${bgyName.slice(0, 3).toUpperCase()}` },
-            { label: 'LGU Jurisdiction', value: 'Cebu City' },
-            { label: 'Flood Risk Level', value: 'Low / Monitored', color: '#34C759' },
-          ],
-          coordinates: [e.lngLat.lng, e.lngLat.lat],
-          raw: props,
-        });
-      });
-
-      map.on('mouseenter', 'cebu-barangay-fills', () => {
-        map.getCanvas().style.cursor = 'pointer';
-      });
-      map.on('mouseleave', 'cebu-barangay-fills', () => {
-        map.getCanvas().style.cursor = '';
-      });
     }
 
     // 3. UP NOAH Hydrodynamic Inundation Channels (Official DOST-UP NOAH Standard Color Coding)
-    // Official Scale: Low (0.1m-0.5m) = #FFE600 (Yellow), Medium (0.5m-1.5m) = #FF9900 (Orange), High (>1.5m) = #E53935 (Red)
     const NOAH_FILL_COLOR_EXPRESSION: any = [
       'match',
       ['get', 'hazard_level'],
@@ -370,62 +308,102 @@ export function MapContainer({
       });
     }
 
-    // Click on flood hazard polygons for official UP NOAH metadata
-    const floodLayers = ['hazard-5yr-fill', 'hazard-25yr-fill', 'hazard-100yr-fill'];
-
-    floodLayers.forEach((layerId) => {
-      map.on('click', layerId, (e: any) => {
-        if (!e.features || e.features.length === 0) return;
-        if (e.originalEvent) {
-          e.originalEvent.stopPropagation();
+    // Unified Map Click Handler (Dispatches between Flood Polygons & Barangays cleanly)
+    map.on('click', (e: any) => {
+      const candidateLayers = [
+        'hazard-100yr-fill',
+        'hazard-25yr-fill',
+        'hazard-5yr-fill',
+        'cebu-barangay-fills',
+      ].filter((id) => {
+        try {
+          return map.getLayer(id) && map.getLayoutProperty(id, 'visibility') !== 'none';
+        } catch {
+          return false;
         }
-        const props = e.features[0].properties || {};
+      });
+
+      const features = map.queryRenderedFeatures(e.point, { layers: candidateLayers });
+      if (!features || features.length === 0) return;
+
+      const topFeature = features[0];
+      const layerId = topFeature.layer.id;
+      const props = topFeature.properties || {};
+
+      if (popupRef.current) {
+        popupRef.current.remove();
+        popupRef.current = null;
+      }
+
+      if (layerId.startsWith('hazard-')) {
+        // Flood Hazard Click
         const level = Number(props.hazard_level || props.var || 1);
-        const returnPeriod = props.return_period || 'UP NOAH Hydrodynamic Model';
+        const returnPeriod = props.return_period || 'UP NOAH Model';
         const depth = props.depth_range || (level === 3 ? '> 1.5m' : level === 2 ? '0.5m - 1.5m' : '0.1m - 0.5m');
         const hazardName = props.hazard_name || (level === 3 ? 'High Hazard (> 1.5m)' : level === 2 ? 'Medium Hazard (0.5m - 1.5m)' : 'Low Hazard (0.1m - 0.5m)');
-        
         const levelColor = level === 3 ? '#E53935' : level === 2 ? '#FF9900' : '#D4B106';
         const levelBg = level === 3 ? '#FFEBEE' : level === 2 ? '#FFF3E0' : '#FEFDE8';
         const advisory = level === 3
-          ? 'Emergency: Severe torrential flood hazard (>1.5m). Deep submersion risk. Immediate evacuation of lower floors to multi-story shelters.'
+          ? 'Emergency: Severe torrential flood depth (>1.5m). Deep submersion risk. Immediate evacuation to multi-story shelters.'
           : level === 2
-          ? 'Warning: Medium flood depth (0.5m–1.5m). Alluvial plain overflow. Compact vehicles & sedans impassable.'
-          : 'Caution: Low flood depth (0.1m–0.5m). Localized street ponding & gutter backflow.';
+          ? 'Warning: Medium flood depth (0.5m-1.5m). Alluvial plain overflow. Compact vehicles & sedans impassable.'
+          : 'Caution: Low flood depth (0.1m-0.5m). Road gutter backflow & localized street ponding.';
 
-        setSelectedFeature({
-          type: 'flood',
-          title: hazardName,
-          subtitle: `DOST-UP NOAH • ${returnPeriod}`,
-          badge: `LEVEL ${level} HAZARD`,
-          badgeBg: levelBg,
-          badgeColor: levelColor,
-          level,
-          depth,
-          returnPeriod,
-          advisory,
-          stats: [
-            { label: 'Inundation Depth', value: depth, color: levelColor },
-            { label: 'Simulation Model', value: returnPeriod },
-            { label: 'Official Authority', value: 'DOST-UP NOAH' },
-          ],
-          coordinates: [e.lngLat.lng, e.lngLat.lat],
-          raw: props,
-        });
-      });
-
-      map.on('mouseenter', layerId, () => {
-        map.getCanvas().style.cursor = 'pointer';
-      });
-      map.on('mouseleave', layerId, () => {
-        map.getCanvas().style.cursor = '';
-      });
-    });
-
-    // Close inspector when clicking on empty map canvas
-    map.on('click', (e: any) => {
-      // If no feature was clicked, close inspector
-      if (e.defaultPrevented) return;
+        popupRef.current = new maplibregl.Popup({ closeButton: true, className: 'cebu-clean-popup' })
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 250px;">
+              <div style="background: ${level === 3 ? 'linear-gradient(135deg, #E53935 0%, #B71C1C 100%)' : level === 2 ? 'linear-gradient(135deg, #FF9900 0%, #E65100 100%)' : 'linear-gradient(135deg, #FFE600 0%, #D4B106 100%)'}; color: ${level === 1 ? '#1C1C1E' : '#FFFFFF'}; padding: 12px 14px; border-top-left-radius: 24px; border-top-right-radius: 24px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <span style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9;">DOST-UP NOAH OFFICIAL</span>
+                  <span style="font-size: 9px; font-weight: 900; background: ${level === 1 ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.25)'}; padding: 2px 7px; border-radius: 9999px;">LEVEL ${level}</span>
+                </div>
+                <div style="font-size: 15px; font-weight: 900; margin-top: 3px;">${hazardName}</div>
+              </div>
+              <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="background: #F2F2F7; padding: 8px 10px; border-radius: 12px; font-size: 11px; display: flex; align-items: center; justify-content: space-between;">
+                  <span style="font-weight: 700; color: #6C6C70;">Inundation Depth:</span>
+                  <strong style="color: ${levelColor}; font-size: 12px;">${depth}</strong>
+                </div>
+                <div style="font-size: 10.5px; color: #3A3A3C; line-height: 1.4; background: ${levelBg}; padding: 8px 10px; border-radius: 12px; border: 1px solid ${levelColor}30;">
+                  ${advisory}
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #8E8E93; padding-top: 2px;">
+                  <span>Simulation: ${returnPeriod}</span>
+                  <span style="font-weight: 800; color: #007AFF;">LGU CDRRMO</span>
+                </div>
+              </div>
+            </div>
+          `)
+          .addTo(map);
+      } else if (layerId === 'cebu-barangay-fills') {
+        // Barangay Click
+        const bgyName = props.adm4_name || props.adm4_en || 'Barangay';
+        popupRef.current = new maplibregl.Popup({ closeButton: true, className: 'cebu-clean-popup' })
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 230px;">
+              <div style="background: linear-gradient(135deg, #007AFF 0%, #0051A8 100%); color: #FFFFFF; padding: 12px 14px; border-top-left-radius: 24px; border-top-right-radius: 24px;">
+                <div style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.85;">CEBU CITY OPERATIONAL SECTOR</div>
+                <div style="font-size: 16px; font-weight: 900; margin-top: 2px; letter-spacing: -0.2px;">Brgy. ${bgyName}</div>
+              </div>
+              <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+                  <span style="color: #8E8E93; font-weight: 600;">CDRRMO Sector:</span>
+                  <span style="font-weight: 800; color: #1C1C1E;">CEB-${bgyName.slice(0, 3).toUpperCase()}</span>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+                  <span style="color: #8E8E93; font-weight: 600;">Flood Monitoring:</span>
+                  <span style="font-weight: 900; color: #34C759; background: #E8F8EE; padding: 2px 8px; border-radius: 6px;">NOMINAL</span>
+                </div>
+                <div style="border-top: 1px solid #E5E5EA; margin-top: 4px; padding-top: 8px; font-size: 10px; color: #8E8E93; text-align: center;">
+                  Official LGU Cebu City Administrative Boundary
+                </div>
+              </div>
+            </div>
+          `)
+          .addTo(map);
+      }
     });
 
     setMapLoaded(true);
@@ -445,15 +423,26 @@ export function MapContainer({
       pitch: is3DMode ? 45 : 0,
       bearing: 0,
       attributionControl: false,
-      doubleClickZoom: false, // Prevents erratic double-click jumping
     });
 
     map.on('load', setupLayers);
+    
     map.on('mousemove', (e: any) => {
       if (e.lngLat) {
         setMouseCoords({ lng: e.lngLat.lng, lat: e.lngLat.lat });
       }
+      try {
+        const hoverFeatures = map.queryRenderedFeatures(e.point, {
+          layers: ['hazard-100yr-fill', 'hazard-25yr-fill', 'hazard-5yr-fill', 'cebu-barangay-fills'].filter((id) => {
+            try { return map.getLayer(id) && map.getLayoutProperty(id, 'visibility') !== 'none'; } catch { return false; }
+          }),
+        });
+        map.getCanvas().style.cursor = hoverFeatures.length > 0 ? 'pointer' : '';
+      } catch {
+        map.getCanvas().style.cursor = '';
+      }
     });
+
     map.on('zoom', () => {
       setCurrentZoom(map.getZoom());
     });
@@ -555,27 +544,30 @@ export function MapContainer({
         </div>
       `;
 
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        setSelectedFeature({
-          type: 'shelter',
-          title: shelter.name,
-          subtitle: `Brgy. ${shelter.barangay_name || 'Cebu City'}`,
-          badge: isOpen ? 'OPEN FOR REFUGE' : 'CLOSED',
-          badgeBg: isOpen ? '#E8F8EE' : '#F2F2F7',
-          badgeColor: color,
-          stats: [
-            { label: 'Refuge Status', value: isOpen ? 'Open & Ready' : 'Closed', color },
-            { label: 'Capacity', value: `${shelter.capacity_people || 500} Evacuees` },
-            { label: 'Barangay', value: shelter.barangay_name || 'Cebu City' },
-          ],
-          coordinates: [shelter.longitude, shelter.latitude],
-          raw: shelter,
-        });
-      });
-
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([shelter.longitude, shelter.latitude])
+        .setPopup(
+          new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 230px;">
+              <div style="background: ${isOpen ? 'linear-gradient(135deg, #34C759 0%, #248A3D 100%)' : 'linear-gradient(135deg, #8E8E93 0%, #636366 100%)'}; color: #FFFFFF; padding: 12px 14px; border-top-left-radius: 24px; border-top-right-radius: 24px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <span style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9;">EVACUATION REFUGE</span>
+                  <span style="font-size: 9px; font-weight: 900; background: rgba(255,255,255,0.25); padding: 2px 7px; border-radius: 9999px;">${isOpen ? 'OPEN' : 'CLOSED'}</span>
+                </div>
+                <div style="font-size: 15px; font-weight: 900; margin-top: 3px;">${shelter.name}</div>
+              </div>
+              <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="font-size: 11px; color: #3A3A3C;">
+                  <strong>Location:</strong> Brgy. ${shelter.barangay_name || 'Cebu City'}
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; background: #F2F2F7; padding: 6px 10px; border-radius: 10px;">
+                  <span style="color: #8E8E93; font-weight: 600;">Refuge Capacity:</span>
+                  <span style="font-weight: 900; color: #1C1C1E;">${shelter.capacity_people || 500} evacuees</span>
+                </div>
+              </div>
+            </div>
+          `)
+        )
         .addTo(mapRef.current!);
 
       markersRef.current.push(marker);
@@ -601,28 +593,30 @@ export function MapContainer({
         </div>
       `;
 
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        setSelectedFeature({
-          type: 'report',
-          title: `Brgy. ${report.barangay_name || 'Area'}`,
-          subtitle: 'Citizen Verified Incident',
-          badge: `${report.flood_depth_level?.toUpperCase() || 'FLOOD'} DEPTH`,
-          badgeBg: '#FFEBEE',
-          badgeColor: color,
-          description: report.description || 'Verified flood incident pin.',
-          stats: [
-            { label: 'Flood Depth', value: report.flood_depth_level?.toUpperCase() || 'UNKNOWN', color },
-            { label: 'Status', value: report.status?.toUpperCase() || 'VERIFIED' },
-            { label: 'Reported Time', value: new Date(report.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
-          ],
-          coordinates: [report.longitude, report.latitude],
-          raw: report,
-        });
-      });
-
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([report.longitude, report.latitude])
+        .setPopup(
+          new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 240px;">
+              <div style="background: ${isSevere ? 'linear-gradient(135deg, #FF3B30 0%, #C62828 100%)' : 'linear-gradient(135deg, #FF9500 0%, #E65100 100%)'}; color: #FFFFFF; padding: 12px 14px; border-top-left-radius: 24px; border-top-right-radius: 24px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <span style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9;">CITIZEN INCIDENT REPORT</span>
+                  <span style="font-size: 9px; font-weight: 900; background: rgba(255,255,255,0.25); padding: 2px 7px; border-radius: 9999px;">${report.flood_depth_level?.toUpperCase() || 'FLOOD'}</span>
+                </div>
+                <div style="font-size: 15px; font-weight: 900; margin-top: 3px;">Brgy. ${report.barangay_name || 'Area'}</div>
+              </div>
+              <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="font-size: 11.5px; color: #1C1C1E; line-height: 1.4;">
+                  ${report.description || 'Verified flood incident pin.'}
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #8E8E93; border-top: 1px solid #E5E5EA; padding-top: 6px;">
+                  <span>Reported: ${new Date(report.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span style="font-weight: 800; color: #007AFF;">Status: ${report.status?.toUpperCase() || 'VERIFIED'}</span>
+                </div>
+              </div>
+            </div>
+          `)
+        )
         .addTo(mapRef.current!);
 
       markersRef.current.push(marker);
@@ -650,28 +644,38 @@ export function MapContainer({
         </div>
       `;
 
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        setSelectedFeature({
-          type: 'station',
-          title: st.station_name,
-          subtitle: `${st.river_basin} • Brgy. ${st.barangay_name}`,
-          badge: statusLabel,
-          badgeBg: isBreach ? '#FFEBEE' : isWatch ? '#FFF3E0' : '#EBF5FF',
-          badgeColor: color,
-          stats: [
-            { label: 'Water Level', value: `${st.water_level_meters}m`, color },
-            { label: 'Rain Rate', value: `${st.rainfall_rate_mmh || 0} mm/h`, color: '#007AFF' },
-            { label: 'Alert 1 Mark', value: `${st.alert_level_1_meters}m` },
-            { label: 'Critical Mark', value: `${st.critical_overflow_meters}m`, color: '#FF3B30' },
-          ],
-          coordinates: [st.longitude, st.latitude],
-          raw: st,
-        });
-      });
-
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([st.longitude, st.latitude])
+        .setPopup(
+          new maplibregl.Popup({ offset: 25, className: 'cebu-clean-popup' }).setHTML(`
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; min-width: 250px;">
+              <div style="background: ${isBreach ? 'linear-gradient(135deg, #FF3B30 0%, #D32F2F 100%)' : isWatch ? 'linear-gradient(135deg, #FF9500 0%, #E65100 100%)' : 'linear-gradient(135deg, #007AFF 0%, #0051A8 100%)'}; color: #FFFFFF; padding: 12px 14px; border-top-left-radius: 24px; border-top-right-radius: 24px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <span style="font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9;">RIVER TELEMETRY NODE</span>
+                  <span style="font-size: 9px; font-weight: 900; background: rgba(255,255,255,0.25); padding: 2px 7px; border-radius: 9999px;">${statusLabel}</span>
+                </div>
+                <div style="font-size: 15px; font-weight: 900; margin-top: 3px;">${st.station_name}</div>
+                <div style="font-size: 10px; opacity: 0.85; margin-top: 1px;">${st.river_basin} &bull; Brgy. ${st.barangay_name}</div>
+              </div>
+              <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                  <div style="background: #F2F2F7; padding: 8px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 9px; font-weight: 700; color: #8E8E93; text-transform: uppercase;">Water Level</div>
+                    <div style="font-size: 14px; font-weight: 900; color: ${color}; margin-top: 1px;">${st.water_level_meters}m</div>
+                  </div>
+                  <div style="background: #F2F2F7; padding: 8px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 9px; font-weight: 700; color: #8E8E93; text-transform: uppercase;">Rainfall</div>
+                    <div style="font-size: 14px; font-weight: 900; color: #007AFF; margin-top: 1px;">${st.rainfall_rate_mmh || 0} mm/h</div>
+                  </div>
+                </div>
+                <div style="font-size: 10px; color: #8E8E93; display: flex; justify-content: space-between; border-top: 1px solid #E5E5EA; padding-top: 6px;">
+                  <span>Alert 1: <strong>${st.alert_level_1_meters}m</strong></span>
+                  <span>Critical: <strong style="color: #FF3B30;">${st.critical_overflow_meters}m</strong></span>
+                </div>
+              </div>
+            </div>
+          `)
+        )
         .addTo(mapRef.current!);
 
       markersRef.current.push(marker);
@@ -970,99 +974,6 @@ export function MapContainer({
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* World-Class Feature Inspector Modal Card (Slides up on Click) */}
-      {selectedFeature && (
-        <div className="absolute top-20 right-6 z-30 max-w-sm w-80 bg-white/95 backdrop-blur-2xl border border-gray-200/90 rounded-3xl p-5 shadow-2xl animate-in slide-in-from-top-4 fade-in duration-200 space-y-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <span
-                  className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider"
-                  style={{
-                    backgroundColor: selectedFeature.badgeBg || '#F2F2F7',
-                    color: selectedFeature.badgeColor || '#1C1C1E',
-                  }}
-                >
-                  {selectedFeature.badge}
-                </span>
-              </div>
-              <h3 className="text-base font-black text-gray-900 mt-1.5 tracking-tight">
-                {selectedFeature.title}
-              </h3>
-              {selectedFeature.subtitle && (
-                <p className="text-xs font-semibold text-gray-500 mt-0.5">
-                  {selectedFeature.subtitle}
-                </p>
-              )}
-            </div>
-            <button
-              onClick={() => setSelectedFeature(null)}
-              className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-900 flex items-center justify-center transition-all cursor-pointer flex-shrink-0"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Stats Grid */}
-          {selectedFeature.stats && selectedFeature.stats.length > 0 && (
-            <div className="grid grid-cols-2 gap-2 bg-gray-50/80 p-3 rounded-2xl border border-gray-100">
-              {selectedFeature.stats.map((st, i) => (
-                <div key={i} className="space-y-0.5">
-                  <div className="text-[10px] font-bold uppercase text-gray-400">{st.label}</div>
-                  <div
-                    className="text-xs font-black"
-                    style={{ color: st.color || '#1C1C1E' }}
-                  >
-                    {st.value}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Advisory / Description */}
-          {selectedFeature.advisory && (
-            <div className="p-3 rounded-2xl bg-amber-50/70 border border-amber-200/60 text-[11px] text-amber-900 font-medium leading-relaxed flex gap-2 items-start">
-              <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-              <span>{selectedFeature.advisory}</span>
-            </div>
-          )}
-
-          {selectedFeature.description && (
-            <div className="p-3 rounded-2xl bg-gray-50 border border-gray-100 text-[11px] text-gray-700 leading-relaxed">
-              {selectedFeature.description}
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2 pt-1">
-            {selectedFeature.coordinates && (
-              <button
-                onClick={() => {
-                  if (!mapRef.current || !selectedFeature.coordinates) return;
-                  mapRef.current.flyTo({
-                    center: selectedFeature.coordinates,
-                    zoom: 16,
-                    essential: true,
-                    duration: 1200,
-                  });
-                }}
-                className="flex-1 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-blue-500/20 cursor-pointer"
-              >
-                <Navigation className="w-3.5 h-3.5" />
-                Focus View
-              </button>
-            )}
-            <button
-              onClick={() => setSelectedFeature(null)}
-              className="py-2 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-all cursor-pointer"
-            >
-              Dismiss
-            </button>
-          </div>
         </div>
       )}
 
