@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { fetchApi } from '../lib/api';
 
 export interface UserSession {
@@ -36,7 +36,6 @@ const PUBLIC_ROUTES = ['/login', '/register'];
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
@@ -46,21 +45,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const parsed = JSON.parse(stored);
         if (parsed && parsed.token) {
           setUser(parsed);
-          // Set cookie for middleware
           document.cookie = `cebu_session=${parsed.token}; path=/; max-age=604800; SameSite=Lax`;
         } else {
           setUser(null);
           localStorage.removeItem('cebu_auth_user');
-          document.cookie = 'cebu_session=; path=/; max-age=0';
+          document.cookie = 'cebu_session=; path=/; max-age=0; SameSite=Lax';
         }
       } else {
         setUser(null);
-        document.cookie = 'cebu_session=; path=/; max-age=0';
+        document.cookie = 'cebu_session=; path=/; max-age=0; SameSite=Lax';
       }
     } catch {
       setUser(null);
       localStorage.removeItem('cebu_auth_user');
-      document.cookie = 'cebu_session=; path=/; max-age=0';
+      document.cookie = 'cebu_session=; path=/; max-age=0; SameSite=Lax';
     } finally {
       setIsLoading(false);
     }
@@ -71,10 +69,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!isLoading) {
       const isPublic = PUBLIC_ROUTES.some((r) => pathname?.startsWith(r));
       if (!user && !isPublic) {
-        router.push('/login');
+        window.location.href = '/login';
       }
     }
-  }, [user, isLoading, pathname, router]);
+  }, [user, isLoading, pathname]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -95,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session);
         localStorage.setItem('cebu_auth_user', JSON.stringify(session));
         document.cookie = `cebu_session=${res.token}; path=/; max-age=604800; SameSite=Lax`;
-        router.push('/dashboard');
+        window.location.href = '/dashboard';
         return { success: true };
       }
 
@@ -138,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session);
         localStorage.setItem('cebu_auth_user', JSON.stringify(session));
         document.cookie = `cebu_session=${res.token}; path=/; max-age=604800; SameSite=Lax`;
-        router.push('/dashboard');
+        window.location.href = '/dashboard';
         return { success: true };
       }
 
@@ -151,8 +149,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('cebu_auth_user');
-    document.cookie = 'cebu_session=; path=/; max-age=0';
-    router.push('/login');
+    document.cookie = 'cebu_session=; path=/; max-age=0; SameSite=Lax';
+    window.location.href = '/login';
   };
 
   return (

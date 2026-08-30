@@ -48,10 +48,10 @@ authRouter.post('/register', async (req: Request, res: Response) => {
       });
     }
 
-    if (password.length < 8) {
+    if (password.length < 6) {
       return res.status(400).json({
         success: false,
-        error: 'Password must be at least 8 characters long for security compliance.',
+        error: 'Password must be at least 6 characters long.',
       });
     }
 

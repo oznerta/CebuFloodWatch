@@ -14,6 +14,7 @@ import {
   Building,
   UserPlus,
   LogIn,
+  CheckCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -45,7 +46,7 @@ export default function LoginPage() {
 
     const result = await login(loginEmail, loginPassword);
     if (!result.success) {
-      setErrorMessage(result.error || 'Invalid credentials. Please register or check your login.');
+      setErrorMessage(result.error || 'Invalid email or password. Please check your credentials or create an account.');
       setLoading(false);
     }
   };
@@ -53,6 +54,12 @@ export default function LoginPage() {
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+
+    if (regPassword.length < 6) {
+      setErrorMessage('Password must be at least 6 characters.');
+      return;
+    }
+
     setLoading(true);
 
     const result = await register({
@@ -87,7 +94,7 @@ export default function LoginPage() {
             CebuFloodWatch
           </h1>
           <p className="text-xs font-bold text-[#007AFF] uppercase tracking-wider">
-            CDRRMO Operations &bull; Command Access
+            CDRRMO Operations &bull; Official Access
           </p>
         </div>
 
@@ -128,7 +135,7 @@ export default function LoginPage() {
 
         {/* Error Alert Banner */}
         {errorMessage && (
-          <div className="p-3 bg-[#FFEBEA] border border-[#FFD0CE] rounded-2xl flex items-center gap-2 text-xs font-bold text-[#FF3B30]">
+          <div className="p-3.5 bg-[#FFEBEA] border border-[#FFD0CE] rounded-2xl flex items-center gap-2.5 text-xs font-bold text-[#FF3B30] shadow-xs">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{errorMessage}</span>
           </div>
@@ -148,7 +155,7 @@ export default function LoginPage() {
                   required
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="e.g. operator@cebucity.gov.ph"
+                  placeholder="e.g. admin@cebucity.gov.ph"
                   className="w-full text-xs font-semibold text-[#1C1C1E] bg-transparent focus:outline-none"
                 />
               </div>
@@ -183,7 +190,7 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full py-3.5 rounded-2xl bg-[#007AFF] hover:bg-[#0062CC] text-white font-extrabold text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
             >
-              <span>{loading ? 'Authenticating...' : 'Sign In to Command Center'}</span>
+              <span>{loading ? 'Authenticating Clearance...' : 'Sign In to Command Center'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
@@ -199,7 +206,7 @@ export default function LoginPage() {
                 required
                 value={regFullName}
                 onChange={(e) => setRegFullName(e.target.value)}
-                placeholder="e.g. Maria Santos"
+                placeholder="e.g. Matt Oznerta"
                 className="w-full p-2.5 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-semibold text-[#1C1C1E] focus:outline-none"
               />
             </div>
@@ -213,21 +220,22 @@ export default function LoginPage() {
                 required
                 value={regEmail}
                 onChange={(e) => setRegEmail(e.target.value)}
-                placeholder="maria@cebucity.gov.ph"
+                placeholder="matt@cebucity.gov.ph"
                 className="w-full p-2.5 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-semibold text-[#1C1C1E] focus:outline-none"
               />
             </div>
 
             <div>
               <label className="text-[11px] font-extrabold uppercase text-[#8E8E93] block mb-1">
-                Password
+                Password (Min. 6 Characters)
               </label>
               <input
                 type="password"
                 required
+                minLength={6}
                 value={regPassword}
                 onChange={(e) => setRegPassword(e.target.value)}
-                placeholder="Create a strong password..."
+                placeholder="Create password..."
                 className="w-full p-2.5 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] font-semibold text-[#1C1C1E] focus:outline-none"
               />
             </div>
@@ -271,7 +279,7 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full py-3 rounded-2xl bg-[#007AFF] hover:bg-[#0062CC] text-white font-extrabold text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50 mt-1"
             >
-              <span>{loading ? 'Registering Account...' : 'Register Official Account'}</span>
+              <span>{loading ? 'Creating Account...' : 'Register & Enter Command Center'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
@@ -279,7 +287,7 @@ export default function LoginPage() {
 
         {/* Footer Security Notice */}
         <div className="pt-2 text-center text-[10px] text-[#8E8E93] font-medium leading-relaxed">
-          🔒 Official Disaster Risk Reduction & Management System &bull; OCD-7 Security Standard
+          🔒 Official Disaster Risk Reduction & Management System &bull; OCD-7 Standard
         </div>
       </div>
     </div>
