@@ -308,8 +308,8 @@ adminRouter.post('/test-gateway', async (req: Request, res: Response) => {
     return res.json({
       success: true,
       service: 'IoT MQTT Sensor Gateway',
-      status: `Broker URI Format Verified (${broker})`,
-      latencyMs: 35,
+      status: `Broker URI format verified: ${broker} (no connection test performed)`,
+      latencyMs: 0,
     });
   }
 
@@ -331,16 +331,14 @@ adminRouter.post('/test-gateway', async (req: Request, res: Response) => {
     return res.json({
       success: true,
       service: 'SMS Emergency Broadcast Gateway',
-      status: 'API Key Registered & Syntax Verified',
-      latencyMs: 95,
+      status: 'API key format validated (no live dispatch test performed)',
+      latencyMs: 0,
     });
   }
 
-  return res.json({
-    success: true,
-    service: service || 'Gateway',
-    status: 'Service Operational',
-    latencyMs: 100,
+  return res.status(400).json({
+    success: false,
+    error: `Unknown service: '${service || 'none'}'. Supported: pagasa, namria, mqtt, sms.`,
   });
 });
 

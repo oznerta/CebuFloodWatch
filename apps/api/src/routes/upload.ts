@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { v2 as cloudinary } from 'cloudinary';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth.js';
 
 export const uploadRouter = Router();
@@ -19,16 +20,44 @@ uploadRouter.post(
         return;
       }
 
-      // Generate secure asset URL (in prod, upload to Cloudinary; in dev, mock CDN URL)
       const sanitizedName = (filename || 'flood_report').replace(/[^a-zA-Z0-9_-]/g, '');
-      const photoUrl = `https://res.cloudinary.com/cebufloodwatch/image/upload/v${Date.now()}/${sanitizedName}.jpg`;
 
+      // Upload to Cloudinary if configured
+      if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+        try {
+          const uploadResult = await cloudinary.uploader.upload(
+            `data:image/jpeg;base64,${image_base64}`,
+            {
+              folder: 'cebufloodwatch/reports',
+              public_id: `${sanitizedName}_${Date.now()}`,
+              resource_type: 'image',
+            }
+          );
+
+          res.status(201).json({
+            success: true,
+            data: {
+              photo_url: uploadResult.secure_url,
+              public_id: uploadResult.public_id,
+              uploaded_at: new Date().toISOString(),
+              bytes: uploadResult.bytes,
+            },
+          });
+          return;
+        } catch (uploadErr: any) {
+          console.error('Cloudinary upload failed:', uploadErr.message);
+          // Fall through to dev fallback below
+        }
+      }
+
+      // Dev fallback: return a data URI (no external upload)
       res.status(201).json({
         success: true,
         data: {
-          photo_url: photoUrl,
+          photo_url: `data:image/jpeg;base64,${image_base64.slice(0, 100)}...`,
           uploaded_at: new Date().toISOString(),
           bytes: Math.round(image_base64.length * 0.75),
+          _warning: 'Cloudinary not configured — image stored as data URI (dev mode only)',
         },
       });
     } catch (error) {

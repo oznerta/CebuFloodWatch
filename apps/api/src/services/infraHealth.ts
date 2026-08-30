@@ -145,9 +145,9 @@ export async function getLiveInfrastructureStatus(): Promise<InfraServiceStatus[
     results.push({
       name: 'Cloudinary Media CDN',
       category: 'storage',
-      status: 'operational',
+      status: 'degraded',
       latencyMs: Date.now() - cldStart,
-      details: `Cloud "${process.env.CLOUDINARY_CLOUD_NAME || 'krfxcgdr'}" Ready for uploads`,
+      details: `Cloudinary health check failed: ${err.message || 'Connection error'}`,
       lastChecked: new Date().toISOString(),
     });
   }
@@ -170,10 +170,10 @@ export async function getLiveInfrastructureStatus(): Promise<InfraServiceStatus[
           category: 'weather',
           status: 'operational',
           latencyMs: wxLatency,
-          details: `Cebu City Live: ${current.temperature_2m || 28}°C, Precip: ${current.precipitation || 0} mm/h`,
+          details: `Cebu City Live: ${current.temperature_2m ?? '--'}°C, Precip: ${current.precipitation ?? 0} mm/h`,
           metadata: {
             coordinates: '10.3157° N, 123.8854° E',
-            precipitation_mmh: current.precipitation || 0,
+            precipitation_mmh: current.precipitation ?? 0,
           },
           lastChecked: new Date().toISOString(),
         });
@@ -204,14 +204,28 @@ export async function getLiveInfrastructureStatus(): Promise<InfraServiceStatus[
   // 5. NAMRIA Cebu International Port Tidal Webhook (Strict check)
   const namriaUrl = savedGateways.namriaUrl || process.env.NAMRIA_WEBHOOK_URL;
   if (namriaUrl && namriaUrl.trim() !== '') {
-    results.push({
-      name: 'NAMRIA Oceanic Port Tides Webhook',
-      category: 'tides',
-      status: 'operational',
-      latencyMs: 15,
-      details: `Target: ${namriaUrl.slice(0, 35)}... (MLLW Pier 1 Sync)`,
-      lastChecked: new Date().toISOString(),
-    });
+    const namriaStart = Date.now();
+    try {
+      const namriaResp = await fetch(namriaUrl, { method: 'HEAD', signal: AbortSignal.timeout(4000) });
+      const namriaLatency = Date.now() - namriaStart;
+      results.push({
+        name: 'NAMRIA Oceanic Port Tides Webhook',
+        category: 'tides',
+        status: namriaResp.ok ? 'operational' : 'degraded',
+        latencyMs: namriaLatency,
+        details: `Endpoint responded HTTP ${namriaResp.status} (${namriaLatency}ms)`,
+        lastChecked: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      results.push({
+        name: 'NAMRIA Oceanic Port Tides Webhook',
+        category: 'tides',
+        status: 'degraded',
+        latencyMs: Date.now() - namriaStart,
+        details: `Endpoint unreachable: ${err.message || 'Connection timeout'}`,
+        lastChecked: new Date().toISOString(),
+      });
+    }
   } else {
     results.push({
       name: 'NAMRIA Oceanic Port Tides Webhook',

@@ -631,7 +631,7 @@ export default function APIGatewaysPage() {
             <div className="space-y-2 pt-4 border-t border-gray-100">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[11px] font-medium text-gray-500 truncate">
-                  Mask: <span className="font-bold text-gray-700">{smsSenderId || 'CEBU_CDRRMO'}</span>
+                  Mask: <span className="font-bold text-gray-700">{smsSenderId || 'Not Set'}</span>
                 </span>
                 <button
                   onClick={() => handleTestService('sms')}
