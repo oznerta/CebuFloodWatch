@@ -104,6 +104,29 @@ export default function EvacuationPage() {
     }
   };
 
+  const handleSetExactOccupancy = async (shelterId: string, exactValue: number) => {
+    const target = shelters.find((s) => s.id === shelterId);
+    if (!target) return;
+
+    const safeValue = isNaN(exactValue) ? 0 : Math.max(0, Math.min(target.max_capacity, exactValue));
+    setUpdatingId(shelterId);
+
+    try {
+      await fetchApi(`/shelters/${shelterId}/occupancy`, {
+        method: 'PATCH',
+        body: JSON.stringify({ current_occupancy: safeValue }),
+      });
+      setShelters((prev) =>
+        prev.map((s) => (s.id === shelterId ? { ...s, current_occupancy: safeValue } : s))
+      );
+    } catch (err: any) {
+      console.error('Failed to set shelter occupancy:', err);
+      alert(`Failed to set shelter occupancy: ${err?.message || 'Server error'}`);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const handleToggleStatus = async (shelterId: string, nextStatus: string) => {
     setUpdatingId(shelterId);
     try {
@@ -288,13 +311,40 @@ export default function EvacuationPage() {
                     </div>
                   </div>
 
-                  {/* Occupancy Progress Bar */}
+                  {/* Occupancy Progress Bar & Direct Custom Amount Input */}
                   <div className="space-y-1.5 pt-1">
-                    <div className="flex justify-between text-xs font-bold">
-                      <span className="text-[#6C6C70]">Occupancy</span>
-                      <span className="text-[#1C1C1E]">
-                        {shelter.current_occupancy || 0} / {shelter.max_capacity || 0} ({occPct}%)
-                      </span>
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-[#6C6C70]">Current Occupancy</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-2 py-0.5 focus-within:border-blue-500 focus-within:bg-white transition-all shadow-2xs">
+                          <input
+                            type="number"
+                            min={0}
+                            max={shelter.max_capacity}
+                            defaultValue={shelter.current_occupancy || 0}
+                            key={`${shelter.id}-${shelter.current_occupancy}`}
+                            onBlur={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              if (!isNaN(val) && val !== (shelter.current_occupancy || 0)) {
+                                handleSetExactOccupancy(shelter.id, val);
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                const val = parseInt((e.target as HTMLInputElement).value, 10);
+                                if (!isNaN(val)) {
+                                  handleSetExactOccupancy(shelter.id, val);
+                                }
+                                (e.target as HTMLInputElement).blur();
+                              }
+                            }}
+                            className="w-16 text-right font-black text-xs text-[#1C1C1E] bg-transparent focus:outline-none"
+                            title="Click or type exact headcount & press Enter"
+                          />
+                          <span className="text-[10px] text-gray-400 font-bold ml-1">/ {shelter.max_capacity}</span>
+                        </div>
+                        <span className="text-[11px] font-black text-gray-500">({occPct}%)</span>
+                      </div>
                     </div>
                     <div className="w-full bg-[#F2F2F7] rounded-full h-2 overflow-hidden">
                       <div
@@ -332,37 +382,53 @@ export default function EvacuationPage() {
                   )}
                 </div>
 
-                  {/* Operator Actions */}
-                  <div className="flex items-center justify-between pt-3 border-t border-[#F2F2F7] gap-2">
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleAdjustOccupancy(shelter.id, -1)}
-                        disabled={isUpdating || (shelter.current_occupancy || 0) <= 0}
-                        title="Decrease by 1"
-                        className="p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] hover:bg-[#E5E5EA] text-[#1C1C1E] text-xs font-bold transition-all disabled:opacity-40 cursor-pointer"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleAdjustOccupancy(shelter.id, 1)}
-                        disabled={isUpdating || (shelter.current_occupancy || 0) >= (shelter.max_capacity || 0)}
-                        title="Increase by 1"
-                        className="p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] hover:bg-[#E5E5EA] text-[#1C1C1E] text-xs font-bold transition-all disabled:opacity-40 cursor-pointer"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
+                {/* Operator Actions */}
+                <div className="flex items-center justify-between pt-3 border-t border-[#F2F2F7] gap-2">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleAdjustOccupancy(shelter.id, -1)}
+                      disabled={isUpdating || (shelter.current_occupancy || 0) <= 0}
+                      title="Decrease by 1"
+                      className="p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] hover:bg-[#E5E5EA] text-[#1C1C1E] text-xs font-bold transition-all disabled:opacity-40 cursor-pointer"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleAdjustOccupancy(shelter.id, 1)}
+                      disabled={isUpdating || (shelter.current_occupancy || 0) >= (shelter.max_capacity || 0)}
+                      title="Increase by 1"
+                      className="p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] hover:bg-[#E5E5EA] text-[#1C1C1E] text-xs font-bold transition-all disabled:opacity-40 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
 
-                      <div className="w-px h-4 bg-gray-200 mx-0.5" />
+                    <div className="w-px h-4 bg-gray-200 mx-0.5" />
 
-                      <button
-                        onClick={() => handleAdjustOccupancy(shelter.id, 10)}
-                        disabled={isUpdating || (shelter.current_occupancy || 0) >= (shelter.max_capacity || 0)}
-                        title="Batch add 10 evacuees (family intake)"
-                        className="px-2 py-1 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-[10px] font-black transition-all disabled:opacity-40 cursor-pointer"
-                      >
-                        +10
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => handleAdjustOccupancy(shelter.id, 10)}
+                      disabled={isUpdating || (shelter.current_occupancy || 0) >= (shelter.max_capacity || 0)}
+                      title="Batch add 10 evacuees (family intake)"
+                      className="px-2 py-1 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-[10px] font-black transition-all disabled:opacity-40 cursor-pointer"
+                    >
+                      +10
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const raw = prompt(`Enter custom number of evacuees to add/subtract for ${shelter.name} (e.g. 5, 25, -15):`, '5');
+                        if (raw !== null) {
+                          const num = parseInt(raw, 10);
+                          if (!isNaN(num) && num !== 0) {
+                            handleAdjustOccupancy(shelter.id, num);
+                          }
+                        }
+                      }}
+                      title="Add or subtract custom amount"
+                      className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 text-[10px] font-black transition-all cursor-pointer"
+                    >
+                      +Custom
+                    </button>
+                  </div>
 
                   <button
                     onClick={() => handleToggleStatus(shelter.id, shelter.status === 'open' ? 'full' : 'open')}
