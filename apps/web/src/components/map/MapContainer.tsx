@@ -11,12 +11,9 @@ import {
   Plus,
   Minus,
   Sun,
-  Moon,
   Radio,
   Home,
   AlertTriangle,
-  Eye,
-  EyeOff,
   Building,
 } from 'lucide-react';
 
@@ -29,10 +26,10 @@ interface MapContainerProps {
   showHazardControls?: boolean;
 }
 
-export type MapTileStyle = 'clean' | 'poi' | 'hybrid' | 'dark' | 'carto';
+export type MapTileStyle = 'clean' | 'poi' | 'hybrid' | 'osm';
 export type FloodScenario = '5yr' | '25yr' | '100yr' | 'none';
 
-// Ultra-Reliable High-Resolution Multi-Engine Basemap Catalog
+// High-Resolution Google Maps & OpenStreetMap Basemap Engine
 const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
@@ -72,25 +69,14 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       tileSize: 256,
       maxzoom: 20,
     },
-    // 4. Carto Positron Light (Ultra-Minimalist Monochromatic Disaster Base)
-    'carto-light-src': {
+    // 4. OpenStreetMap Standard (Global Community Geospatial Base)
+    'osm-src': {
       type: 'raster',
       tiles: [
-        'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-        'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-        'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
       ],
       tileSize: 256,
-      maxzoom: 20,
-    },
-    // 5. ESRI World Dark Gray Canvas (Tactical Night Ops Command Mode)
-    'esri-dark-src': {
-      type: 'raster',
-      tiles: [
-        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-      ],
-      tileSize: 256,
-      maxzoom: 20,
+      maxzoom: 19,
     },
   },
   layers: [
@@ -119,17 +105,9 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       layout: { visibility: 'none' },
     },
     {
-      id: 'base-layer-carto',
+      id: 'base-layer-osm',
       type: 'raster',
-      source: 'carto-light-src',
-      minzoom: 0,
-      maxzoom: 22,
-      layout: { visibility: 'none' },
-    },
-    {
-      id: 'base-layer-dark',
-      type: 'raster',
-      source: 'esri-dark-src',
+      source: 'osm-src',
       minzoom: 0,
       maxzoom: 22,
       layout: { visibility: 'none' },
@@ -138,11 +116,10 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
 };
 
 const TILE_STYLES_INFO: Record<MapTileStyle, { name: string; icon: any; desc: string; previewColor: string }> = {
-  clean: { name: 'Clean Disaster (No POIs)', icon: MapIcon, desc: 'Zero commercial clutter, pure road network', previewColor: '#F8F9FA' },
-  poi: { name: 'City Landmarks & POIs', icon: Building, desc: 'Includes commercial malls, hotels & resorts', previewColor: '#F1F5F9' },
-  hybrid: { name: 'Satellite Aerial', icon: Satellite, desc: 'High-resolution photography & terrain', previewColor: '#2C442A' },
-  carto: { name: 'Minimal Gray Canvas', icon: Sun, desc: 'Monochromatic neutral disaster baseline', previewColor: '#E2E8F0' },
-  dark: { name: 'Dark Tactical Ops', icon: Moon, desc: 'Nocturnal command situational awareness', previewColor: '#1A1D20' },
+  clean: { name: 'Google Clean (No POIs)', icon: MapIcon, desc: 'Zero commercial clutter, pure road network', previewColor: '#F8F9FA' },
+  poi: { name: 'Google Maps (With POIs)', icon: Building, desc: 'Full city landmarks, malls & hotels', previewColor: '#F1F5F9' },
+  hybrid: { name: 'Google Satellite Aerial', icon: Satellite, desc: 'High-resolution photography & terrain', previewColor: '#2C442A' },
+  osm: { name: 'OpenStreetMap', icon: Sun, desc: 'Standard open crowdsourced street map', previewColor: '#E2E8F0' },
 };
 
 export function MapContainer({
@@ -234,7 +211,7 @@ export function MapContainer({
         type: 'line',
         source: 'cebu-city-barangays',
         paint: {
-          'line-color': currentStyle === 'dark' ? '#4A5568' : '#94A3B8',
+          'line-color': '#94A3B8',
           'line-width': 1.0,
           'line-dasharray': [3, 2],
           'line-opacity': 0.65,
@@ -495,7 +472,7 @@ export function MapContainer({
     if (!mapRef.current) return;
     const map = mapRef.current;
 
-    const styles: MapTileStyle[] = ['clean', 'poi', 'hybrid', 'carto', 'dark'];
+    const styles: MapTileStyle[] = ['clean', 'poi', 'hybrid', 'osm'];
     styles.forEach((key) => {
       const layerId = `base-layer-${key}`;
       if (map.getLayer(layerId)) {
@@ -503,14 +480,8 @@ export function MapContainer({
       }
     });
 
-    // Adjust barangay line contrast based on theme
-    if (map.getLayer('cebu-barangay-lines')) {
-      map.setPaintProperty(
-        'cebu-barangay-lines',
-        'line-color',
-        styleKey === 'dark' ? '#718096' : styleKey === 'hybrid' ? '#FFFFFF' : '#94A3B8'
-      );
-    }
+    if (styleKey === 'clean') setShowCommercialPOIs(false);
+    if (styleKey === 'poi') setShowCommercialPOIs(true);
   };
 
   // Instant Toggle for Commercial POIs (Hotels, Resorts, Malls)
@@ -522,7 +493,7 @@ export function MapContainer({
     const targetStyle: MapTileStyle = enabled ? 'poi' : 'clean';
     setCurrentStyle(targetStyle);
 
-    const styles: MapTileStyle[] = ['clean', 'poi', 'hybrid', 'carto', 'dark'];
+    const styles: MapTileStyle[] = ['clean', 'poi', 'hybrid', 'osm'];
     styles.forEach((key) => {
       const layerId = `base-layer-${key}`;
       if (map.getLayer(layerId)) {
@@ -634,7 +605,7 @@ export function MapContainer({
 
                 <div style="margin-top: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 10px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
                   <span style="font-size: 11px; font-weight: 600; color: #64748B;">Refuge Capacity:</span>
-                  <strong style="font-size: 12px; font-weight: 800; color: #0F172A;">${shelter.capacity_people || 500} evacuees</strong>
+                  <strong style="font-size: 12px; font-weight: 800; color: #0F172A;">${shelter.max_capacity || 500} evacuees</strong>
                 </div>
               </div>
             `)
