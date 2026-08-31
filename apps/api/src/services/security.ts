@@ -1,7 +1,10 @@
 import crypto from 'crypto';
 
 // Secret key for HMAC-SHA256 token signing
-const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? (() => { throw new Error('FATAL: JWT_SECRET environment variable must be set in production'); })() : 'cebu_flood_watch_secret_key_89f3a8b29c11e74d6b2c8a19');
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('❌ Missing required environment variable: JWT_SECRET');
+}
 const TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 Days
 
 export interface TokenPayload {
