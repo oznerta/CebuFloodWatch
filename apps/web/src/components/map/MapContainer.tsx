@@ -84,6 +84,28 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       tileSize: 256,
       maxzoom: 19,
     },
+    // 6. 3D Elevation Terrain DEM Source (Terrarium Global 3D Mesh)
+    'terrain-dem': {
+      type: 'raster-dem',
+      tiles: [
+        'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
+      ],
+      encoding: 'terrarium',
+      tileSize: 256,
+      maxzoom: 15,
+    },
+  },
+  terrain: {
+    source: 'terrain-dem',
+    exaggeration: 1.5,
+  },
+  sky: {
+    'sky-color': '#9ecae1',
+    'sky-horizon-blend': 0.5,
+    'horizon-color': '#e8f4f8',
+    'horizon-fog-blend': 0.8,
+    'fog-color': '#dce8f0',
+    'fog-ground-blend': 0.9,
   },
   layers: [
     {
@@ -184,6 +206,7 @@ export function MapContainer({
   const [selectedScenario, setSelectedScenario] = useState<FloodScenario>('25yr');
   const [showCommercialPOIs, setShowCommercialPOIs] = useState(false);
   const [show3DBuildings, setShow3DBuildings] = useState(true);
+  const [show3DTerrain, setShow3DTerrain] = useState(true);
   const [showStations, setShowStations] = useState(true);
   const [showShelters, setShowShelters] = useState(true);
   const [showReports, setShowReports] = useState(true);
@@ -490,8 +513,9 @@ export function MapContainer({
       zoom: 14.5,
       minZoom: 10.0,
       maxZoom: 20.5,
-      pitch: 45, // Default UP NOAH 3D Tilt
-      bearing: -15, // Axonometric angle
+      pitch: 55, // UP NOAH 3D Perspective Tilt
+      bearing: -20, // Axonometric angle overlooking mountain spine
+      maxPitch: 85, // Allow tilting all the way to mountain horizon
       attributionControl: false,
     });
 
@@ -542,10 +566,11 @@ export function MapContainer({
 
     if (styleKey === '3d') {
       setShow3DBuildings(true);
+      setShow3DTerrain(true);
       if (map.getLayer('3d-buildings')) {
         map.setLayoutProperty('3d-buildings', 'visibility', 'visible');
       }
-      map.easeTo({ pitch: 48, bearing: -15, duration: 1000 });
+      map.easeTo({ pitch: 58, bearing: -20, duration: 1000 });
       setIs3DMode(true);
     }
 
@@ -579,6 +604,24 @@ export function MapContainer({
       map.setLayoutProperty('3d-buildings', 'visibility', show3DBuildings ? 'visible' : 'none');
     }
   }, [show3DBuildings, mapLoaded]);
+
+  // Sync 3D Terrain DEM Elevation Toggle
+  useEffect(() => {
+    if (!mapRef.current || !mapLoaded) return;
+    const map = mapRef.current;
+    try {
+      if (show3DTerrain) {
+        map.setTerrain({
+          source: 'terrain-dem',
+          exaggeration: 1.5,
+        });
+      } else {
+        map.setTerrain(null as any);
+      }
+    } catch (err) {
+      console.warn('3D Terrain toggle notice:', err);
+    }
+  }, [show3DTerrain, mapLoaded]);
 
   // Sync Scenario Visibility
   useEffect(() => {
@@ -1072,6 +1115,20 @@ export function MapContainer({
                     checked={show3DBuildings}
                     onChange={(e) => setShow3DBuildings(e.target.checked)}
                     className="rounded text-blue-600 focus:ring-0 cursor-pointer w-4 h-4"
+                  />
+                </label>
+
+                {/* 3D Mountain Terrain DEM Mesh Switch (UP NOAH Feature) */}
+                <label className="flex items-center justify-between cursor-pointer select-none bg-emerald-50/80 p-2 rounded-xl border border-emerald-200">
+                  <span className="flex items-center gap-1.5 text-emerald-900 font-extrabold">
+                    <Mountain className="w-3.5 h-3.5 text-emerald-600" />
+                    3D Mountain Elevation (UP NOAH DEM)
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={show3DTerrain}
+                    onChange={(e) => setShow3DTerrain(e.target.checked)}
+                    className="rounded text-emerald-600 focus:ring-0 cursor-pointer w-4 h-4"
                   />
                 </label>
 
