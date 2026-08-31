@@ -1,10 +1,10 @@
 import crypto from 'crypto';
 
-// Secret key for HMAC-SHA256 token signing
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error('❌ Missing required environment variable: JWT_SECRET');
-}
+const JWT_SECRET: string = (() => {
+  const val = process.env.JWT_SECRET;
+  if (!val) throw new Error('❌ Missing required environment variable: JWT_SECRET');
+  return val;
+})();
 const TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 Days
 
 export interface TokenPayload {
