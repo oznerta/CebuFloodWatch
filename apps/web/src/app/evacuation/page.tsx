@@ -332,24 +332,37 @@ export default function EvacuationPage() {
                   )}
                 </div>
 
-                {/* Operator Actions */}
-                <div className="flex items-center justify-between pt-3 border-t border-[#F2F2F7] gap-2">
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleAdjustOccupancy(shelter.id, -10)}
-                      disabled={isUpdating || (shelter.current_occupancy || 0) <= 0}
-                      className="p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] hover:bg-[#E5E5EA] text-[#1C1C1E] text-xs font-bold transition-all disabled:opacity-40 cursor-pointer"
-                    >
-                      <Minus className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleAdjustOccupancy(shelter.id, 10)}
-                      disabled={isUpdating || (shelter.current_occupancy || 0) >= (shelter.max_capacity || 0)}
-                      className="p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] hover:bg-[#E5E5EA] text-[#1C1C1E] text-xs font-bold transition-all disabled:opacity-40 cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  {/* Operator Actions */}
+                  <div className="flex items-center justify-between pt-3 border-t border-[#F2F2F7] gap-2">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleAdjustOccupancy(shelter.id, -1)}
+                        disabled={isUpdating || (shelter.current_occupancy || 0) <= 0}
+                        title="Decrease by 1"
+                        className="p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] hover:bg-[#E5E5EA] text-[#1C1C1E] text-xs font-bold transition-all disabled:opacity-40 cursor-pointer"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleAdjustOccupancy(shelter.id, 1)}
+                        disabled={isUpdating || (shelter.current_occupancy || 0) >= (shelter.max_capacity || 0)}
+                        title="Increase by 1"
+                        className="p-2 rounded-xl bg-[#F8F9FA] border border-[#E5E5EA] hover:bg-[#E5E5EA] text-[#1C1C1E] text-xs font-bold transition-all disabled:opacity-40 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+
+                      <div className="w-px h-4 bg-gray-200 mx-0.5" />
+
+                      <button
+                        onClick={() => handleAdjustOccupancy(shelter.id, 10)}
+                        disabled={isUpdating || (shelter.current_occupancy || 0) >= (shelter.max_capacity || 0)}
+                        title="Batch add 10 evacuees (family intake)"
+                        className="px-2 py-1 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-[10px] font-black transition-all disabled:opacity-40 cursor-pointer"
+                      >
+                        +10
+                      </button>
+                    </div>
 
                   <button
                     onClick={() => handleToggleStatus(shelter.id, shelter.status === 'open' ? 'full' : 'open')}
