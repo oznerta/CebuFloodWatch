@@ -15,6 +15,7 @@ import {
   Home,
   AlertTriangle,
   Building,
+  Box,
 } from 'lucide-react';
 
 interface MapContainerProps {
@@ -26,14 +27,19 @@ interface MapContainerProps {
   showHazardControls?: boolean;
 }
 
-export type MapTileStyle = 'clean' | 'poi' | 'hybrid' | 'osm';
+export type MapTileStyle = '3d' | 'clean' | 'poi' | 'hybrid' | 'osm';
 export type FloodScenario = '5yr' | '25yr' | '100yr' | 'none';
 
-// High-Resolution Google Maps & OpenStreetMap Basemap Engine
+// Multi-Engine Geospatial Catalog with 3D Building Extrusions (UP NOAH Specification)
 const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
-    // 1. Google Clean Roads (Default - NO Commercial POIs, NO Hotels, NO Resorts, NO Malls)
+    // 1. OpenMapTiles 3D Vector Geometry Engine (3D Buildings, Road Network & Footprints)
+    'openmaptiles': {
+      type: 'vector',
+      url: 'https://tiles.openfreemap.org/planet',
+    },
+    // 2. Google Clean Roads (Default - NO Commercial POIs, NO Hotels, NO Resorts)
     'google-clean-src': {
       type: 'raster',
       tiles: [
@@ -45,7 +51,7 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       tileSize: 256,
       maxzoom: 20,
     },
-    // 2. Google Standard with Commercial POIs (Hotels, Resorts, Malls)
+    // 3. Google Standard with Commercial POIs (Hotels, Resorts, Malls)
     'google-poi-src': {
       type: 'raster',
       tiles: [
@@ -57,7 +63,7 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       tileSize: 256,
       maxzoom: 20,
     },
-    // 3. Google Hybrid Satellite (High-Res Aerial + Street Overlay)
+    // 4. Google Hybrid Satellite (High-Res Aerial + Street Overlay)
     'google-hybrid-src': {
       type: 'raster',
       tiles: [
@@ -69,7 +75,7 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       tileSize: 256,
       maxzoom: 20,
     },
-    // 4. OpenStreetMap Standard (Global Community Geospatial Base)
+    // 5. OpenStreetMap Standard
     'osm-src': {
       type: 'raster',
       tiles: [
@@ -87,6 +93,14 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       minzoom: 0,
       maxzoom: 22,
       layout: { visibility: 'visible' },
+    },
+    {
+      id: 'base-layer-3d',
+      type: 'raster',
+      source: 'google-clean-src',
+      minzoom: 0,
+      maxzoom: 22,
+      layout: { visibility: 'none' },
     },
     {
       id: 'base-layer-poi',
@@ -112,10 +126,40 @@ const ROOT_MAP_STYLE: maplibregl.StyleSpecification = {
       maxzoom: 22,
       layout: { visibility: 'none' },
     },
+    // 3D Building Extrusions Layer (Elevated structures rising above flood channels)
+    {
+      id: '3d-buildings',
+      source: 'openmaptiles',
+      'source-layer': 'building',
+      type: 'fill-extrusion',
+      minzoom: 13,
+      layout: { visibility: 'visible' },
+      paint: {
+        'fill-extrusion-color': [
+          'interpolate',
+          ['linear'],
+          ['coalesce', ['get', 'render_height'], 6],
+          0, '#D4D4D8',
+          15, '#CBD5E1',
+          35, '#94A3B8',
+          70, '#64748B'
+        ],
+        'fill-extrusion-height': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          13, 0,
+          14, ['coalesce', ['get', 'render_height'], 6]
+        ],
+        'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
+        'fill-extrusion-opacity': 0.88,
+      },
+    },
   ],
 };
 
 const TILE_STYLES_INFO: Record<MapTileStyle, { name: string; icon: any; desc: string; previewColor: string }> = {
+  '3d': { name: 'UP NOAH 3D City (Extrusions)', icon: Box, desc: '3D extruded buildings & pitched terrain mesh', previewColor: '#CBD5E1' },
   clean: { name: 'Google Clean (No POIs)', icon: MapIcon, desc: 'Zero commercial clutter, pure road network', previewColor: '#F8F9FA' },
   poi: { name: 'Google Maps (With POIs)', icon: Building, desc: 'Full city landmarks, malls & hotels', previewColor: '#F1F5F9' },
   hybrid: { name: 'Google Satellite Aerial', icon: Satellite, desc: 'High-resolution photography & terrain', previewColor: '#2C442A' },
@@ -139,17 +183,18 @@ export function MapContainer({
   const [mapLoaded, setMapLoaded] = useState(false);
   const [selectedScenario, setSelectedScenario] = useState<FloodScenario>('25yr');
   const [showCommercialPOIs, setShowCommercialPOIs] = useState(false);
+  const [show3DBuildings, setShow3DBuildings] = useState(true);
   const [showStations, setShowStations] = useState(true);
   const [showShelters, setShowShelters] = useState(true);
   const [showReports, setShowReports] = useState(true);
   const [showBarangays, setShowBarangays] = useState(true);
   const [showBoundary, setShowBoundary] = useState(true);
-  const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('clean');
-  const [is3DMode, setIs3DMode] = useState(false);
+  const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('3d');
+  const [is3DMode, setIs3DMode] = useState(true);
   const [showLayersMenu, setShowLayersMenu] = useState(false);
   const [showStyleMenu, setShowStyleMenu] = useState(false);
   const [mouseCoords, setMouseCoords] = useState<{ lng: number; lat: number } | null>(null);
-  const [currentZoom, setCurrentZoom] = useState<number>(13.5);
+  const [currentZoom, setCurrentZoom] = useState<number>(14.2);
 
   // Setup vector and flood layers on load
   const setupLayers = () => {
@@ -189,7 +234,7 @@ export function MapContainer({
       });
     }
 
-    // 2. All 80 Cebu City Barangay Administrative Lines (Translucent, No Opaque Fills)
+    // 2. All 80 Cebu City Barangay Administrative Lines
     if (!map.getSource('cebu-city-barangays')) {
       map.addSource('cebu-city-barangays', {
         type: 'geojson',
@@ -219,8 +264,8 @@ export function MapContainer({
       });
     }
 
-    // 3. UP NOAH Hydrodynamic Inundation Channels (Soft Translucent Apple Maps Palette)
-    // Low: #FACC15 (Yellow), Medium: #FB923C (Orange), High: #EF4444 (Red)
+    // 3. UP NOAH Hydrodynamic Inundation Channels
+    // Inserted below 3D buildings so floodwaters wrap around buildings!
     const NOAH_FILL_COLOR_EXPRESSION: any = [
       'match',
       ['get', 'hazard_level'],
@@ -245,25 +290,31 @@ export function MapContainer({
         type: 'geojson',
         data: '/data/cebu_flood_5yr.geojson',
       });
-      map.addLayer({
-        id: 'hazard-5yr-fill',
-        type: 'fill',
-        source: 'cebu-flood-5yr',
-        paint: {
-          'fill-color': NOAH_FILL_COLOR_EXPRESSION,
-          'fill-opacity': 0.35,
+      map.addLayer(
+        {
+          id: 'hazard-5yr-fill',
+          type: 'fill',
+          source: 'cebu-flood-5yr',
+          paint: {
+            'fill-color': NOAH_FILL_COLOR_EXPRESSION,
+            'fill-opacity': 0.45,
+          },
         },
-      });
-      map.addLayer({
-        id: 'hazard-5yr-line',
-        type: 'line',
-        source: 'cebu-flood-5yr',
-        paint: {
-          'line-color': NOAH_LINE_COLOR_EXPRESSION,
-          'line-width': 1.2,
-          'line-opacity': 0.85,
+        '3d-buildings' // Render beneath 3D buildings!
+      );
+      map.addLayer(
+        {
+          id: 'hazard-5yr-line',
+          type: 'line',
+          source: 'cebu-flood-5yr',
+          paint: {
+            'line-color': NOAH_LINE_COLOR_EXPRESSION,
+            'line-width': 1.2,
+            'line-opacity': 0.85,
+          },
         },
-      });
+        '3d-buildings'
+      );
     }
 
     // 25-Year (Medium Recurrence / 25-Year Design Storm Plain)
@@ -272,25 +323,31 @@ export function MapContainer({
         type: 'geojson',
         data: '/data/cebu_flood_25yr.geojson',
       });
-      map.addLayer({
-        id: 'hazard-25yr-fill',
-        type: 'fill',
-        source: 'cebu-flood-25yr',
-        paint: {
-          'fill-color': NOAH_FILL_COLOR_EXPRESSION,
-          'fill-opacity': 0.40,
+      map.addLayer(
+        {
+          id: 'hazard-25yr-fill',
+          type: 'fill',
+          source: 'cebu-flood-25yr',
+          paint: {
+            'fill-color': NOAH_FILL_COLOR_EXPRESSION,
+            'fill-opacity': 0.50,
+          },
         },
-      });
-      map.addLayer({
-        id: 'hazard-25yr-line',
-        type: 'line',
-        source: 'cebu-flood-25yr',
-        paint: {
-          'line-color': NOAH_LINE_COLOR_EXPRESSION,
-          'line-width': 1.4,
-          'line-opacity': 0.90,
+        '3d-buildings'
+      );
+      map.addLayer(
+        {
+          id: 'hazard-25yr-line',
+          type: 'line',
+          source: 'cebu-flood-25yr',
+          paint: {
+            'line-color': NOAH_LINE_COLOR_EXPRESSION,
+            'line-width': 1.4,
+            'line-opacity': 0.90,
+          },
         },
-      });
+        '3d-buildings'
+      );
     }
 
     // 100-Year (Severe Recurrence / 100-Year Extreme Flood Plain)
@@ -299,30 +356,35 @@ export function MapContainer({
         type: 'geojson',
         data: '/data/cebu_flood_100yr.geojson',
       });
-      map.addLayer({
-        id: 'hazard-100yr-fill',
-        type: 'fill',
-        source: 'cebu-flood-100yr',
-        paint: {
-          'fill-color': NOAH_FILL_COLOR_EXPRESSION,
-          'fill-opacity': 0.46,
+      map.addLayer(
+        {
+          id: 'hazard-100yr-fill',
+          type: 'fill',
+          source: 'cebu-flood-100yr',
+          paint: {
+            'fill-color': NOAH_FILL_COLOR_EXPRESSION,
+            'fill-opacity': 0.55,
+          },
         },
-      });
-      map.addLayer({
-        id: 'hazard-100yr-line',
-        type: 'line',
-        source: 'cebu-flood-100yr',
-        paint: {
-          'line-color': NOAH_LINE_COLOR_EXPRESSION,
-          'line-width': 1.8,
-          'line-opacity': 0.95,
+        '3d-buildings'
+      );
+      map.addLayer(
+        {
+          id: 'hazard-100yr-line',
+          type: 'line',
+          source: 'cebu-flood-100yr',
+          paint: {
+            'line-color': NOAH_LINE_COLOR_EXPRESSION,
+            'line-width': 1.8,
+            'line-opacity': 0.95,
+          },
         },
-      });
+        '3d-buildings'
+      );
     }
 
-    // Unified Map Click Handler (Dispatches between Flood Polygons & Barangays cleanly)
+    // Unified Map Click Handler
     map.on('click', (e: any) => {
-      // If click originated on a marker or popup, ignore map layer querying
       const target = e.originalEvent?.target as HTMLElement;
       if (target && (target.closest('.maplibregl-marker') || target.closest('.maplibregl-popup'))) {
         return;
@@ -354,7 +416,6 @@ export function MapContainer({
       }
 
       if (layerId.startsWith('hazard-')) {
-        // Flood Hazard Click (Sleek Apple Maps Card)
         const level = Number(props.hazard_level || props.var || 1);
         const returnPeriod = props.return_period || 'UP NOAH Model';
         const depth = props.depth_range || (level === 3 ? '> 1.5m' : level === 2 ? '0.5m - 1.5m' : '0.1m - 0.5m');
@@ -394,7 +455,6 @@ export function MapContainer({
           `)
           .addTo(map);
       } else if (layerId === 'cebu-barangay-fills') {
-        // Barangay Click (Sleek Apple Maps Card)
         const bgyName = props.adm4_name || props.adm4_en || 'Barangay';
         popupRef.current = new maplibregl.Popup({ closeButton: true, className: 'cebu-clean-popup' })
           .setLngLat(e.lngLat)
@@ -419,7 +479,7 @@ export function MapContainer({
     setMapLoaded(true);
   };
 
-  // Initialize MapLibre
+  // Initialize MapLibre with 3D Camera Perspective
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
@@ -427,16 +487,16 @@ export function MapContainer({
       container: mapContainerRef.current,
       style: ROOT_MAP_STYLE,
       center: [123.8950, 10.3160], // Downtown Cebu City Urban Plain
-      zoom: 13.5,
+      zoom: 14.5,
       minZoom: 10.0,
       maxZoom: 20.5,
-      pitch: is3DMode ? 45 : 0,
-      bearing: 0,
+      pitch: 45, // Default UP NOAH 3D Tilt
+      bearing: -15, // Axonometric angle
       attributionControl: false,
     });
 
     map.on('load', setupLayers);
-    
+
     map.on('mousemove', (e: any) => {
       if (e.lngLat) {
         setMouseCoords({ lng: e.lngLat.lng, lat: e.lngLat.lat });
@@ -472,19 +532,28 @@ export function MapContainer({
     if (!mapRef.current) return;
     const map = mapRef.current;
 
-    const styles: MapTileStyle[] = ['clean', 'poi', 'hybrid', 'osm'];
+    const styles: MapTileStyle[] = ['3d', 'clean', 'poi', 'hybrid', 'osm'];
     styles.forEach((key) => {
-      const layerId = `base-layer-${key}`;
+      const layerId = `base-layer-${key === '3d' ? 'clean' : key}`;
       if (map.getLayer(layerId)) {
-        map.setLayoutProperty(layerId, 'visibility', key === styleKey ? 'visible' : 'none');
+        map.setLayoutProperty(layerId, 'visibility', key === styleKey || (styleKey === '3d' && key === 'clean') ? 'visible' : 'none');
       }
     });
+
+    if (styleKey === '3d') {
+      setShow3DBuildings(true);
+      if (map.getLayer('3d-buildings')) {
+        map.setLayoutProperty('3d-buildings', 'visibility', 'visible');
+      }
+      map.easeTo({ pitch: 48, bearing: -15, duration: 1000 });
+      setIs3DMode(true);
+    }
 
     if (styleKey === 'clean') setShowCommercialPOIs(false);
     if (styleKey === 'poi') setShowCommercialPOIs(true);
   };
 
-  // Instant Toggle for Commercial POIs (Hotels, Resorts, Malls)
+  // Instant Toggle for Commercial POIs
   const handleTogglePOIs = (enabled: boolean) => {
     setShowCommercialPOIs(enabled);
     if (!mapRef.current) return;
@@ -493,32 +562,23 @@ export function MapContainer({
     const targetStyle: MapTileStyle = enabled ? 'poi' : 'clean';
     setCurrentStyle(targetStyle);
 
-    const styles: MapTileStyle[] = ['clean', 'poi', 'hybrid', 'osm'];
+    const styles: MapTileStyle[] = ['3d', 'clean', 'poi', 'hybrid', 'osm'];
     styles.forEach((key) => {
-      const layerId = `base-layer-${key}`;
+      const layerId = `base-layer-${key === '3d' ? 'clean' : key}`;
       if (map.getLayer(layerId)) {
         map.setLayoutProperty(layerId, 'visibility', key === targetStyle ? 'visible' : 'none');
       }
     });
   };
 
-  // Sync Commercial POIs toggle with basemap layer
+  // Sync 3D Buildings Toggle
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
     const map = mapRef.current;
-
-    if (currentStyle === 'clean' || currentStyle === 'poi') {
-      const targetStyle = showCommercialPOIs ? 'poi' : 'clean';
-      setCurrentStyle(targetStyle);
-
-      if (map.getLayer('base-layer-clean')) {
-        map.setLayoutProperty('base-layer-clean', 'visibility', !showCommercialPOIs ? 'visible' : 'none');
-      }
-      if (map.getLayer('base-layer-poi')) {
-        map.setLayoutProperty('base-layer-poi', 'visibility', showCommercialPOIs ? 'visible' : 'none');
-      }
+    if (map.getLayer('3d-buildings')) {
+      map.setLayoutProperty('3d-buildings', 'visibility', show3DBuildings ? 'visible' : 'none');
     }
-  }, [showCommercialPOIs, mapLoaded]);
+  }, [show3DBuildings, mapLoaded]);
 
   // Sync Scenario Visibility
   useEffect(() => {
@@ -557,14 +617,14 @@ export function MapContainer({
     }
   }, [showBoundary, showBarangays, mapLoaded]);
 
-  // Render Real Markers: Reports, Shelters, Sensor Stations with individual visibility toggles
+  // Render Real Markers
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
 
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    // 1. Render Evacuation Shelters (if enabled)
+    // 1. Render Evacuation Shelters
     if (showShelters) {
       shelters.forEach((shelter) => {
         if (!shelter.latitude || !shelter.longitude) return;
@@ -616,7 +676,7 @@ export function MapContainer({
       });
     }
 
-    // 2. Render Incident Reports (if enabled)
+    // 2. Render Incident Reports
     if (showReports) {
       reports.forEach((report) => {
         if (!report.latitude || !report.longitude) return;
@@ -667,7 +727,7 @@ export function MapContainer({
       });
     }
 
-    // 3. Render Hydrological River Sensor Stations (if enabled)
+    // 3. Render Hydrological River Sensor Stations
     if (showStations) {
       stations.forEach((st) => {
         if (!st.latitude || !st.longitude) return;
@@ -733,7 +793,7 @@ export function MapContainer({
     }
   }, [reports, shelters, stations, showStations, showShelters, showReports, mapLoaded]);
 
-  // Handle Fly-To Custom Events (Directly opens marker popup without duplicate circle pin)
+  // Handle Fly-To Custom Events
   useEffect(() => {
     const handleFlyTo = (event: any) => {
       if (!mapRef.current) return;
@@ -743,12 +803,11 @@ export function MapContainer({
       mapRef.current.flyTo({
         center: [longitude, latitude],
         zoom: 16.5,
-        pitch: is3DMode ? 45 : 0,
+        pitch: is3DMode ? 48 : 0,
         essential: true,
         duration: 1200,
       });
 
-      // Find the existing marker and toggle its popup open directly
       const targetMarker = markersRef.current.find((m) => {
         const lngLat = m.getLngLat();
         return (
@@ -773,12 +832,12 @@ export function MapContainer({
     if (!mapRef.current) return;
     mapRef.current.flyTo({
       center: [123.8950, 10.3160],
-      zoom: 13.5,
-      pitch: 0,
-      bearing: 0,
+      zoom: 14.2,
+      pitch: 45,
+      bearing: -15,
       duration: 1200,
     });
-    setIs3DMode(false);
+    setIs3DMode(true);
   };
 
   const toggle3DMode = () => {
@@ -848,7 +907,7 @@ export function MapContainer({
           )}
         </div>
 
-        {/* Viewport Actions: Zoom, 3D, Recenter */}
+        {/* Viewport Actions: Zoom, 3D Pitch, Recenter */}
         <div className="flex items-center gap-1 bg-white/95 backdrop-blur-2xl border border-gray-200 p-1 rounded-2xl shadow-lg">
           <button
             onClick={() => mapRef.current?.zoomIn()}
@@ -870,7 +929,7 @@ export function MapContainer({
 
           <button
             onClick={toggle3DMode}
-            title={is3DMode ? 'Switch to 2D Top-Down View' : 'Switch to 3D Terrain Angle'}
+            title={is3DMode ? 'Switch to 2D Top-Down View' : 'Switch to 3D Terrain Angle (UP NOAH Perspective)'}
             className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
               is3DMode
                 ? 'bg-blue-600 text-white shadow-xs'
@@ -882,7 +941,7 @@ export function MapContainer({
 
           <button
             onClick={handleResetToCebuCenter}
-            title="Recenter on Cebu City Urban Plain"
+            title="Recenter on Cebu City 3D View"
             className="w-8 h-8 rounded-xl hover:bg-gray-100 flex items-center justify-center text-blue-600 transition-all cursor-pointer"
           >
             <Compass className="w-4 h-4" />
@@ -1000,7 +1059,21 @@ export function MapContainer({
 
               {/* 2. Operational Markers & Features Toggles */}
               <div className="pt-2 border-t border-gray-100 space-y-2 text-[11px] font-bold text-gray-700">
-                <div className="text-[10px] font-black uppercase text-gray-400">Operational Overlays</div>
+                <div className="text-[10px] font-black uppercase text-gray-400">3D &amp; Operational Overlays</div>
+
+                {/* 3D Extruded Buildings Switch (UP NOAH Feature) */}
+                <label className="flex items-center justify-between cursor-pointer select-none bg-blue-50/80 p-2 rounded-xl border border-blue-200">
+                  <span className="flex items-center gap-1.5 text-blue-900 font-extrabold">
+                    <Box className="w-3.5 h-3.5 text-blue-600" />
+                    3D Extruded Buildings (UP NOAH)
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={show3DBuildings}
+                    onChange={(e) => setShow3DBuildings(e.target.checked)}
+                    className="rounded text-blue-600 focus:ring-0 cursor-pointer w-4 h-4"
+                  />
+                </label>
 
                 {/* Hide Third-Party Commercial POIs Switch */}
                 <label className="flex items-center justify-between cursor-pointer select-none bg-slate-50 p-2 rounded-xl border border-gray-200/80">
@@ -1095,7 +1168,7 @@ export function MapContainer({
       <div className="absolute bottom-6 right-6 z-10 pointer-events-none hidden md:flex items-center gap-3 px-3.5 py-2 rounded-2xl bg-white/95 backdrop-blur-2xl border border-gray-200/90 text-[11px] font-bold text-gray-700 shadow-xl">
         <div className="flex items-center gap-1.5 text-blue-600">
           <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-          <span>WGS84 Datum</span>
+          <span>WGS84 3D Mesh</span>
         </div>
         <span className="w-px h-3 bg-gray-200" />
         <span className="font-mono text-gray-800">Zoom {currentZoom.toFixed(1)}</span>
