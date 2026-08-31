@@ -1,7 +1,7 @@
 # CebuFloodWatch (StormGate)
 
 > **Flood Warning & Evacuation Management System for Metro Cebu**  
-> *Capstone Project · Cebu Institute of Technology - University (CIT-U)*  
+> *Capstone Project · University of Cebu - Banilad Campus (UC-B)*  
 > *Governed by OmniGate AI · Dual-Platform (Mobile + Web)*
 
 ---
@@ -154,5 +154,5 @@ npm run dev
 ---
 
 ## 📄 License & Attribution
-Developed as part of the Senior Capstone Project at **Cebu Institute of Technology - University (CIT-U)**.  
+Developed as part of the Senior Capstone Project at **University of Cebu - Banilad Campus (UC-B)**.  
 Flood Hazard data courtesy of **UP NOAH** and **OpenStreetMap Contributors**.
