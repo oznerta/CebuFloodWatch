@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet, Platform, Text } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { COLORS } from '../constants/theme';
 import { UP_NOAH_CEBU_HAZARD_GEOJSON } from '@cebufloodwatch/shared';
 
@@ -66,7 +67,7 @@ export function MobileMap({
   <script>
     const map = L.map('map', { zoomControl: false }).setView([10.3180, 123.8980], 13);
     
-    // Clean OpenStreetMap standard tile layer (zero watermark)
+    // Clean OpenStreetMap standard tile layer
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors',
       maxZoom: 19
@@ -129,19 +130,38 @@ export function MobileMap({
     `;
   }, [reports, shelters, showHazards]);
 
-  return (
-    <View style={[styles.container, style]}>
-      {Platform.OS === 'web' ? (
+  // On web, use an iframe (existing behaviour)
+  if (Platform.OS === 'web') {
+    return (
+      <View style={[styles.container, style]}>
+        {/* @ts-ignore – iframe is valid on web */}
         <iframe
           title="Cebu Flood Map"
           srcDoc={mapHtml}
           style={{ width: '100%', height: '100%', border: 'none' }}
         />
-      ) : (
-        <View style={styles.nativeFallback}>
-          <Text style={styles.fallbackText}>Metro Cebu Live Spatial Map</Text>
-        </View>
-      )}
+      </View>
+    );
+  }
+
+  // On iOS / Android (including Expo Go) — use react-native-webview
+  return (
+    <View style={[styles.container, style]}>
+      <WebView
+        source={{ html: mapHtml }}
+        style={styles.webview}
+        originWhitelist={['*']}
+        javaScriptEnabled
+        domStorageEnabled
+        startInLoadingState
+        scrollEnabled={false}
+        bounces={false}
+        renderLoading={() => (
+          <View style={styles.loadingOverlay}>
+            <Text style={styles.loadingText}>Loading Cebu Flood Map…</Text>
+          </View>
+        )}
+      />
     </View>
   );
 }
@@ -152,12 +172,17 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#F2F2F7',
   },
-  nativeFallback: {
+  webview: {
     flex: 1,
+    backgroundColor: '#F2F2F7',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#F2F2F7',
   },
-  fallbackText: {
+  loadingText: {
     color: COLORS.textSecondary,
     fontSize: 14,
     fontWeight: '600',
